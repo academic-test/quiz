@@ -25,9 +25,14 @@
         :correct-answer="feedback ? feedback.correctAnswer : null"
         :feedback="feedback"
         :is-last="questionIndex === totalQuestions - 1"
-        :waiting-for-questions="generatingQuestions && questionIndex === questions.length - 1"
+        :is-last-in-block="questionIndex === currentBlock.end"
+        :locked="savedResponses.has(questionIndex)"
+        :waiting-for-questions="generatingQuestions && questionIndex >= questions.length - 1"
         @select="selectAnswer"
         @next="nextQuestion"
+        @skip="skipQuestion"
+        @previous="previousQuestion"
+        @submit="submitTest"
       />
     </section>
 
