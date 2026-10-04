@@ -446,7 +446,8 @@ async function handleBlockTimeout() {
 
   const current = currentQuestion.value;
   if (current && answers.value[current.id] !== undefined && answers.value[current.id] !== null) {
-    await saveCurrentResponse(true);
+    // A selected answer is still a normal answer when the block clock expires.
+    await saveCurrentResponse(false);
   }
 
   if (currentBlockIndex.value === 0) {
