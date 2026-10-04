@@ -27,6 +27,21 @@ th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);vertical-
 th{color:var(--muted);font-size:11px;text-transform:uppercase;white-space:nowrap}
 .time-fast{color:#475467;font-weight:800}.time-good{color:var(--good);font-weight:800}.time-near{color:#b54708;font-weight:800}.time-timeout{color:var(--bad);font-weight:900}
 .result-good{color:var(--good);font-weight:800}.result-bad{color:var(--bad);font-weight:800}
+.section-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px}
+.section-card{padding:18px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.section-card h3{margin:0 0 10px;font-size:16px}
+.section-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.section-stat{padding:10px;background:#fafbfe;border-radius:10px}
+.section-stat span{display:block;font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:800}
+.section-stat strong{display:block;margin-top:3px;font-size:16px}
+.flag{display:inline-block;margin-top:10px;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:900}
+.flag.good{background:#edf9f3;color:#126a49}.flag.watch{background:#fff7e8;color:#9a5d00}.flag.needs{background:#fff0f2;color:#a52e3e}
+.improvement{margin-bottom:18px}
+.improvement h2{font-size:18px;margin-bottom:10px}
+.improvement-list{display:grid;gap:8px}
+.improvement-item{padding:11px 13px;border-radius:10px;background:#fff7e8;color:#7a4b00;font-weight:700}
+.improvement-item.needs{background:#fff0f2;color:#a52e3e}
+@media(max-width:800px){.meta{grid-template-columns:repeat(2,1fr)}.top{flex-direction:column}.section-grid{grid-template-columns:1fr}}
 .back{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer}
 .error{color:var(--bad)}
 @media(max-width:800px){.meta{grid-template-columns:repeat(2,1fr)}.top{flex-direction:column}}
@@ -70,6 +85,11 @@ async function load(){
         <div class="meta-item"><span>Score</span><strong>${a.score==null?"-":esc(a.score+"%")}</strong></div>
       </div>
     </section>
+    <section id="sectionSummary" class="section-grid"></section>
+    <section id="improvement" class="card improvement">
+      <h2>Areas for Improvement</h2>
+      <div id="improvementList" class="improvement-list"></div>
+    </section>
     <section class="card">
       <div class="table-wrap">
         <table>
@@ -80,7 +100,55 @@ async function load(){
         </table>
       </div>
     </section>`;
-  $("content").innerHTML=html;$("content").classList.remove("hidden");
+  $("content").innerHTML=html;
+
+  const order=["numerical","maths","reading","verbal"];
+  const labels={numerical:"Quantitative / Numerical Reasoning",maths:"Mathematics",reading:"Reading",verbal:"Verbal Reasoning"};
+  const grouped={};
+  order.forEach(section=>grouped[section]={correct:0,total:0,time:0,timeouts:0});
+  r.forEach(x=>{
+    const section=x.section;
+    if(!grouped[section])grouped[section]={correct:0,total:0,time:0,timeouts:0};
+    grouped[section].total++;
+    grouped[section].correct+=x.is_correct?1:0;
+    grouped[section].time+=Number(x.response_seconds||0);
+    grouped[section].timeouts+=x.timed_out?1:0;
+  });
+
+  const improvement=[];
+  $("sectionSummary").innerHTML=order.filter(section=>grouped[section].total>0).map(section=>{
+    const g=grouped[section];
+    const accuracy=g.total?g.correct/g.total*100:0;
+    const avg=g.total?g.time/g.total:0;
+    const needsAccuracy=accuracy<70;
+    const slow=avg>25;
+    const timeout=g.timeouts>0;
+    const severity=(needsAccuracy||slow||timeout)?"needs":(accuracy<85||avg>20)?"watch":"good";
+    const flag=severity==="needs"?"Needs attention":severity==="watch"?"Watch this area":"On track";
+    if(needsAccuracy)improvement.push({type:"needs",text:labels[section]+" — accuracy is "+accuracy.toFixed(0)+"%."});
+    if(slow)improvement.push({type:"watch",text:labels[section]+" — average response time is "+avg.toFixed(1)+"s, above the 30s practice limit."});
+    if(timeout)improvement.push({type:"needs",text:labels[section]+" — "+g.timeouts+" timed-out question"+(g.timeouts===1?"":"s")+"."});
+    return `<article class="section-card">
+      <h3>${labels[section]}</h3>
+      <div class="section-stats">
+        <div class="section-stat"><span>Questions</span><strong>${g.total}</strong></div>
+        <div class="section-stat"><span>Total time</span><strong>${(g.time/60).toFixed(1)} min</strong></div>
+        <div class="section-stat"><span>Avg / question</span><strong>${avg.toFixed(1)}s</strong></div>
+      </div>
+      <div class="section-stats" style="margin-top:8px">
+        <div class="section-stat"><span>Accuracy</span><strong>${accuracy.toFixed(0)}%</strong></div>
+        <div class="section-stat"><span>Timed out</span><strong>${g.timeouts}</strong></div>
+        <div class="section-stat"><span>Correct</span><strong>${g.correct}/${g.total}</strong></div>
+      </div>
+      <span class="flag ${severity}">${flag}</span>
+    </article>`;
+  }).join("");
+
+  $("improvementList").innerHTML=improvement.length
+    ? improvement.map(x=>`<div class="improvement-item ${x.type==="needs"?"needs":""}">${x.text}</div>`).join("")
+    : '<div class="improvement-item" style="background:#edf9f3;color:#126a49">No immediate improvement flags from this attempt.</div>';
+
+  $("content").classList.remove("hidden");
 }
 load().catch(e=>{$("error").textContent=e.message;$("error").classList.remove("hidden");});
 </script>
