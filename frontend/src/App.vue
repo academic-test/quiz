@@ -304,9 +304,16 @@ function recordQuestionTime() {
 
 async function saveCurrentResponse(timedOut = false) {
   const question = currentQuestion.value;
-  if (!question || !attemptId.value) return;
+  if (!question || !attemptId.value) return false;
 
-  recordQuestionTime();
+  const answer = answers.value[question.id];
+  if (answer === undefined || answer === null) {
+    // Skipped/unanswered questions are intentionally not recorded.
+    return false;
+  }
+
+  const elapsed = Math.max(0, (performance.now() - questionOpenedAt) / 1000);
+  timeSpent.value[question.id] = (timeSpent.value[question.id] || 0) + elapsed;
   savingResponse.value = true;
 
   try {
@@ -316,113 +323,131 @@ async function saveCurrentResponse(timedOut = false) {
         attempt_id: attemptId.value,
         session_id: sessionId.value,
         question_id: question.id,
-        selected_answer: answers.value[question.id] ?? null,
+        selected_answer: answer,
         timed_out: timedOut,
-        response_seconds: Number((timeSpent.value[question.id] || 0).toFixed(3))
+        response_seconds: Number(timeSpent.value[question.id].toFixed(3))
       })
     });
 
     results.value[question.id] = {
       question,
-      selected: answers.value[question.id] ?? null,
+      selected: answer,
       correct: Boolean(response.correct),
       timeout: Boolean(timedOut),
-      time: timeSpent.value[question.id] || 0
+      time: timeSpent.value[question.id]
     };
-
-    questionStates.value[question.id] = answers.value[question.id] !== undefined && answers.value[question.id] !== null
-      ? "answered"
-      : timedOut
-        ? "skipped"
-        : "skipped";
+    questionStates.value[question.id] = "answered";
+    return true;
+  } catch (error) {
+    console.error("Response save failed", error);
+    startError.value = "Your answer could not be recorded. Please try again.";
+    return false;
   } finally {
     savingResponse.value = false;
   }
 }
 
 async function selectAnswer(index) {
-  if (!currentQuestion.value) return;
+  if (!currentQuestion.value || savingResponse.value) return;
   answers.value[currentQuestion.value.id] = index;
   questionStates.value[currentQuestion.value.id] = "answered";
 }
 
+async function moveTo(index) {
+  if (index < 0 || index >= questions.value.length) return;
+  const previousBlockIndex = currentBlockIndex.value;
+  const current = currentQuestion.value;
+  if (current && answers.value[current.id] !== undefined && answers.value[current.id] !== null) {
+    const saved = await saveCurrentResponse(false);
+    if (!saved) return;
+  }
+
+  questionIndex.value = index;
+
+  if (currentBlockIndex.value !== previousBlockIndex) {
+    startBlockTimer();
+  } else {
+    questionOpenedAt = performance.now();
+  }
+}
+
 async function nextQuestion() {
   if (!currentQuestion.value) return;
-  if (answers.value[currentQuestion.value.id] === undefined) return;
-
-  await saveCurrentResponse(false);
+  const answer = answers.value[currentQuestion.value.id];
+  if (answer === undefined || answer === null) return;
 
   if (questionIndex.value === totalQuestions - 1) {
     await submitTest();
     return;
   }
 
+  const previousBlockIndex = currentBlockIndex.value;
+  const saved = await saveCurrentResponse(false);
+  if (!saved) return;
+
   questionIndex.value += 1;
 
-  if (questionIndex.value === currentBlock.value.start && questionIndex.value > blocks[0].end) {
+  if (currentBlockIndex.value !== previousBlockIndex) {
     startBlockTimer();
+  } else {
+    questionOpenedAt = performance.now();
   }
-
-  if (questionIndex.value >= questions.value.length) {
-    await waitForNextQuestion();
-    if (questionIndex.value >= questions.value.length) return;
-  }
-
-  questionOpenedAt = performance.now();
 }
 
 async function skipQuestion() {
-  if (!currentQuestion.value) return;
-  answers.value[currentQuestion.value.id] = null;
-  questionStates.value[currentQuestion.value.id] = "skipped";
-  await saveCurrentResponse(false);
+  if (!currentQuestion.value || savingResponse.value) return;
+  const question = currentQuestion.value;
+  const answer = answers.value[question.id];
+
+  if (answer !== undefined && answer !== null) return;
+
+  questionStates.value[question.id] = "skipped";
 
   if (questionIndex.value === totalQuestions - 1) {
     await submitTest();
     return;
   }
 
+  const previousBlockIndex = currentBlockIndex.value;
   questionIndex.value += 1;
-  if (questionIndex.value === blocks[1].start) startBlockTimer();
 
-  if (questionIndex.value >= questions.value.length) {
-    await waitForNextQuestion();
-    if (questionIndex.value >= questions.value.length) return;
+  if (currentBlockIndex.value !== previousBlockIndex) {
+    startBlockTimer();
+  } else {
+    questionOpenedAt = performance.now();
   }
-
-  questionOpenedAt = performance.now();
 }
 
 async function previousQuestion() {
   if (questionIndex.value <= currentBlock.value.start) return;
-  await saveCurrentResponse(false);
-  questionIndex.value -= 1;
-  questionOpenedAt = performance.now();
+  await moveTo(questionIndex.value - 1);
 }
 
 async function goToQuestion(index) {
   if (index < currentBlock.value.start || index > currentBlock.value.end) return;
-  if (index >= questions.value.length) return;
-  await saveCurrentResponse(false);
-  questionIndex.value = index;
-  questionOpenedAt = performance.now();
+  await moveTo(index);
 }
 
 async function waitForNextQuestion() {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (questions.value.length > questionIndex.value) {
       generatingQuestions.value = questions.value.length < totalQuestions;
-      return;
+      return true;
     }
     await refreshGeneratedQuestions();
-    if (questions.value.length > questionIndex.value) return;
+    if (questions.value.length > questionIndex.value) return true;
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
+  return questions.value.length > questionIndex.value;
 }
 
 async function handleBlockTimeout() {
   clearTimer();
-  await saveCurrentResponse(true);
+
+  const current = currentQuestion.value;
+  if (current && answers.value[current.id] !== undefined && answers.value[current.id] !== null) {
+    await saveCurrentResponse(true);
+  }
 
   if (currentBlockIndex.value === 0) {
     questionIndex.value = blocks[1].start;
@@ -435,6 +460,7 @@ async function handleBlockTimeout() {
 
   await submitTest(true);
 }
+
 
 async function submitTest(fromTimeout = false) {
   clearTimer();
