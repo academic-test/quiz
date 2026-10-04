@@ -68,7 +68,7 @@
         @next="nextQuestion"
         @skip="skipQuestion"
         @previous="previousQuestion"
-        @submit="submitTest"
+        @submit="submitBlock"
       />
 
       <p v-if="generationMessage" class="generation-message">{{ generationMessage }}</p>
