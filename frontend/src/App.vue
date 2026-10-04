@@ -82,7 +82,7 @@ const remaining = ref(0);
 const feedback = ref(null);
 const results = ref([]);
 const generatingQuestions = ref(false);
-const totalQuestions = 230;
+// totalQuestions is defined above
 let questionPollHandle = null;
 let timerHandle = null;
 let startedAt = 0;
