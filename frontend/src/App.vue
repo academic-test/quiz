@@ -62,6 +62,8 @@
         :is-last-in-block="questionIndex === currentBlock.end"
         :waiting-for-questions="generatingQuestions && questionIndex >= questions.length - 1"
         :saving="savingResponse"
+        :section-complete="sectionComplete"
+        :unanswered-count="unansweredCount"
         @select="selectAnswer"
         @next="nextQuestion"
         @skip="skipQuestion"
@@ -143,6 +145,11 @@ const progressPercent = computed(() => {
 });
 const answeredCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "answered").length);
 const skippedCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "skipped").length);
+const sectionComplete = computed(() =>
+  currentBlockQuestions.value.length === currentBlock.value.size &&
+  answeredCount.value === currentBlock.value.size
+);
+const unansweredCount = computed(() => currentBlock.value.size - answeredCount.value);
 const generationMessage = computed(() => {
   if (!generatingQuestions.value) return "";
   return "More questions are being prepared in the background. You can continue as they become available.";
@@ -375,23 +382,34 @@ async function nextQuestion() {
   if (!currentQuestion.value) return;
   const answer = answers.value[currentQuestion.value.id];
   if (answer === undefined || answer === null) return;
+  if (questionIndex.value >= currentBlock.value.end) return;
 
-  if (questionIndex.value === totalQuestions - 1) {
-    await submitTest();
-    return;
-  }
-
-  const previousBlockIndex = currentBlockIndex.value;
   const saved = await saveCurrentResponse(false);
   if (!saved) return;
 
   questionIndex.value += 1;
+  questionOpenedAt = performance.now();
+}
 
-  if (currentBlockIndex.value !== previousBlockIndex) {
+async function submitBlock() {
+  if (!currentQuestion.value || !sectionComplete.value) return;
+
+  const saved = await saveCurrentResponse(false);
+  if (!saved) return;
+
+  clearTimer();
+
+  if (currentBlockIndex.value === 0) {
+    questionIndex.value = blocks[1].start;
+    const ready = await waitForNextQuestion();
+    if (!ready) return;
     startBlockTimer();
-  } else {
     questionOpenedAt = performance.now();
+    return;
   }
+
+  await finishAttempt();
+  screen.value = "results";
 }
 
 async function skipQuestion() {
