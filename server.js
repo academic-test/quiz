@@ -528,9 +528,14 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
 
 app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-  const { data, error } = await supabase.from("quiz_responses").select("*").eq("attempt_id",req.params.id).order("answered_at",{ascending:true});
-  if (error) return res.status(400).json({ error:error.message });
-  res.json({ responses:data || [] });
+  const [{ data: attempt, error: attemptError }, { data: responses, error: responseError }] = await Promise.all([
+    supabase.from("quiz_attempts").select("*").eq("id", req.params.id).maybeSingle(),
+    supabase.from("quiz_responses").select("*").eq("attempt_id", req.params.id).order("answered_at",{ascending:true})
+  ]);
+  if (attemptError) return res.status(400).json({ error:attemptError.message });
+  if (!attempt) return res.status(404).json({ error:"Attempt not found" });
+  if (responseError) return res.status(400).json({ error:responseError.message });
+  res.json({ attempt, responses:responses || [] });
 });
 
 app.get("/api/questions", async (req,res) => {
