@@ -1,8 +1,14 @@
 <template>
-  <div class="timer-wrap" :class="{ warning: remaining <= 15 && remaining > 5, danger: remaining <= 5 }">
-    <span>TIME</span><strong>{{ remaining }}</strong><span>s</span>
+  <div class="timer-wrap" :class="{ warning: remaining <= 300 && remaining > 60, danger: remaining <= 60 }">
+    <span>TIME LEFT</span><strong>{{ minutes }}:{{ seconds }}</strong>
   </div>
 </template>
 <script setup>
-defineProps({ remaining: { type: Number, required: true } });
+import { computed } from "vue";
+const props = defineProps({
+  remaining: { type: Number, required: true },
+  label: { type: String, default: "" }
+});
+const minutes = computed(() => Math.floor(Math.max(0, props.remaining) / 60).toString().padStart(2, "0"));
+const seconds = computed(() => Math.floor(Math.max(0, props.remaining) % 60).toString().padStart(2, "0"));
 </script>
