@@ -624,31 +624,62 @@ app.post("/api/responses", async (req,res) => {
 
   if (!validUuid(session_id) || !attempt_id || !question_id) return res.status(400).json({ error:"Invalid response data" });
 
-  const { data: attempt } = await supabase.from("quiz_attempts").select("id").eq("id",attempt_id).eq("session_id",session_id).maybeSingle();
+  const { data: attempt } = await supabase
+    .from("quiz_attempts")
+    .select("id")
+    .eq("id", attempt_id)
+    .eq("session_id", session_id)
+    .maybeSingle();
+
   if (!attempt) return res.status(400).json({ error:"Attempt not found" });
 
   const { data: question, error:questionError } = await supabase
     .from("generated_questions")
     .select("*")
-    .eq("id",question_id)
-    .eq("session_id",session_id)
-    .eq("ip_hash",ipHash(req))
+    .eq("id", question_id)
+    .eq("session_id", session_id)
+    .eq("ip_hash", ipHash(req))
     .maybeSingle();
 
   if (questionError || !question) return res.status(400).json({ error:"Question not found" });
 
-  const correct = !timed_out && Number(selected_answer) === question.correct_answer;
-  const { error } = await supabase.from("quiz_responses").insert({
-    attempt_id, session_id, question_id, section:question.section, difficulty:question.difficulty,
-    selected_answer:selected_answer ?? null, correct_answer:question.correct_answer, is_correct:correct,
-    timed_out:Boolean(timed_out), response_seconds:Number(response_seconds || 0),
-    question_text:question.question_text, answer_options:question.answer_options
-  });
+  const chosen = selected_answer === null || selected_answer === undefined ? null : Number(selected_answer);
+  const timedOut = Boolean(timed_out);
+  const correct = !timedOut && chosen !== null && chosen === question.correct_answer;
+
+  const payload = {
+    attempt_id,
+    session_id,
+    question_id,
+    section: question.section,
+    difficulty: question.difficulty,
+    selected_answer: chosen,
+    correct_answer: question.correct_answer,
+    is_correct: correct,
+    timed_out: timedOut,
+    response_seconds: Number(response_seconds || 0),
+    answered_at: new Date().toISOString(),
+    question_text: question.question_text,
+    answer_options: question.answer_options
+  };
+
+  const { data: existing } = await supabase
+    .from("quiz_responses")
+    .select("id")
+    .eq("attempt_id", attempt_id)
+    .eq("question_id", question_id)
+    .maybeSingle();
+
+  let error = null;
+  if (existing) {
+    ({ error } = await supabase.from("quiz_responses").update(payload).eq("id", existing.id));
+  } else {
+    ({ error } = await supabase.from("quiz_responses").insert(payload));
+  }
 
   if (error) return res.status(400).json({ error:error.message });
-  res.status(201).json({ ok:true, correct, correct_answer:question.correct_answer, explanation:question.explanation });
+  res.status(200).json({ ok:true, correct, correct_answer:question.correct_answer, explanation:question.explanation });
 });
-
 app.patch("/api/attempts/:id", async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
   const { session_id } = req.body || {};
