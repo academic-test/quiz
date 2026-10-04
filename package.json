@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite --config frontend/vite.config.js",
     "build": "vite build --config frontend/vite.config.js",
+    "postinstall": "npm run build",
     "start": "node server.js"
   },
   "dependencies": {
