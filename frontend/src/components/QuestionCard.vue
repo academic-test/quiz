@@ -46,7 +46,7 @@
       <button
         class="secondary-btn skip-btn"
         type="button"
-        :disabled="saving || selected !== null && selected !== undefined"
+        :disabled="saving || locked || selected !== null && selected !== undefined"
         @click="$emit('skip')"
       >
         Skip
@@ -56,20 +56,20 @@
         v-if="!isLastInBlock"
         class="secondary-btn"
         type="button"
-        :disabled="selected === null || selected === undefined || waitingForQuestions || saving"
+        :disabled="(!feedback && (selected === null || selected === undefined)) || waitingForQuestions || saving"
         @click="$emit('next')"
       >
-        {{ waitingForQuestions ? "Preparing…" : "Next →" }}
+        {{ feedback ? "Continue →" : "Next →" }}
       </button>
 
       <button
         v-else
         class="primary-btn"
         type="button"
-        :disabled="!sectionComplete || waitingForQuestions || saving"
+        :disabled="(!feedback && (selected === null || selected === undefined)) || waitingForQuestions || saving || (feedback && !sectionComplete)"
         @click="$emit('submit')"
       >
-        {{ isLast ? "Submit Test" : "Submit Section & Continue →" }}
+        {{ feedback ? (isLast ? "Submit Test" : "Submit Section & Continue →") : "Submit Answer & Review" }}
       </button>
     </div>
 
