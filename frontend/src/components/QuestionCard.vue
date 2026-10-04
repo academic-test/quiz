@@ -16,8 +16,8 @@
     </div>
     <div v-if="submitted" class="feedback" :class="feedbackClass">{{ feedbackText }}</div>
     <div class="action-row">
-      <button v-if="submitted" class="secondary-btn" type="button" @click="$emit('next')">
-        {{ isLast ? "See Results →" : "Next Question →" }}
+      <button v-if="submitted" class="secondary-btn" type="button" :disabled="waitingForQuestions" @click="$emit('next')">
+        {{ waitingForQuestions ? "Generating next questions…" : isLast ? "See Results →" : "Next Question →" }}
       </button>
     </div>
   </article>
@@ -28,7 +28,7 @@ const props=defineProps({
   question:{type:Object,required:true}, sectionLabel:{type:String,required:true},
   selected:{type:Number,default:null}, submitted:{type:Boolean,default:false},
   correctAnswer:{type:Number,default:null}, feedback:{type:Object,default:null},
-  isLast:{type:Boolean,default:false}
+  isLast:{type:Boolean,default:false}, waitingForQuestions:{type:Boolean,default:false}
 });
 defineEmits(["select","submit","next"]);
 const feedbackClass=computed(()=>props.feedback?(props.feedback.timeout?"timeout":props.feedback.correct?"good":"bad"):"");
