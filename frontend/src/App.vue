@@ -66,6 +66,8 @@ const labels = {
   reading: "Reading Comprehension"
 };
 
+const blocks = [{ label:"Mathematics + Quantitative Reasoning", start:0, end:119, duration:3600 }, { label:"Reading + Verbal Reasoning", start:120, end:229, duration:3300 }];
+const totalQuestions = 230;
 const screen = ref("start");
 const studentName = ref("");
 const startError = ref("");
