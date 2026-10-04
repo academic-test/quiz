@@ -417,35 +417,49 @@ function makeQuestion(section) {
   return makeReadingQuestion();
 }
 
-async function generateQuestions(req, sessionId, count) {
+async function generateQuestions(req, sessionId, targetCount) {
   if (!supabase) return [];
+
   const hash = ipHash(req);
 
-  const { data: usedRows } = await supabase
-    .from("generated_questions")
-    .select("id")
-    .eq("ip_hash", hash);
+  const [{ data: usedRows }, { data: sessionRows }] = await Promise.all([
+    supabase.from("generated_questions").select("id").eq("ip_hash", hash),
+    supabase.from("generated_questions").select("id,section").eq("session_id", sessionId).eq("year_level", "9")
+  ]);
 
   const usedIds = new Set((usedRows || []).map(row => row.id));
+  const sessionCounts = { numerical: 0, maths: 0, reading: 0, verbal: 0 };
+  for (const row of sessionRows || []) {
+    if (sessionCounts[row.section] !== undefined) sessionCounts[row.section] += 1;
+  }
+
   const quotas = [
     ["numerical", 60],
     ["maths", 60],
     ["reading", 55],
     ["verbal", 55]
   ];
-  const questions = [];
+
+  const currentTotal = Object.values(sessionCounts).reduce((sum, value) => sum + value, 0);
+  const toGenerate = Math.max(0, targetCount - currentTotal);
+  if (!toGenerate) return [];
+
+  const pending = [];
   let attempts = 0;
 
-  while (questions.length < count && attempts < count * 80) {
+  while (pending.length < toGenerate && attempts < toGenerate * 120) {
     attempts += 1;
-    let section = "verbal";
+
+    let section = null;
     for (const [candidate, quota] of quotas) {
-      const current = questions.filter(item => item.section === candidate).length;
-      if (current < quota) {
+      if (sessionCounts[candidate] + pending.filter(item => item.section === candidate).length < quota) {
         section = candidate;
         break;
       }
     }
+
+    if (!section) break;
+
     const question = makeQuestion(section);
     question.year_level = "9";
     question.session_id = sessionId;
@@ -453,31 +467,40 @@ async function generateQuestions(req, sessionId, count) {
     question.time = 30;
     question.id = generatedId(question);
 
-    if (usedIds.has(question.id) || questions.some(item => item.id === question.id)) continue;
+    if (usedIds.has(question.id) || pending.some(item => item.id === question.id)) continue;
 
-    const { error } = await supabase.from("generated_questions").insert({
-      id: question.id,
-      session_id: question.session_id,
-      ip_hash: question.ip_hash,
-      year_level: "9",
-      section: question.section,
-      difficulty: question.difficulty,
-      time: question.time,
-      question_text: question.question_text,
-      passage: question.passage || null,
-      answer_options: question.answer_options,
-      correct_answer: question.correct_answer,
-      explanation: question.explanation
-    });
-
-    if (error) continue;
-    questions.push(question);
+    pending.push(question);
     usedIds.add(question.id);
   }
 
-  return questions;
-}
+  if (!pending.length) return [];
 
+  const rowsToInsert = pending.map(question => ({
+    id: question.id,
+    session_id: question.session_id,
+    ip_hash: question.ip_hash,
+    year_level: "9",
+    section: question.section,
+    difficulty: question.difficulty,
+    time: question.time,
+    question_text: question.question_text,
+    passage: question.passage || null,
+    answer_options: question.answer_options,
+    correct_answer: question.correct_answer,
+    explanation: question.explanation
+  }));
+
+  for (let i = 0; i < rowsToInsert.length; i += 25) {
+    const batch = rowsToInsert.slice(i, i + 25);
+    const { error } = await supabase.from("generated_questions").insert(batch);
+    if (error) {
+      console.error("Question batch insert failed", error);
+      continue;
+    }
+  }
+
+  return pending;
+}
 app.get("/health", (req, res) => res.json({ ok: true, supabaseConfigured: Boolean(supabase) }));
 
 app.post("/api/admin/login", (req,res) => {
