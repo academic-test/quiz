@@ -123,6 +123,7 @@ const answers = ref({});
 const questionStates = ref({});
 const timeSpent = ref({});
 const results = ref({});
+const submittedBlocks = ref({});
 const remaining = ref(0);
 const generatingQuestions = ref(false);
 let questionPollHandle = null;
@@ -392,14 +393,17 @@ async function nextQuestion() {
 }
 
 async function submitBlock() {
+  const blockIndex = currentBlockIndex.value;
+  if (submittedBlocks.value[blockIndex]) return;
   if (!currentQuestion.value || !sectionComplete.value) return;
 
   const saved = await saveCurrentResponse(false);
   if (!saved) return;
 
   clearTimer();
+  submittedBlocks.value[blockIndex] = true;
 
-  if (currentBlockIndex.value === 0) {
+  if (blockIndex === 0) {
     questionIndex.value = blocks[1].start;
     const ready = await waitForNextQuestion();
     if (!ready) return;
@@ -419,21 +423,17 @@ async function skipQuestion() {
 
   if (answer !== undefined && answer !== null) return;
 
+  // Skipping records neither the answer nor the time spent.
   questionStates.value[question.id] = "skipped";
 
-  if (questionIndex.value === totalQuestions - 1) {
-    await submitTest();
+  if (questionIndex.value >= currentBlock.value.end) {
+    // Stay on the final question of the block. The student must revisit it
+    // and answer it before the explicit section submission becomes available.
     return;
   }
 
-  const previousBlockIndex = currentBlockIndex.value;
   questionIndex.value += 1;
-
-  if (currentBlockIndex.value !== previousBlockIndex) {
-    startBlockTimer();
-  } else {
-    questionOpenedAt = performance.now();
-  }
+  questionOpenedAt = performance.now();
 }
 
 async function previousQuestion() {
@@ -522,6 +522,7 @@ function reset() {
   screen.value = "start";
   questions.value = [];
   results.value = {};
+  submittedBlocks.value = {};
   answers.value = {};
   questionStates.value = {};
   timeSpent.value = {};
