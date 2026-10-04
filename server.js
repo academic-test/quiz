@@ -193,59 +193,222 @@ function makeVerbalQuestion() {
   const type = Math.floor(Math.random() * 6);
 
   if (type === 0) {
-    const pair = pick([["brief","concise"],["rapid","swift"],["accurate","precise"],["cautious","careful"],["observe","notice"]]);
-    const result = withAnswer(pair[1],["noisy","ancient","fragile","distant"]);
+    const pair = pick([
+      ["brief","concise"],["rapid","swift"],["accurate","precise"],["cautious","careful"],["observe","notice"],
+      ["abundant","plentiful"],["assist","help"],["fortunate","lucky"],["ancient","old"],["difficult","challenging"],
+      ["essential","necessary"],["fragile","delicate"],["generous","charitable"],["silent","quiet"],["certain","sure"]
+    ]);
+    const result = withAnswer(pair[1],["noisy","hostile","distant","fragile"]);
     return { section:"verbal", difficulty:"medium", time:50, question_text:"Which word is closest in meaning to '" + pair[0] + "'?", answer_options:result.options, correct_answer:result.index, explanation:"'" + pair[1] + "' is the closest synonym." };
   }
 
   if (type === 1) {
-    const pair = pick([["reluctant","eager"],["ancient","modern"],["scarce","abundant"],["temporary","permanent"],["expand","contract"]]);
+    const pair = pick([
+      ["reluctant","eager"],["ancient","modern"],["scarce","abundant"],["temporary","permanent"],["expand","contract"],
+      ["victory","defeat"],["complex","simple"],["generous","selfish"],["optimistic","pessimistic"],["arrive","depart"],
+      ["include","exclude"],["rigid","flexible"],["superior","inferior"],["visible","hidden"],["increase","decrease"]
+    ]);
     const result = withAnswer(pair[1],[pair[0],"fragile","curious","silent"]);
     return { section:"verbal", difficulty:"medium", time:50, question_text:"Which word is most nearly opposite in meaning to '" + pair[0] + "'?", answer_options:result.options, correct_answer:result.index, explanation:"'" + pair[1] + "' is the closest antonym." };
   }
 
   if (type === 2) {
-    const pair = pick([["SCULPTOR","STATUE","CARTOGRAPHER","MAP"],["AUTHOR","BOOK","COMPOSER","MUSIC"],["ARCHITECT","BUILDING","CHEF","MEAL"],["PAINTER","PORTRAIT","PHOTOGRAPHER","PHOTO"]]);
+    const pairs = [
+      ["SCULPTOR","STATUE","CARTOGRAPHER","MAP"],["AUTHOR","BOOK","COMPOSER","MUSIC"],["ARCHITECT","BUILDING","CHEF","MEAL"],
+      ["PAINTER","PORTRAIT","PHOTOGRAPHER","PHOTO"],["CARPENTER","FURNITURE","POTTER","POT"],["DIRECTOR","FILM","EDITOR","ARTICLE"],
+      ["TAILOR","CLOTHING","BAKER","BREAD"],["BOTANIST","PLANT","ORNITHOLOGIST","BIRD"],["ENGINEER","BRIDGE","PROGRAMMER","SOFTWARE"],
+      ["DENTIST","TEETH","VET","ANIMAL"],["FARMER","CROP","MINER","ORE"],["POET","VERSE","JOURNALIST","REPORT"]
+    ];
+    const pair = pick(pairs);
     const result = withAnswer(pair[3],[pair[2],"journey","tool","theatre"]);
-    return { section:"verbal", difficulty:"hard", time:55, question_text:pair[0]+" is to "+pair[1]+" as "+pair[2]+" is to:", answer_options:result.options, correct_answer:result.index, explanation:"The first pair shows a creator and what that creator produces." };
+    return { section:"verbal", difficulty:"hard", time:55, question_text:pair[0]+" is to "+pair[1]+" as "+pair[2]+" is to:", answer_options:result.options, correct_answer:result.index, explanation:"The first pair shows a creator or professional and what they produce or work with." };
   }
 
   if (type === 3) {
-    const group = pick([["generous","charitable","benevolent","selfish"],["rapid","swift","brisk","sluggish"],["fragile","delicate","breakable","durable"],["silent","quiet","soundless","noisy"]]);
+    const group = pick([
+      ["generous","charitable","benevolent","selfish"],["rapid","swift","brisk","sluggish"],["fragile","delicate","breakable","durable"],
+      ["silent","quiet","soundless","noisy"],["ancient","old","historic","modern"],["careful","cautious","prudent","reckless"],
+      ["cheerful","joyful","merry","gloomy"],["honest","truthful","sincere","deceitful"],["tiny","small","minute","enormous"],
+      ["angry","furious","irate","calm"],["clever","bright","intelligent","foolish"],["quick","rapid","speedy","sluggish"],
+      ["assist","help","aid","hinder"],["begin","start","commence","finish"],["difficult","hard","challenging","easy"]
+    ]);
     const result = withAnswer(group[3],group.slice(0,3));
-    return { section:"verbal", difficulty:"medium", time:50, question_text:"Which word is the odd one out?", answer_options:result.options, correct_answer:result.index, explanation:"The other words share a closer meaning or characteristic." };
+    return { section:"verbal", difficulty:"medium", time:50, question_text:"Which word is the odd one out?", answer_options:result.options, correct_answer:result.index, explanation:"The other three words share a closer meaning or characteristic." };
   }
 
   if (type === 4) {
-    const code = pick([["nems","tavs","lorps"],["daxs","mivs","sorns"],["pels","rins","vorts"]]);
-    return { section:"verbal", difficulty:"hard", time:60, question_text:"If all "+code[0]+" are "+code[1]+" and no "+code[1]+" are "+code[2]+", which statement must be true?", answer_options:["No "+code[0]+" are "+code[2],"All "+code[2]+" are "+code[0],"Some "+code[1]+" are "+code[2],"All "+code[0]+" are "+code[2],"No "+code[0]+" exist"], correct_answer:0, explanation:"Anything that is a "+code[0]+" must be a "+code[1]+", and no "+code[1]+" can be a "+code[2]+"." };
+    const code = pick([
+      ["nems","tavs","lorps"],["daxs","mivs","sorns"],["pels","rins","vorts"],["kems","bavs","jors"],
+      ["wexs","fins","grols"],["tens","dovs","paks"],["rims","cals","zors"],["hans","pevs","qors"],
+      ["lums","savs","norts"],["gavs","tirs","wens"],["beks","mors","dals"],["fens","rals","vims"]
+    ]);
+    return {
+      section:"verbal", difficulty:"hard", time:60,
+      question_text:"If all "+code[0]+" are "+code[1]+" and no "+code[1]+" are "+code[2]+", which statement must be true?",
+      answer_options:["No "+code[0]+" are "+code[2],"All "+code[2]+" are "+code[0],"Some "+code[1]+" are "+code[2],"All "+code[0]+" are "+code[2],"No "+code[0]+" exist"],
+      correct_answer:0,
+      explanation:"Anything that is a "+code[0]+" must be a "+code[1]+", and no "+code[1]+" can be a "+code[2]+"."
+    };
   }
 
   const context = pick([
     ["The engineer remained ___ when the first model failed.","composed"],
     ["The witness gave a ___ account of the events, avoiding unnecessary detail.","succinct"],
     ["The student made a ___ decision after considering the evidence carefully.","prudent"],
-    ["The explanation was ___ enough to be accepted by the panel.","plausible"]
+    ["The explanation was ___ enough to be accepted by the panel.","plausible"],
+    ["The captain was ___ about changing the plan until more evidence arrived.","reluctant"],
+    ["The instructions were ___ and easy to follow.","explicit"],
+    ["The scientist offered a ___ explanation that fitted the available evidence.","credible"],
+    ["The hikers were ___ of the weather and checked the forecast twice.","mindful"],
+    ["The manager remained ___ during the difficult negotiation.","calm"],
+    ["The reporter tried to remain ___ and describe only what could be verified.","objective"],
+    ["The solution was ___ because it used very few resources.","efficient"],
+    ["The teacher gave a ___ summary before the class discussion began.","concise"],
+    ["The student was ___ to question the first answer and check the calculation.","inclined"],
+    ["The committee reached a ___ decision after reviewing all the evidence.","reasoned"],
+    ["The mechanic gave a ___ estimate after inspecting the vehicle.","realistic"]
   ]);
   const result = withAnswer(context[1],["reckless","fragile","hostile","lengthy"]);
   return { section:"verbal", difficulty:"medium", time:50, question_text:context[0], answer_options:result.options, correct_answer:result.index, explanation:"The context requires the word '"+context[1]+"'." };
 }
-
 function makeReadingQuestion() {
-  const items = [
-    ["Nadia compared two maps of her town. The newer map showed a footbridge that did not appear on the older map. She became curious about when the bridge had been built.","What prompted Nadia's curiosity?","The bridge appeared only on the newer map.",["The maps were identical.","The town had moved.","She lost one map.","The bridge was closed."]],
-    ["The school garden began as a bare patch beside the library. Students planted herbs and native flowers. Months later, bees returned and the science teacher began using the garden during lessons.","What is the main idea?","Students transformed an unused area into a useful garden.",["The library was moved.","Bees damaged the garden.","The science teacher stopped teaching.","The garden was removed."]],
-    ["When the microphone failed during Leo's presentation, he moved closer to the audience and continued. His voice became steadier as he went on.","What can be inferred about Leo?","He adapted when something unexpected went wrong.",["He had forgotten the topic.","He refused to continue.","He was not prepared.","He left the room."]],
-    ["A council planned to remove several trees to widen a road. After examining traffic data, it changed the design so that fewer trees were removed.","Why did the council change the plan?","New evidence influenced the decision.",["The road was cancelled.","The residents left town.","The trees had already fallen.","The weather became colder."]],
-    ["Mia kept a notebook beside her bed. Whenever an idea came to her, she wrote it down. Months later, she used several notes while planning a project.","What was the main benefit of the notebook?","It helped Mia preserve ideas for later use.",["It helped her sleep.","It replaced her textbooks.","It made her work faster.","It stopped her having ideas."]],
-    ["The ranger noticed small tracks crossing a quiet beach. She placed signs asking visitors to keep away from the dunes.","What was the most likely purpose of the signs?","To protect an area where wildlife was active.",["To advertise the beach.","To show the shortest route.","To stop the tide.","To direct visitors to the dunes."]],
-    ["At first, the museum staff thought a faint mark on a painting was damage. Under different lighting, they noticed a repeated pattern beneath the surface.","What caused the staff to reconsider their first explanation?","The pattern suggested the mark was intentional.",["The frame was replaced.","The painting was sold.","Visitors complained.","The room became darker."]],
-    ["A student team tested a bridge design three times. Each version failed at a different joint. They recorded the results and changed only the weak section before testing again.","What approach did the team take?","They used evidence from each test to refine the design.",["They copied another team's bridge.","They stopped testing.","They ignored the failures.","They changed every part at once."]]
+  const passages = [
+    {
+      p:"Maya passed the old railway station every afternoon. Its windows were dusty and the garden was overgrown. One rainy Thursday, she noticed a warm yellow light behind a window. Before she could knock, she heard a piano playing inside.",
+      qs:[
+        ["What first suggested that the station might not be abandoned?","The warm light",["The rain","The overgrown garden","The broken fence","The empty platform"]],
+        ["What did Maya hear after noticing the light?","A piano playing",["A train arriving","A bell ringing","Voices outside","Birds singing"]],
+        ["Why was Maya surprised by the station?","It appeared unused but showed signs of activity.",["It was newly built.","It had been moved.","It was brightly painted.","It was next to a busy road."]],
+        ["The word 'overgrown' most nearly means:","Covered by plants that have grown unchecked.",["Recently planted","Carefully trimmed","Completely empty","Recently painted"]],
+        ["What is the most likely reason Maya became curious?","The signs of life contradicted what the station looked like.",["She wanted to buy the station.","She was late for school.","She needed a train ticket.","She had lost her map."]]
+      ]
+    },
+    {
+      p:"The school garden had once been a neglected patch of dirt. Over several months, students planted herbs, vegetables and native flowers. By the end of spring, bees and butterflies had returned, and the science teacher began using the garden for lessons.",
+      qs:[
+        ["Which statement best describes the main idea?","The garden became useful through student effort.",["The science teacher disliked the garden.","Bees caused problems for the students.","The school replaced its science lessons.","The garden was removed."]],
+        ["What happened by the end of spring?","Bees and butterflies returned.",["The garden was paved.","The students stopped gardening.","The library was expanded.","The flowers were removed."]],
+        ["Why did the science teacher use the garden?","It provided a practical setting for lessons.",["It was the quietest room.","It contained computers.","It replaced the library.","It was used as a sports field."]],
+        ["The word 'neglected' most nearly means:","Not properly cared for.",["Newly built","Carefully decorated","Closely watched","Fully repaired"]],
+        ["What can be inferred about the students?","Their work changed the area over time.",["They disliked plants.","They avoided outdoor work.","They damaged the garden.","They were forced to remove the flowers."]]
+      ]
+    },
+    {
+      p:"Arun had planned his speech carefully, but when he reached the stage the microphone failed. Instead of stopping, he moved closer to the audience and continued without it. At first his voice trembled; by the end, the room was silent as everyone listened.",
+      qs:[
+        ["What can be inferred about Arun?","He adapted to an unexpected problem.",["He had forgotten his speech.","He refused to speak.","He was not prepared.","He left the room."]],
+        ["Why did Arun move closer to the audience?","The microphone had stopped working.",["He wanted to leave the stage.","The audience moved away.","The room became crowded.","He had forgotten his notes."]],
+        ["How did Arun's confidence change?","He became steadier as the speech continued.",["He became increasingly confused.","He stopped speaking.","He left the building.","He became louder immediately."]],
+        ["What does 'trembled' suggest about Arun's voice?","It sounded slightly unsteady.",["It was very loud.","It was completely silent.","It sounded recorded.","It was unusually deep."]],
+        ["Why was the room silent at the end?","The audience was concentrating on Arun.",["The lights had failed.","The audience had left.","The bell had rung.","The building was empty."]]
+      ]
+    },
+    {
+      p:"When the final bell rang, Leo did not rush home. He remained in the library, comparing two maps spread across a table. One showed the town as it was today; the other had been drawn almost a century earlier. The missing road on the older map fascinated him.",
+      qs:[
+        ["Why was Leo interested in the older map?","It showed a road that no longer appeared.",["It was easier to read.","It belonged to his teacher.","It showed his house.","It had brighter colours."]],
+        ["What was Leo doing in the library?","Comparing two maps.",["Writing a story","Repairing a book","Studying a photograph","Drawing a new building"]],
+        ["What difference did Leo notice?","A road was missing from the older map.",["The town was in another country.","The maps had different colours only.","The library had moved.","The newer map was hand-drawn."]],
+        ["The word 'fascinated' most nearly means:","Very interested.",["Very tired","Very confused","Very annoyed","Very hurried"]],
+        ["What can be inferred about Leo?","He is curious about how places change over time.",["He dislikes maps.","He avoids the library.","He is afraid of history.","He wants to leave school."]]
+      ]
+    },
+    {
+      p:"The first attempt at building the model bridge collapsed under a small weight. Rather than discard it, the students examined the joints, changed the design and tried again. Their second bridge held twice as much weight.",
+      qs:[
+        ["What quality did the students demonstrate?","Persistence",["Carelessness","Indifference","Impatience","Confusion"]],
+        ["What did the students examine after the first failure?","The joints of the bridge.",["The classroom windows","The instruction booklet only","The floor","Another team's notes"]],
+        ["Why was the second bridge stronger?","The students changed the design after examining the failure.",["They used no joints.","They made it much smaller.","They stopped testing it.","They ignored the first result."]],
+        ["The word 'discard' most nearly means:","Throw away or reject.",["Measure carefully","Decorate brightly","Repair slowly","Carry outside"]],
+        ["What does the result of the second test show?","The redesign improved the bridge.",["The first design was perfect.","Testing was unnecessary.","The students stopped working.","The bridge was made of metal."]]
+      ]
+    },
+    {
+      p:"At dawn the beach looked empty. As the sun rose, however, tiny tracks appeared in the wet sand leading from the dunes to the water. The ranger smiled and quietly marked the area with signs asking visitors to keep away.",
+      qs:[
+        ["Why did the ranger place signs?","To protect a sensitive area from visitors.",["To direct people to the water.","To advertise the beach.","To stop the tide.","To open a new pathway."]],
+        ["What probably made the tracks?","Wildlife moving between the dunes and water.",["Cars","Beach cleaners","Boats","Tourists carrying equipment"]],
+        ["Why did the ranger act quietly?","She did not want to disturb the animals.",["She was closing the beach forever.","She had forgotten the signs.","She was avoiding a storm.","She was waiting for a bus."]],
+        ["The word 'marked' most nearly means:","Identified or indicated with a sign.",["Erased completely","Hidden underground","Painted a picture","Measured with a ruler"]],
+        ["What can be inferred about the area?","It may be an important habitat.",["It is a busy car park.","It is a shopping centre.","It is used for road races.","It has no wildlife."]]
+      ]
+    },
+    {
+      p:"Priya had expected the new student to be unfriendly because he rarely spoke. During group work, however, he quietly noticed that another student had been left without a partner and invited her to join his group.",
+      qs:[
+        ["What does the event reveal?","His quietness did not mean he was unkind.",["Priya was correct about him.","He disliked group work.","He wanted to leave school.","He refused to help others."]],
+        ["Why had Priya formed her first impression?","The student rarely spoke.",["He had argued with a teacher.","He arrived late every day.","He refused to study.","He changed schools twice."]],
+        ["What action changed Priya's view?","He invited another student into his group.",["He answered a difficult question.","He left the room.","He criticised the teacher.","He spoke loudly to the class."]],
+        ["The word 'unfriendly' in the passage most nearly means:","Not welcoming or kind.",["Very talented","Extremely quiet","Highly organised","Always cheerful"]],
+        ["What lesson is suggested by the passage?","A person's actions can be more revealing than first impressions.",["Quiet people never cooperate.","First impressions are always correct.","Group work should be avoided.","Speaking often proves kindness."]]
+      ]
+    },
+    {
+      p:"The town council proposed removing several old trees to widen a road. Residents objected, arguing that the trees provided shade and habitat. After reviewing traffic data, the council revised the plan so that fewer trees would need to be removed.",
+      qs:[
+        ["What changed the final decision?","The council considered evidence and revised its plan.",["The residents moved away.","The road became unnecessary.","The trees were already gone.","The weather became colder."]],
+        ["Why did residents object?","They valued the trees' shade and habitat.",["They wanted a new library.","They disliked traffic lights.","They wanted to close the road.","They planned to move the town."]],
+        ["What did the revised plan achieve?","Fewer trees would be removed.",["All traffic was stopped.","The road became longer and narrower.","Every tree was removed.","The project was cancelled completely."]],
+        ["The word 'revised' most nearly means:","Changed after reconsideration.",["Copied exactly","Forgotten quickly","Measured precisely","Hidden from view"]],
+        ["What can be inferred about the council?","It was willing to change its plan after reviewing information.",["It ignored all evidence.","It had already removed the trees.","It refused to listen.","It cancelled every road project."]]
+      ]
+    },
+    {
+      p:"Nina opened the cupboard and found three identical jars. One contained salt, one sugar and one flour. None was labelled. She remembered that sugar felt slightly grainy while flour was much softer, and decided to identify them by texture before tasting anything.",
+      qs:[
+        ["Why did Nina use texture?","She wanted to avoid tasting unknown substances.",["She could not see the jars.","She had forgotten what sugar was.","She wanted to mix them together.","She disliked all cooking."]],
+        ["What problem did Nina face?","The jars were unlabelled.",["The cupboard was empty.","The flour had spilled.","The sugar was wet.","The labels were too large."]],
+        ["What distinction did Nina remember?","Sugar felt grainier than flour.",["Salt was softer than sugar.","Flour felt harder than salt.","All three substances felt identical.","Sugar was always warm."]],
+        ["The word 'texture' most nearly refers to:","How a material feels to touch.",["How loudly it sounds","How quickly it moves","How brightly it shines","How strongly it smells"]],
+        ["What can be inferred about Nina's approach?","She used an available observation before taking a risk.",["She always tastes unknown substances.","She ignored the differences between the jars.","She wanted to waste the ingredients.","She avoided solving the problem."]]
+      ]
+    },
+    {
+      p:"Although the painting appeared unfinished at first glance, the artist had intentionally left large areas of blank canvas. These spaces drew attention to the small, brightly detailed figure at the centre.",
+      qs:[
+        ["What is the purpose of the blank areas?","They make the central figure more noticeable.",["They indicate the artist ran out of paint.","They hide a second figure.","They show that the canvas was damaged.","They make the painting harder to understand."]],
+        ["Why might the painting appear unfinished at first?","Large areas of canvas are deliberately left blank.",["The frame was missing.","The colours had faded.","The figure had been erased.","The museum lights were off."]],
+        ["Where is the most detailed figure?","At the centre.",["In the top corner","Near the frame","At the bottom edge","Outside the canvas"]],
+        ["The word 'intentionally' most nearly means:","Deliberately.",["Accidentally","Immediately","Quietly","Rarely"]],
+        ["What can be inferred about the artist's method?","The use of empty space is part of the design.",["The artist forgot to finish the work.","The canvas was damaged before painting.","The figure was added by someone else.","The painting was completed by accident."]]
+      ]
+    },
+    {
+      p:"Sam kept a notebook beside his bed. Whenever he woke with an idea, he wrote it down immediately. Months later, he found several of those notes useful when planning a school project.",
+      qs:[
+        ["What was the main benefit of the notebook?","It helped him remember ideas.",["It stopped him sleeping.","It replaced his school books.","It helped him wake earlier.","It made the project disappear."]],
+        ["Why did Sam write notes immediately?","He wanted to preserve ideas before forgetting them.",["He was asked to copy homework.","The notebook was being tested.","He disliked planning.","He wanted to fill the pages."]],
+        ["When did the notes become useful?","Months later, during project planning.",["Only before breakfast","During a sports lesson","Before he bought the notebook","On the first night"]],
+        ["The word 'useful' most nearly means:","Helpful for a purpose.",["Difficult to read","Expensive to replace","Impossible to understand","Too large to carry"]],
+        ["What can be inferred about Sam?","He values recording ideas for later use.",["He never plans ahead.","He dislikes writing.","He throws away his ideas.","He avoids school projects."]]
+      ]
+    },
+    {
+      p:"A council library introduced a shelf labelled 'Take One, Leave One'. Visitors could borrow a book without registering it, provided they later returned a different book of their own. After three months, the shelf contained twice as many books as when it began.",
+      qs:[
+        ["What was the purpose of the shelf?","To encourage readers to exchange books.",["To store library equipment.","To sell new textbooks.","To display rare paintings.","To collect school uniforms."]],
+        ["What happened after three months?","The shelf had twice as many books.",["The shelf was removed.","No one used it.","Every book was damaged.","The library closed."]],
+        ["What rule did visitors follow?","Take a book and later leave a different one.",["Borrow two books and keep both.","Pay for every book.","Return the same book the next day.","Only staff could use the shelf."]],
+        ["The word 'introduced' most nearly means:","Started or brought into use.",["Removed from display","Hidden from visitors","Copied from another shelf","Repaired after damage"]],
+        ["What can be inferred about visitors?","Enough people contributed books for the collection to grow.",["No one read the books.","Visitors refused to share.","Only staff donated books.","The shelf was never opened."]]
+      ]
+    }
   ];
-  const item = pick(items), result = withAnswer(item[2],item[3]);
-  return { section:"reading", difficulty:pick(["medium","hard"]), time:80, passage:item[0], question_text:item[1], answer_options:result.options, correct_answer:result.index, explanation:"The passage provides the evidence needed to choose the best answer." };
-}
 
+  const item = pick(passages);
+  const q = pick(item.qs);
+  const result = withAnswer(q[1], q[2]);
+  return {
+    section:"reading",
+    difficulty:pick(["medium","hard"]),
+    time:80,
+    passage:item.p,
+    question_text:q[0],
+    answer_options:result.options,
+    correct_answer:result.index,
+    explanation:"The passage provides the evidence needed to choose the best answer."
+  };
+}
 function makeQuestion(section) {
   if (section === "maths") return makeMathQuestion();
   if (section === "numerical") return makeNumericalQuestion();
@@ -263,13 +426,25 @@ async function generateQuestions(req, sessionId, count) {
     .eq("ip_hash", hash);
 
   const usedIds = new Set((usedRows || []).map(row => row.id));
-  const sections = ["numerical","verbal","maths","reading"];
+  const quotas = [
+    ["numerical", 60],
+    ["maths", 60],
+    ["reading", 55],
+    ["verbal", 55]
+  ];
   const questions = [];
   let attempts = 0;
 
-  while (questions.length < count && attempts < count * 40) {
+  while (questions.length < count && attempts < count * 80) {
     attempts += 1;
-    const section = sections[Math.floor(questions.length / Math.ceil(count / sections.length))] || sections[sections.length - 1];
+    let section = "verbal";
+    for (const [candidate, quota] of quotas) {
+      const current = questions.filter(item => item.section === candidate).length;
+      if (current < quota) {
+        section = candidate;
+        break;
+      }
+    }
     const question = makeQuestion(section);
     question.year_level = "9";
     question.session_id = sessionId;
@@ -342,8 +517,8 @@ app.get("/api/questions", async (req,res) => {
     if (year !== 9) return res.status(400).json({ error:"Only Year 9 is available" });
     if (!validUuid(sessionId)) return res.status(400).json({ error:"Valid session_id is required" });
 
-    const questions = await generateQuestions(req, sessionId, 20);
-    if (questions.length !== 20) return res.status(503).json({ error:"Could not generate enough fresh questions" });
+    const questions = await generateQuestions(req, sessionId, 230);
+    if (questions.length !== 230) return res.status(503).json({ error:"Could not generate enough fresh questions" });
 
     res.json({ questions: questions.map(q => ({
       id:q.id, section:q.section, difficulty:q.difficulty, time:q.time,
