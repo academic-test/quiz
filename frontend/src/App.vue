@@ -4,7 +4,7 @@
       <div>
         <div class="eyebrow">SCHOLARSHIP TEST PRACTICE</div>
         <h1>ACER-Style Year 9 Test Practice</h1>
-        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test runs in sections: Numerical Reasoning, then Verbal Reasoning, then Mathematics, then Reading Comprehension. Questions are not mixed.</p>
+        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test follows the ACER Victorian schedule grouping: Quantitative + Mathematics first, then Reading + Verbal. Questions are not mixed.</p>
       </div>
     </header>
 
@@ -145,8 +145,8 @@ async function startTest() {
     sessionId.value = crypto.randomUUID();
     const response = await api("/api/questions?year=9&session_id=" + encodeURIComponent(sessionId.value));
 
-    if (!Array.isArray(response.questions) || response.questions.length !== 20) {
-      throw new Error("The server did not return a complete 20-question test.");
+    if (!Array.isArray(response.questions) || response.questions.length !== 230) {
+      throw new Error("The server did not return the complete 230-question practice test.");
     }
 
     const attempt = await api("/api/attempts", {
@@ -155,9 +155,9 @@ async function startTest() {
         session_id: sessionId.value,
         session_name: name,
         year_level: "9",
-        section: "numerical, verbal, maths, reading",
+        section: "quantitative + mathematics, then reading + verbal",
         difficulty: "all",
-        question_count: 20
+        question_count: 230
       })
     });
 
