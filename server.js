@@ -19,6 +19,7 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const cookieName = "quiz_admin";
+const backgroundGenerationSessions = new Set();
 
 function signSession(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -516,14 +517,53 @@ app.get("/api/questions", async (req,res) => {
 
     if (year !== 9) return res.status(400).json({ error:"Only Year 9 is available" });
     if (!validUuid(sessionId)) return res.status(400).json({ error:"Valid session_id is required" });
+    if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
 
-    const questions = await generateQuestions(req, sessionId, 230);
-    if (questions.length !== 230) return res.status(503).json({ error:"Could not generate enough fresh questions" });
+    const { data: rows, error } = await supabase
+      .from("generated_questions")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("year_level", "9")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
 
-    res.json({ questions: questions.map(q => ({
-      id:q.id, section:q.section, difficulty:q.difficulty, time:q.time,
-      q:q.question_text, o:q.answer_options, passage:q.passage || ""
-    })) });
+    if (error) return res.status(503).json({ error:"Could not read generated questions" });
+
+    let questions = rows || [];
+
+    if (questions.length < 10) {
+      const needed = 10 - questions.length;
+      const generated = await generateQuestions(req, sessionId, needed);
+      if (generated.length < needed) return res.status(503).json({ error:"Could not generate the first 10 questions" });
+
+      const refreshed = await supabase
+        .from("generated_questions")
+        .select("*")
+        .eq("session_id", sessionId)
+        .eq("year_level", "9")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (refreshed.error) return res.status(503).json({ error:"Could not read generated questions" });
+      questions = refreshed.data || [];
+    }
+
+    if (questions.length < 230 && !backgroundGenerationSessions.has(sessionId)) {
+      backgroundGenerationSessions.add(sessionId);
+      generateQuestions(req, sessionId, 230)
+        .catch(error => console.error("Background question generation failed", error))
+        .finally(() => backgroundGenerationSessions.delete(sessionId));
+    }
+
+    res.json({
+      total: questions.length,
+      target: 230,
+      ready: questions.length >= 230,
+      questions: questions.map(q => ({
+        id:q.id, section:q.section, difficulty:q.difficulty, time:30,
+        q:q.question_text, o:q.answer_options, passage:q.passage || ""
+      }))
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error:"Question generation failed" });
