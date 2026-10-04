@@ -24,7 +24,8 @@
         :submitted="submitted"
         :correct-answer="feedback ? feedback.correctAnswer : null"
         :feedback="feedback"
-        :is-last="questionIndex === questions.length - 1"
+        :is-last="questionIndex === totalQuestions - 1"
+        :waiting-for-questions="generatingQuestions && questionIndex === questions.length - 1"
         @select="selectAnswer"
         @next="nextQuestion"
       />
@@ -73,6 +74,9 @@ const submitted = ref(false);
 const remaining = ref(0);
 const feedback = ref(null);
 const results = ref([]);
+const generatingQuestions = ref(false);
+const totalQuestions = 230;
+let questionPollHandle = null;
 let timerHandle = null;
 let startedAt = 0;
 
@@ -129,6 +133,34 @@ function clearTimer() {
   timerHandle = null;
 }
 
+function clearQuestionPolling() {
+  if (questionPollHandle) clearInterval(questionPollHandle);
+  questionPollHandle = null;
+}
+
+async function refreshGeneratedQuestions() {
+  if (!sessionId.value) return;
+  try {
+    const response = await api("/api/questions?year=9&session_id=" + encodeURIComponent(sessionId.value));
+    if (!Array.isArray(response.questions)) return;
+    if (response.questions.length > questions.value.length) {
+      questions.value = response.questions;
+    }
+    generatingQuestions.value = response.questions.length < totalQuestions;
+    if (response.ready) clearQuestionPolling();
+  } catch (error) {
+    console.error("Question generation polling failed", error);
+  }
+}
+
+function startQuestionPolling() {
+  clearQuestionPolling();
+  generatingQuestions.value = questions.value.length < totalQuestions;
+  if (!generatingQuestions.value) return;
+  questionPollHandle = setInterval(refreshGeneratedQuestions, 1500);
+  refreshGeneratedQuestions();
+}
+
 async function startTest() {
   const name = studentName.value.trim();
   if (!name) {
@@ -144,8 +176,8 @@ async function startTest() {
     sessionId.value = crypto.randomUUID();
     const response = await api("/api/questions?year=9&session_id=" + encodeURIComponent(sessionId.value));
 
-    if (!Array.isArray(response.questions) || response.questions.length !== 230) {
-      throw new Error("The server did not return the complete 230-question practice test.");
+    if (!Array.isArray(response.questions) || response.questions.length < 10) {
+      throw new Error("The server did not return the first 10 questions.");
     }
 
     const attempt = await api("/api/attempts", {
@@ -164,8 +196,10 @@ async function startTest() {
     questions.value = response.questions;
     results.value = [];
     questionIndex.value = 0;
+    generatingQuestions.value = response.questions.length < totalQuestions;
     screen.value = "quiz";
     renderQuestion();
+    startQuestionPolling();
   } catch (error) {
     console.error(error);
     startError.value = "The test could not start. Please try again.";
@@ -243,14 +277,37 @@ async function submitAnswer(timeout) {
 async function nextQuestion() {
   if (!submitted.value) return;
 
-  if (questionIndex.value === questions.value.length - 1) {
+  if (questionIndex.value === totalQuestions - 1) {
+    clearQuestionPolling();
     await finishAttempt();
     screen.value = "results";
     return;
   }
 
+  if (questionIndex.value >= questions.value.length - 1) {
+    generatingQuestions.value = true;
+    await waitForNextQuestion();
+    if (questionIndex.value >= questions.value.length - 1) return;
+  }
+
   questionIndex.value += 1;
   renderQuestion();
+}
+
+async function waitForNextQuestion() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (questions.value.length > questionIndex.value + 1) {
+      generatingQuestions.value = questions.value.length < totalQuestions;
+      return;
+    }
+    await refreshGeneratedQuestions();
+    if (questions.value.length > questionIndex.value + 1) {
+      generatingQuestions.value = questions.value.length < totalQuestions;
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  generatingQuestions.value = questions.value.length < totalQuestions;
 }
 
 async function finishAttempt() {
@@ -275,6 +332,8 @@ async function finishAttempt() {
 
 function reset() {
   clearTimer();
+  clearQuestionPolling();
+  generatingQuestions.value = false;
   screen.value = "start";
   questions.value = [];
   results.value = [];
@@ -287,5 +346,8 @@ function reset() {
   startError.value = "";
 }
 
-onBeforeUnmount(clearTimer);
+onBeforeUnmount(() => {
+  clearTimer();
+  clearQuestionPolling();
+});
 </script>
