@@ -10,6 +10,7 @@ const studentDir = path.join(publicDir, "student");
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(publicDir, { index: false }));
 app.use(express.static(studentDir, { index: false }));
+app.use("/assets", express.static(path.join(studentDir, "assets"), { index: false }));
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
