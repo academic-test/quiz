@@ -26,7 +26,6 @@
         :feedback="feedback"
         :is-last="questionIndex === questions.length - 1"
         @select="selectAnswer"
-        @submit="submitAnswer(false)"
         @next="nextQuestion"
       />
     </section>
@@ -194,7 +193,9 @@ function renderQuestion() {
 }
 
 function selectAnswer(index) {
-  if (!submitted.value) selected.value = index;
+  if (submitted.value) return;
+  selected.value = index;
+  submitAnswer(false);
 }
 
 async function submitAnswer(timeout) {
