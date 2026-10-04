@@ -263,17 +263,18 @@ async function generateQuestions(req, sessionId, count) {
     .eq("ip_hash", hash);
 
   const usedIds = new Set((usedRows || []).map(row => row.id));
-  const sections = shuffle(["maths","numerical","verbal","reading"]);
+  const sections = ["numerical","verbal","maths","reading"];
   const questions = [];
   let attempts = 0;
 
   while (questions.length < count && attempts < count * 40) {
     attempts += 1;
-    const section = sections[questions.length % sections.length];
+    const section = sections[Math.floor(questions.length / Math.ceil(count / sections.length))] || sections[sections.length - 1];
     const question = makeQuestion(section);
     question.year_level = "9";
     question.session_id = sessionId;
     question.ip_hash = hash;
+    question.time = 30;
     question.id = generatedId(question);
 
     if (usedIds.has(question.id) || questions.some(item => item.id === question.id)) continue;
