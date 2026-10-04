@@ -263,7 +263,8 @@ async function finishAttempt() {
         correct_count: stats.correct,
         wrong_count: stats.incorrect,
         timeout_count: stats.timeouts,
-        average_response_seconds: Number(stats.averageTime)
+        average_response_seconds: Number(stats.averageTime),
+        session_id: sessionId.value
       })
     });
   } catch (error) {
