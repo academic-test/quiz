@@ -460,24 +460,31 @@ async function waitForNextQuestion() {
 }
 
 async function handleBlockTimeout() {
+  const blockIndex = currentBlockIndex.value;
+  if (submittedBlocks.value[blockIndex]) return;
+
   clearTimer();
 
   const current = currentQuestion.value;
   if (current && answers.value[current.id] !== undefined && answers.value[current.id] !== null) {
-    // A selected answer is still a normal answer when the block clock expires.
+    // A selected answer is saved normally when the section clock expires.
     await saveCurrentResponse(false);
   }
 
-  if (currentBlockIndex.value === 0) {
+  // The section is now permanently locked, even if some questions were skipped.
+  submittedBlocks.value[blockIndex] = true;
+
+  if (blockIndex === 0) {
     questionIndex.value = blocks[1].start;
-    await waitForNextQuestion();
-    if (!currentQuestion.value) return;
+    const ready = await waitForNextQuestion();
+    if (!ready || !currentQuestion.value) return;
     startBlockTimer();
     questionOpenedAt = performance.now();
     return;
   }
 
-  await submitTest(true);
+  await finishAttempt();
+  screen.value = "results";
 }
 
 
