@@ -120,4 +120,5 @@ function curriculumSubtopics(){const y=$("learnYear").value,s=$("learnSubject").
 function curriculumPreview(){const y=$("learnYear").value,s=$("learnSubject").value,a=$("learnArea").value,t=$("learnSubtopic").value;$("learningPath").textContent='Year '+y+' → '+s+' → '+a+' → '+t;const ready=!!lessonLookup[t]&&LEARNING.some(x=>x.title===lessonLookup[t]);$("learnStartBtn").disabled=!ready;$("learnAvailability").textContent=ready?'Lesson ready — learn it step by step.':'This sub-topic is mapped to the Victorian Curriculum and lesson content is being expanded.';}
 function startCurriculumLesson(){const key=lessonLookup[$("learnSubtopic").value],t=LEARNING.find(x=>x.title===key);if(!t)return;$("lesson").classList.remove("hidden");$("lessonContent").innerHTML=t.html+'<div class="lesson-meta">Curriculum path: '+$("learningPath").textContent+'</div>';window.scrollTo({top:$("learning").offsetTop-15,behavior:"smooth"});}
 
-$("startBtn").onclick=start;$("submit").onclick=()=>submit(false);$("next").onclick=next;$("retry").onclick=start;
+function newSession(){clearInterval(state.timer);state.sessionId=crypto.randomUUID();state.attemptId=null;state.results=[];show("start");window.scrollTo({top:0,behavior:"smooth"})}
+$("startBtn").onclick=start;$("submit").onclick=()=>submit(false);$("next").onclick=next;$("retry").onclick=start;$("newSession").onclick=newSession;
