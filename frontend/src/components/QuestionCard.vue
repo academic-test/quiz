@@ -35,7 +35,7 @@
       <button
         class="secondary-btn skip-btn"
         type="button"
-        :disabled="saving"
+        :disabled="saving || selected !== null && selected !== undefined"
         @click="$emit('skip')"
       >
         Skip
