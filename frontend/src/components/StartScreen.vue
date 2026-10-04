@@ -3,7 +3,7 @@
     <div class="hero-icon">🎯</div>
     <div class="eyebrow">YEAR 9</div>
     <h2>Ready to begin?</h2>
-    <p>Enter the student's name. A fresh 20-question mixed test will be generated for this session.</p>
+    <p>Enter the student's name. A fresh 20-question Year 9 test will run in four sections: Numerical Reasoning, Verbal Reasoning, Mathematics and Reading Comprehension.</p>
     <label class="name-field">
       Student name
       <input :value="studentName" type="text" autocomplete="name" placeholder="Enter student name"
