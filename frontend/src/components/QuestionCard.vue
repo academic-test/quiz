@@ -52,28 +52,21 @@
       </button>
 
       <button
-        v-else-if="!isLast"
-        class="primary-btn"
-        type="button"
-        :disabled="waitingForQuestions || saving"
-        @click="$emit('next')"
-      >
-        Continue to Block 2 →
-      </button>
-
-      <button
         v-else
         class="primary-btn"
         type="button"
-        :disabled="waitingForQuestions || saving"
+        :disabled="!sectionComplete || waitingForQuestions || saving"
         @click="$emit('submit')"
       >
-        Submit Test
+        {{ isLast ? "Submit Test" : "Submit Section & Continue →" }}
       </button>
     </div>
 
     <div class="question-state">
-      <span v-if="selected !== null && selected !== undefined">Answer selected — you can change it before moving on.</span>
+      <span v-if="isLastInBlock && !sectionComplete">
+        Answer all {{ unansweredCount }} remaining question{{ unansweredCount === 1 ? "" : "s" }} before submitting this section.
+      </span>
+      <span v-else-if="selected !== null && selected !== undefined">Answer selected — you can change it before moving on.</span>
       <span v-else>Not answered yet. Use Skip to come back later.</span>
     </div>
   </article>
@@ -88,7 +81,9 @@ defineProps({
   isLast: { type: Boolean, default: false },
   isLastInBlock: { type: Boolean, default: false },
   waitingForQuestions: { type: Boolean, default: false },
-  saving: { type: Boolean, default: false }
+  saving: { type: Boolean, default: false },
+  sectionComplete: { type: Boolean, default: false },
+  unansweredCount: { type: Number, default: 0 }
 });
 
 defineEmits(["select", "next", "skip", "previous", "submit"]);
