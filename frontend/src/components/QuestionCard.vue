@@ -16,8 +16,7 @@
     </div>
     <div v-if="submitted" class="feedback" :class="feedbackClass">{{ feedbackText }}</div>
     <div class="action-row">
-      <button v-if="!submitted" class="primary-btn check-answer-btn" type="button" :disabled="selected === null" @click="$emit('submit')">Check Answer</button>
-      <button v-else class="secondary-btn" type="button" @click="$emit('next')">
+      <button v-if="submitted" class="secondary-btn" type="button" @click="$emit('next')">
         {{ isLast ? "See Results →" : "Next Question →" }}
       </button>
     </div>
