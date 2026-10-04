@@ -4,34 +4,72 @@
       <div>
         <div class="eyebrow">SCHOLARSHIP TEST PRACTICE</div>
         <h1>ACER-Style Year 9 Test Practice</h1>
-        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test follows the ACER Victorian schedule grouping: Quantitative + Mathematics first, then Reading + Verbal. Questions are not mixed.</p>
+        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test runs in two timed blocks: Quantitative + Mathematics, then Reading + Verbal.</p>
       </div>
     </header>
 
-    <StartScreen v-if="screen === 'start'" v-model:student-name="studentName" :loading="starting" :error="startError" @start="startTest" />
+    <StartScreen
+      v-if="screen === 'start'"
+      v-model:student-name="studentName"
+      :loading="starting"
+      :error="startError"
+      @start="startTest"
+    />
 
     <section v-else-if="screen === 'quiz'" class="quiz-screen">
       <div class="quiz-meta">
-        <div><span>{{ sectionLabel }}</span><strong>Question {{ questionIndex + 1 }} of {{ questions.length }}</strong></div>
+        <div>
+          <span>{{ currentBlock.label }}</span>
+          <strong>Question {{ blockQuestionNumber }} of {{ currentBlock.size }}</strong>
+        </div>
         <Timer :remaining="remaining" />
       </div>
-      <div class="progress"><div :style="{ width: progressPercent + '%' }"></div></div>
+
+      <div class="block-meta">
+        <span>{{ currentBlock.subtitle }}</span>
+        <span>{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
+      </div>
+
+      <div class="progress">
+        <div :style="{ width: progressPercent + '%' }"></div>
+      </div>
+
+      <div class="question-grid">
+        <button
+          v-for="(item, offset) in currentBlockQuestions"
+          :key="item.id"
+          type="button"
+          class="question-nav"
+          :class="{
+            current: offset + currentBlock.start === questionIndex,
+            answered: questionStates[item.id] === 'answered',
+            skipped: questionStates[item.id] === 'skipped'
+          }"
+          :disabled="offset + currentBlock.start >= questions.length"
+          @click="goToQuestion(offset + currentBlock.start)"
+        >
+          {{ offset + 1 }}
+        </button>
+      </div>
 
       <QuestionCard
+        v-if="currentQuestion"
         :question="currentQuestion"
         :section-label="sectionLabel"
         :selected="selected"
-        :submitted="submitted"
-        :correct-answer="feedback ? feedback.correctAnswer : null"
-        :feedback="feedback"
+        :is-first="questionIndex === currentBlock.start"
         :is-last="questionIndex === totalQuestions - 1"
+        :is-last-in-block="questionIndex === currentBlock.end"
         :waiting-for-questions="generatingQuestions && questionIndex >= questions.length - 1"
+        :saving="savingResponse"
         @select="selectAnswer"
         @next="nextQuestion"
         @skip="skipQuestion"
         @previous="previousQuestion"
         @submit="submitTest"
       />
+
+      <p v-if="generationMessage" class="generation-message">{{ generationMessage }}</p>
     </section>
 
     <ResultsScreen
@@ -59,46 +97,68 @@ import ResultsScreen from "./components/ResultsScreen.vue";
 
 const labels = {
   maths: "Mathematics",
-  numerical: "Numerical Reasoning",
+  numerical: "Quantitative Reasoning",
   verbal: "Verbal Reasoning",
   reading: "Reading Comprehension"
 };
 
-const blocks = [{ label:"Mathematics + Quantitative Reasoning", start:0, end:119, duration:3600 }, { label:"Reading + Verbal Reasoning", start:120, end:229, duration:3300 }];
+const blocks = [
+  { label: "Block 1 · Quantitative + Mathematics", subtitle: "60 minutes · 60 Quantitative/Numerical + 60 Mathematics", start: 0, end: 119, size: 120, duration: 60 * 60 },
+  { label: "Block 2 · Reading + Verbal", subtitle: "55 minutes · 55 Reading + 55 Verbal", start: 120, end: 229, size: 110, duration: 55 * 60 }
+];
+
 const totalQuestions = 230;
 const screen = ref("start");
 const studentName = ref("");
 const startError = ref("");
 const starting = ref(false);
+const savingResponse = ref(false);
 const sessionId = ref("");
 const attemptId = ref("");
 const questions = ref([]);
 const questionIndex = ref(0);
-const selected = ref(null);
-const submitted = ref(false);
+const answers = ref({});
+const questionStates = ref({});
+const timeSpent = ref({});
+const results = ref({});
 const remaining = ref(0);
-const feedback = ref(null);
-const results = ref([]);
 const generatingQuestions = ref(false);
-// totalQuestions is defined above
 let questionPollHandle = null;
 let timerHandle = null;
-let startedAt = 0;
+let questionOpenedAt = 0;
 
 const currentQuestion = computed(() => questions.value[questionIndex.value] || null);
+const currentBlockIndex = computed(() => questionIndex.value >= blocks[1].start ? 1 : 0);
+const currentBlock = computed(() => blocks[currentBlockIndex.value]);
+const currentBlockQuestions = computed(() => questions.value.slice(currentBlock.value.start, Math.min(currentBlock.value.end + 1, questions.value.length)));
+const selected = computed(() => {
+  if (!currentQuestion.value) return null;
+  return answers.value[currentQuestion.value.id] ?? null;
+});
 const sectionLabel = computed(() => labels[currentQuestion.value?.section] || "");
-const progressPercent = computed(() => questions.value.length ? (questionIndex.value / questions.value.length) * 100 : 0);
+const blockQuestionNumber = computed(() => questionIndex.value - currentBlock.value.start + 1);
+const progressPercent = computed(() => {
+  if (!currentBlock.value.size) return 0;
+  return Math.min(100, (blockQuestionNumber.value / currentBlock.value.size) * 100);
+});
+const answeredCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "answered").length);
+const skippedCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "skipped").length);
+const generationMessage = computed(() => {
+  if (!generatingQuestions.value) return "";
+  return "More questions are being prepared in the background. You can continue as they become available.";
+});
 
+const resultList = computed(() => Object.values(results.value));
 const resultStats = computed(() => {
-  const total = results.value.length;
-  const correct = results.value.filter(item => item.correct).length;
-  const timeouts = results.value.filter(item => item.timeout).length;
-  const incorrect = total - correct - timeouts;
+  const total = resultList.value.length;
+  const correct = resultList.value.filter(item => item.correct).length;
+  const timeouts = resultList.value.filter(item => item.timeout).length;
+  const incorrect = Math.max(0, total - correct - timeouts);
   const score = total ? Math.round((correct / total) * 100) : 0;
-  const average = total ? results.value.reduce((sum, item) => sum + item.time, 0) / total : 0;
+  const average = total ? resultList.value.reduce((sum, item) => sum + item.time, 0) / total : 0;
   const grouped = {};
 
-  results.value.forEach(item => {
+  resultList.value.forEach(item => {
     const section = item.question.section;
     grouped[section] ||= { correct: 0, total: 0, time: 0 };
     grouped[section].total += 1;
@@ -111,10 +171,17 @@ const resultStats = computed(() => {
     label: labels[section],
     correct: data.correct,
     total: data.total,
-    average: (data.time / data.total).toFixed(1)
+    average: data.total ? (data.time / data.total).toFixed(1) : "0.0"
   }));
 
-  return { score, correct, incorrect, timeouts, averageTime: average.toFixed(1), breakdown };
+  return {
+    score,
+    correct,
+    incorrect,
+    timeouts,
+    averageTime: average.toFixed(1),
+    breakdown
+  };
 });
 
 const resultTitle = computed(() => {
@@ -148,9 +215,7 @@ async function refreshGeneratedQuestions() {
   try {
     const response = await api("/api/questions?year=9&session_id=" + encodeURIComponent(sessionId.value));
     if (!Array.isArray(response.questions)) return;
-    if (response.questions.length > questions.value.length) {
-      questions.value = response.questions;
-    }
+    if (response.questions.length > questions.value.length) questions.value = response.questions;
     generatingQuestions.value = response.questions.length < totalQuestions;
     if (response.ready) clearQuestionPolling();
   } catch (error) {
@@ -193,17 +258,19 @@ async function startTest() {
         year_level: "9",
         section: "quantitative + mathematics, then reading + verbal",
         difficulty: "all",
-        question_count: 230
+        question_count: totalQuestions
       })
     });
 
     attemptId.value = attempt.id;
     questions.value = response.questions;
-    results.value = [];
+    answers.value = {};
+    questionStates.value = {};
+    timeSpent.value = {};
+    results.value = {};
     questionIndex.value = 0;
-    generatingQuestions.value = response.questions.length < totalQuestions;
     screen.value = "quiz";
-    renderQuestion();
+    startBlockTimer();
     startQuestionPolling();
   } catch (error) {
     console.error(error);
@@ -213,37 +280,34 @@ async function startTest() {
   }
 }
 
-function renderQuestion() {
+function startBlockTimer() {
   clearTimer();
-  selected.value = null;
-  submitted.value = false;
-  feedback.value = null;
-  remaining.value = currentQuestion.value.time;
-  startedAt = performance.now();
+  remaining.value = currentBlock.value.duration;
+  questionOpenedAt = performance.now();
 
   timerHandle = setInterval(() => {
-    if (submitted.value) return;
     if (remaining.value <= 0) {
-      submitAnswer(true);
+      handleBlockTimeout();
       return;
     }
     remaining.value -= 1;
   }, 1000);
 }
 
-function selectAnswer(index) {
-  if (submitted.value) return;
-  selected.value = index;
-  submitAnswer(false);
+function recordQuestionTime() {
+  if (!currentQuestion.value) return 0;
+  const elapsed = Math.max(0, (performance.now() - questionOpenedAt) / 1000);
+  const id = currentQuestion.value.id;
+  timeSpent.value[id] = (timeSpent.value[id] || 0) + elapsed;
+  return elapsed;
 }
 
-async function submitAnswer(timeout) {
-  if (submitted.value) return;
-  submitted.value = true;
-  clearTimer();
-
+async function saveCurrentResponse(timedOut = false) {
   const question = currentQuestion.value;
-  const elapsed = Math.min(question.time, Math.max(0, (performance.now() - startedAt) / 1000));
+  if (!question || !attemptId.value) return;
+
+  recordQuestionTime();
+  savingResponse.value = true;
 
   try {
     const response = await api("/api/responses", {
@@ -252,67 +316,150 @@ async function submitAnswer(timeout) {
         attempt_id: attemptId.value,
         session_id: sessionId.value,
         question_id: question.id,
-        selected_answer: selected.value,
-        timed_out: timeout,
-        response_seconds: elapsed
+        selected_answer: answers.value[question.id] ?? null,
+        timed_out: timedOut,
+        response_seconds: Number((timeSpent.value[question.id] || 0).toFixed(3))
       })
     });
 
-    feedback.value = {
-      correct: response.correct,
-      timeout,
-      correctAnswer: response.correct_answer,
-      explanation: response.explanation
+    results.value[question.id] = {
+      question,
+      selected: answers.value[question.id] ?? null,
+      correct: Boolean(response.correct),
+      timeout: Boolean(timedOut),
+      time: timeSpent.value[question.id] || 0
     };
 
-    results.value.push({
-      question,
-      selected: selected.value,
-      correct: response.correct,
-      timeout,
-      time: elapsed
-    });
-  } catch (error) {
-    console.error(error);
-    submitted.value = false;
-    startError.value = "Your answer could not be recorded. Please try again.";
+    questionStates.value[question.id] = answers.value[question.id] !== undefined && answers.value[question.id] !== null
+      ? "answered"
+      : timedOut
+        ? "skipped"
+        : "skipped";
+  } finally {
+    savingResponse.value = false;
   }
 }
 
+async function selectAnswer(index) {
+  if (!currentQuestion.value) return;
+  answers.value[currentQuestion.value.id] = index;
+  questionStates.value[currentQuestion.value.id] = "answered";
+}
+
 async function nextQuestion() {
-  if (!submitted.value) return;
+  if (!currentQuestion.value) return;
+  if (answers.value[currentQuestion.value.id] === undefined) return;
+
+  await saveCurrentResponse(false);
 
   if (questionIndex.value === totalQuestions - 1) {
-    clearQuestionPolling();
-    await finishAttempt();
-    screen.value = "results";
+    await submitTest();
     return;
   }
 
-  if (questionIndex.value >= questions.value.length - 1) {
-    generatingQuestions.value = true;
+  questionIndex.value += 1;
+
+  if (questionIndex.value === currentBlock.value.start && questionIndex.value > blocks[0].end) {
+    startBlockTimer();
+  }
+
+  if (questionIndex.value >= questions.value.length) {
     await waitForNextQuestion();
-    if (questionIndex.value >= questions.value.length - 1) return;
+    if (questionIndex.value >= questions.value.length) return;
+  }
+
+  questionOpenedAt = performance.now();
+}
+
+async function skipQuestion() {
+  if (!currentQuestion.value) return;
+  answers.value[currentQuestion.value.id] = null;
+  questionStates.value[currentQuestion.value.id] = "skipped";
+  await saveCurrentResponse(false);
+
+  if (questionIndex.value === totalQuestions - 1) {
+    await submitTest();
+    return;
   }
 
   questionIndex.value += 1;
-  renderQuestion();
+  if (questionIndex.value === blocks[1].start) startBlockTimer();
+
+  if (questionIndex.value >= questions.value.length) {
+    await waitForNextQuestion();
+    if (questionIndex.value >= questions.value.length) return;
+  }
+
+  questionOpenedAt = performance.now();
+}
+
+async function previousQuestion() {
+  if (questionIndex.value <= currentBlock.value.start) return;
+  await saveCurrentResponse(false);
+  questionIndex.value -= 1;
+  questionOpenedAt = performance.now();
+}
+
+async function goToQuestion(index) {
+  if (index < currentBlock.value.start || index > currentBlock.value.end) return;
+  if (index >= questions.value.length) return;
+  await saveCurrentResponse(false);
+  questionIndex.value = index;
+  questionOpenedAt = performance.now();
 }
 
 async function waitForNextQuestion() {
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (questions.value.length > questionIndex.value + 1) {
+    if (questions.value.length > questionIndex.value) {
       generatingQuestions.value = questions.value.length < totalQuestions;
       return;
     }
     await refreshGeneratedQuestions();
-    if (questions.value.length > questionIndex.value + 1) {
-      generatingQuestions.value = questions.value.length < totalQuestions;
-      return;
-    }
+    if (questions.value.length > questionIndex.value) return;
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
-  generatingQuestions.value = questions.value.length < totalQuestions;
+}
+
+async function handleBlockTimeout() {
+  clearTimer();
+  await saveCurrentResponse(true);
+
+  if (currentBlockIndex.value === 0) {
+    questionIndex.value = blocks[1].start;
+    await waitForNextQuestion();
+    if (!currentQuestion.value) return;
+    startBlockTimer();
+    questionOpenedAt = performance.now();
+    return;
+  }
+
+  await submitTest(true);
+}
+
+async function submitTest(fromTimeout = false) {
+  clearTimer();
+  clearQuestionPolling();
+
+  if (currentQuestion.value) {
+    await saveCurrentResponse(fromTimeout);
+  }
+
+  const allLoaded = questions.value.length;
+  for (let i = 0; i < allLoaded; i += 1) {
+    const question = questions.value[i];
+    if (results.value[question.id]) continue;
+
+    results.value[question.id] = {
+      question,
+      selected: answers.value[question.id] ?? null,
+      correct: false,
+      timeout: i >= currentBlock.value.start ? fromTimeout : false,
+      time: timeSpent.value[question.id] || 0
+    };
+  }
+
+  await finishAttempt();
+  screen.value = "results";
 }
 
 async function finishAttempt() {
@@ -331,7 +478,7 @@ async function finishAttempt() {
       })
     });
   } catch (error) {
-    console.error(error);
+    console.error("Attempt finalisation failed", error);
   }
 }
 
@@ -341,11 +488,12 @@ function reset() {
   generatingQuestions.value = false;
   screen.value = "start";
   questions.value = [];
-  results.value = [];
+  results.value = {};
+  answers.value = {};
+  questionStates.value = {};
+  timeSpent.value = {};
   questionIndex.value = 0;
-  selected.value = null;
-  submitted.value = false;
-  feedback.value = null;
+  remaining.value = 0;
   sessionId.value = "";
   attemptId.value = "";
   startError.value = "";
