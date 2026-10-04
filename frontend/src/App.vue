@@ -25,7 +25,6 @@
         :correct-answer="feedback ? feedback.correctAnswer : null"
         :feedback="feedback"
         :is-last="questionIndex === totalQuestions - 1"
-        :locked="savedResponses.has(questionIndex)"
         :waiting-for-questions="generatingQuestions && questionIndex >= questions.length - 1"
         @select="selectAnswer"
         @next="nextQuestion"
