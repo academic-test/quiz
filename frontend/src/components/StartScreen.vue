@@ -14,7 +14,7 @@
       {{ loading ? "Generating test…" : "Start Test" }}
     </button>
     <p v-if="error" class="start-error">{{ error }}</p>
-    <div class="timer-note">⏱ 30 seconds per question · 230 questions total · Questions are not mixed.</div>
+    <div class="timer-note">⏱ Block 1: 60 minutes · Block 2: 55 minutes · 230 questions total · You may skip and revisit questions.</div>
   </section>
 </template>
 
