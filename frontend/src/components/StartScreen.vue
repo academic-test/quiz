@@ -3,7 +3,7 @@
     <div class="hero-icon">🎯</div>
     <div class="eyebrow">YEAR 9</div>
     <h2>Ready to begin?</h2>
-    <p>Enter the student's name. A fresh 20-question Year 9 test will run in four sections: Numerical Reasoning, Verbal Reasoning, Mathematics and Reading Comprehension.</p>
+    <p>Enter the student's name. A full 230-question Year 9 practice test will run in four fixed sections: 60 Quantitative/Numerical, 60 Mathematics, 55 Reading, then 55 Verbal.</p>
     <label class="name-field">
       Student name
       <input :value="studentName" type="text" autocomplete="name" placeholder="Enter student name"
@@ -14,7 +14,7 @@
       {{ loading ? "Generating test…" : "Start Test" }}
     </button>
     <p v-if="error" class="start-error">{{ error }}</p>
-    <div class="timer-note">⏱ 30 seconds per question · Section order is fixed and questions are not mixed.</div>
+    <div class="timer-note">⏱ 30 seconds per question · 230 questions total · Questions are not mixed.</div>
   </section>
 </template>
 
