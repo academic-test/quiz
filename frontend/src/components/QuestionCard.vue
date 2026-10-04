@@ -13,13 +13,24 @@
         v-for="(option, index) in question.o"
         :key="index"
         class="option"
-        :class="{ selected: selected === index }"
+        :class="{
+          selected: selected === index,
+          correct: feedback && index === feedback.correctAnswer,
+          incorrect: feedback && selected === index && index !== feedback.correctAnswer
+        }"
+        :disabled="locked"
         type="button"
         @click="$emit('select', index)"
       >
         <span class="letter">{{ String.fromCharCode(65 + index) }}</span>
         <span>{{ option }}</span>
       </button>
+    </div>
+
+    <div v-if="feedback" class="feedback" :class="feedback.correct ? 'good' : 'bad'">
+      <strong>{{ feedback.correct ? "Correct!" : "Answer recorded." }}</strong>
+      <span> Correct answer: {{ String.fromCharCode(65 + Number(feedback.correctAnswer)) }}.</span>
+      <div>{{ feedback.explanation }}</div>
     </div>
 
     <div class="action-row navigation-row">
@@ -63,10 +74,11 @@
     </div>
 
     <div class="question-state">
-      <span v-if="isLastInBlock && !sectionComplete">
+      <span v-if="feedback">Response locked — this answer cannot be changed.</span>
+      <span v-else-if="isLastInBlock && !sectionComplete">
         Answer all {{ unansweredCount }} remaining question{{ unansweredCount === 1 ? "" : "s" }} before submitting this section.
       </span>
-      <span v-else-if="selected !== null && selected !== undefined">Answer selected — you can change it before moving on.</span>
+      <span v-else-if="selected !== null && selected !== undefined">Answer selected — press Next to record your response.</span>
       <span v-else>Not answered yet. Use Skip to come back later.</span>
     </div>
   </article>
@@ -77,6 +89,8 @@ defineProps({
   question: { type: Object, required: true },
   sectionLabel: { type: String, required: true },
   selected: { type: Number, default: null },
+  locked: { type: Boolean, default: false },
+  feedback: { type: Object, default: null },
   isFirst: { type: Boolean, default: false },
   isLast: { type: Boolean, default: false },
   isLastInBlock: { type: Boolean, default: false },
