@@ -466,27 +466,15 @@ async function submitTest(fromTimeout = false) {
   clearTimer();
   clearQuestionPolling();
 
-  if (currentQuestion.value) {
-    await saveCurrentResponse(fromTimeout);
-  }
-
-  const allLoaded = questions.value.length;
-  for (let i = 0; i < allLoaded; i += 1) {
-    const question = questions.value[i];
-    if (results.value[question.id]) continue;
-
-    results.value[question.id] = {
-      question,
-      selected: answers.value[question.id] ?? null,
-      correct: false,
-      timeout: i >= currentBlock.value.start ? fromTimeout : false,
-      time: timeSpent.value[question.id] || 0
-    };
+  if (currentQuestion.value && answers.value[currentQuestion.value.id] !== undefined && answers.value[currentQuestion.value.id] !== null) {
+    const saved = await saveCurrentResponse(fromTimeout);
+    if (!saved) return;
   }
 
   await finishAttempt();
   screen.value = "results";
 }
+
 
 async function finishAttempt() {
   const stats = resultStats.value;
