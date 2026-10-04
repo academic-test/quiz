@@ -419,7 +419,7 @@ app.patch("/api/attempts/:id", async (req,res) => {
 
 app.get("/admin", (req,res) => res.sendFile(path.join(publicDir,"admin.html")));
 app.get("/", (req,res) => res.sendFile(path.join(studentDir,"index.html")));
-app.get("*", (req,res) => {
+app.use((req,res) => {
   if (req.path.startsWith("/api/")) return res.status(404).json({ error:"Not found" });
   res.sendFile(path.join(studentDir,"index.html"));
 });
