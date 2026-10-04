@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hendersons Admin</title>
+<title>Aptitude Practice Admin</title>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--ink:#182033;--muted:#697386;--line:#e4e8f0;--accent:#5b5ce2;--good:#16845b;--bad:#c0394b}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}main{max-width:1180px;margin:auto;padding:32px 20px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 10px 30px #18203312}.login{max-width:420px;margin:10vh auto}.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:800;color:var(--accent)}h1{margin:6px 0 8px}p{color:var(--muted)}label{display:block;font-size:13px;font-weight:700;margin:16px 0 6px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:15px}button{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer}.primary{background:var(--accent);color:#fff}.ghost{background:#fff;border:1px solid var(--line)}.error{color:var(--bad);font-size:14px;min-height:20px}.hidden{display:none!important}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.stat{padding:18px;background:#fff;border:1px solid var(--line);border-radius:14px}.stat strong{font-size:26px;display:block}.stat span{font-size:12px;color:var(--muted)}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--muted);font-size:11px;text-transform:uppercase}.view{color:var(--accent);font-weight:800;cursor:pointer}.detail{margin-top:20px}.pill{padding:5px 8px;border-radius:8px;background:#eef0ff}.correct{color:var(--good);font-weight:800}.wrong{color:var(--bad);font-weight:800}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.top{align-items:flex-start}.top h1{font-size:24px}}
@@ -12,7 +12,7 @@
 <body>
 <main>
 <section id="login" class="card login">
-<div class="eyebrow">HENDERSONS ADMIN</div><h1>Admin Login</h1><p>Private dashboard for quiz attempts and responses.</p>
+<div class="eyebrow">APTITUDE PRACTICE ADMIN</div><h1>Admin Login</h1><p>Private dashboard for quiz attempts and responses.</p>
 <form id="loginForm">
 <label>Email</label><input id="email" type="email" autocomplete="username" required>
 <label>Password</label><input id="password" type="password" autocomplete="current-password" required>
@@ -20,9 +20,9 @@
 </form>
 </section>
 <section id="dashboard" class="hidden">
-<div class="top"><div><div class="eyebrow">HENDERSONS ADMIN</div><h1>Quiz Dashboard</h1><p>View attempts, scores and question-by-question responses.</p></div><div><button id="refresh" class="ghost">Refresh</button> <button id="logout" class="ghost">Log out</button></div></div>
+<div class="top"><div><div class="eyebrow">APTITUDE PRACTICE ADMIN</div><h1>Quiz Dashboard</h1><p>View attempts, scores and question-by-question responses.</p></div><div><button id="refresh" class="ghost">Refresh</button> <button id="logout" class="ghost">Log out</button></div></div>
 <div class="stats"><div class="stat"><strong id="total">0</strong><span>Attempts</span></div><div class="stat"><strong id="avgScore">0%</strong><span>Average score</span></div><div class="stat"><strong id="best">0%</strong><span>Best score</span></div><div class="stat"><strong id="responses">0</strong><span>Responses</span></div></div>
-<div class="card"><div class="table-wrap"><table><thead><tr><th>Started</th><th>Section</th><th>Difficulty</th><th>Questions</th><th>Score</th><th>Correct</th><th>Wrong</th><th>Timed out</th><th>Action</th></tr></thead><tbody id="attempts"></tbody></table></div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Started</th><th>Year</th><th>Section</th><th>Difficulty</th><th>Questions</th><th>Score</th><th>Correct</th><th>Wrong</th><th>Timed out</th><th>Action</th></tr></thead><tbody id="attempts"></tbody></table></div></div>
 <div id="detail" class="card detail hidden"><div class="top"><h2 id="detailTitle">Responses</h2><button id="closeDetail" class="ghost">Close</button></div><div class="table-wrap"><table><thead><tr><th>Question</th><th>Section</th><th>Selected</th><th>Correct</th><th>Result</th><th>Time</th><th>Answered</th></tr></thead><tbody id="responseRows"></tbody></table></div></div>
 </section>
 </main>
