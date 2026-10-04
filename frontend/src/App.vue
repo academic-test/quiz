@@ -4,7 +4,7 @@
       <div>
         <div class="eyebrow">SCHOLARSHIP TEST PRACTICE</div>
         <h1>ACER-Style Year 9 Test Practice</h1>
-        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test automatically mixes Numerical Reasoning, Verbal Reasoning, Mathematics and Reading Comprehension.</p>
+        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test runs in sections: Numerical Reasoning, then Verbal Reasoning, then Mathematics, then Reading Comprehension. Questions are not mixed.</p>
       </div>
     </header>
 
@@ -155,7 +155,7 @@ async function startTest() {
         session_id: sessionId.value,
         session_name: name,
         year_level: "9",
-        section: "mixed",
+        section: "numerical, verbal, maths, reading",
         difficulty: "all",
         question_count: 20
       })
