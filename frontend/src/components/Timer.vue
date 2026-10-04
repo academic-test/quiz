@@ -1,6 +1,6 @@
 <template>
   <div class="timer-wrap" :class="{ warning: remaining <= 300 && remaining > 60, danger: remaining <= 60 }">
-    <span>TIME LEFT</span><strong>{{ minutes }}:{{ seconds }}</strong>
+    <span>BLOCK TIME LEFT</span><strong>{{ minutes }}:{{ seconds }}</strong>
   </div>
 </template>
 <script setup>
