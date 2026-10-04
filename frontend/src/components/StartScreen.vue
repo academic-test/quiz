@@ -14,7 +14,7 @@
       {{ loading ? "Generating test…" : "Start Test" }}
     </button>
     <p v-if="error" class="start-error">{{ error }}</p>
-    <div class="timer-note">⏱ Each question has its own countdown.</div>
+    <div class="timer-note">⏱ 30 seconds per question · Section order is fixed and questions are not mixed.</div>
   </section>
 </template>
 
