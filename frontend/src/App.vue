@@ -66,6 +66,11 @@ const labels = {
   reading: "Reading Comprehension"
 };
 
+const blocks = [
+  { label: "Mathematics + Quantitative Reasoning", start: 0, end: 119, duration: 3600 },
+  { label: "Reading + Verbal Reasoning", start: 120, end: 229, duration: 3300 }
+];
+const totalQuestions = 230;
 const screen = ref("start");
 const studentName = ref("");
 const startError = ref("");
@@ -74,16 +79,22 @@ const sessionId = ref("");
 const attemptId = ref("");
 const questions = ref([]);
 const questionIndex = ref(0);
+const answers = ref(Array(totalQuestions).fill(null));
+const skipped = ref(Array(totalQuestions).fill(false));
+const timeSpent = ref(Array(totalQuestions).fill(0));
+const outcomes = ref(Array(totalQuestions).fill(null));
+const savedResponses = ref(new Set());
 const selected = ref(null);
 const submitted = ref(false);
 const remaining = ref(0);
 const feedback = ref(null);
 const results = ref([]);
 const generatingQuestions = ref(false);
+
 const totalQuestions = 230;
 let questionPollHandle = null;
 let timerHandle = null;
-let startedAt = 0;
+let questionStartedAt = 0;
 
 const currentQuestion = computed(() => questions.value[questionIndex.value] || null);
 const sectionLabel = computed(() => labels[currentQuestion.value?.section] || "");
