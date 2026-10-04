@@ -14,3 +14,4 @@
 <ResultsScreen v-else :title="resultTitle" :score="resultStats.score" :correct="resultStats.correct" :incorrect="resultStats.incorrect" :timeouts="resultStats.timeouts" :skipped="resultStats.skipped" :average-time="resultStats.averageTime" :breakdown="resultStats.breakdown" @restart="reset"/>
 </main>
 </template>
+<script setup>import { useQuiz } from './useQuiz';</script>
