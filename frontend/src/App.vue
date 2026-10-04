@@ -57,6 +57,8 @@
         :question="currentQuestion"
         :section-label="sectionLabel"
         :selected="selected"
+        :locked="Boolean(results[currentQuestion.id])"
+        :feedback="feedback"
         :is-first="questionIndex === currentBlock.start"
         :is-last="questionIndex === totalQuestions - 1"
         :is-last-in-block="questionIndex === currentBlock.end"
@@ -126,6 +128,7 @@ const results = ref({});
 const submittedBlocks = ref({});
 const remaining = ref(0);
 const generatingQuestions = ref(false);
+const feedback = ref(null);
 let questionPollHandle = null;
 let timerHandle = null;
 let questionOpenedAt = 0;
@@ -144,8 +147,8 @@ const progressPercent = computed(() => {
   if (!currentBlock.value.size) return 0;
   return Math.min(100, (blockQuestionNumber.value / currentBlock.value.size) * 100);
 });
-const answeredCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "answered").length);
-const skippedCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "skipped").length);
+const answeredCount = computed(() => currentBlockQuestions.value.filter(q => results.value[q.id]).length);
+const skippedCount = computed(() => currentBlockQuestions.value.filter(q => questionStates.value[q.id] === "skipped" && !results.value[q.id]).length);
 const sectionComplete = computed(() =>
   currentBlockQuestions.value.length === currentBlock.value.size &&
   answeredCount.value === currentBlock.value.size
@@ -276,6 +279,8 @@ async function startTest() {
     questionStates.value = {};
     timeSpent.value = {};
     results.value = {};
+    submittedBlocks.value = {};
+    feedback.value = null;
     questionIndex.value = 0;
     screen.value = "quiz";
     startBlockTimer();
@@ -314,6 +319,7 @@ async function saveCurrentResponse(timedOut = false) {
   const question = currentQuestion.value;
   if (!question || !attemptId.value) return false;
 
+  feedback.value = null;
   const answer = answers.value[question.id];
   if (answer === undefined || answer === null) {
     // Skipped/unanswered questions are intentionally not recorded.
@@ -345,6 +351,11 @@ async function saveCurrentResponse(timedOut = false) {
       time: timeSpent.value[question.id]
     };
     questionStates.value[question.id] = "answered";
+    feedback.value = {
+      correct: Boolean(response.correct),
+      correctAnswer: response.correct_answer,
+      explanation: response.explanation
+    };
     return true;
   } catch (error) {
     console.error("Response save failed", error);
@@ -356,13 +367,14 @@ async function saveCurrentResponse(timedOut = false) {
 }
 
 async function selectAnswer(index) {
-  if (!currentQuestion.value || savingResponse.value) return;
+  if (!currentQuestion.value || savingResponse.value || results.value[currentQuestion.value.id]) return;
   answers.value[currentQuestion.value.id] = index;
-  questionStates.value[currentQuestion.value.id] = "answered";
+  questionStates.value[currentQuestion.value.id] = "selected";
 }
 
 async function moveTo(index) {
-  if (index < 0 || index >= questions.value.length) return;
+  if (submittedBlocks.value[currentBlockIndex.value]) return;
+  if (index < currentBlock.value.start || index > currentBlock.value.end) return;
   const previousBlockIndex = currentBlockIndex.value;
   const current = currentQuestion.value;
   if (current && answers.value[current.id] !== undefined && answers.value[current.id] !== null) {
@@ -380,25 +392,171 @@ async function moveTo(index) {
 }
 
 async function nextQuestion() {
-  if (!currentQuestion.value) return;
-  const answer = answers.value[currentQuestion.value.id];
-  if (answer === undefined || answer === null) return;
-  if (questionIndex.value >= currentBlock.value.end) return;
+  if (!currentQuestion.value || submittedBlocks.value[currentBlockIndex.value]) return;
 
-  const saved = await saveCurrentResponse(false);
-  if (!saved) return;
+  const id = currentQuestion.value.id;
+
+  // First click: save the response, lock it, and show the correct answer/explanation.
+  if (!results.value[id]) {
+    const answer = answers.value[id];
+    if (answer === undefined || answer === null) return;
+    const saved = await saveCurrentResponse(false);
+    if (!saved) return;
+    return;
+  }
+
+  // Second click: continue to the next question.
+  if (questionIndex.value >= currentBlock.value.end) return;
+  questionIndex.value += 1;
+  questionOpenedAt = performance.now();
+}
+
+async function skipQuestion() {
+  if (!currentQuestion.value || savingResponse.value) return;
+  const question = currentQuestion.value;
+  const answer = answers.value[question.id];
+
+  if (answer !== undefined && answer !== null) return;
+
+  // Skipping records neither the answer nor the time spent.
+  questionStates.value[question.id] = "skipped";
+
+  if (questionIndex.value >= currentBlock.value.end) {
+    // Stay on the final question of the block. The student must revisit it
+    // and answer it before the explicit section submission becomes available.
+    return;
+  }
 
   questionIndex.value += 1;
   questionOpenedAt = performance.now();
 }
 
-async function submitBlock() {
+async function previousQuestion() {
+  if (questionIndex.value <= currentBlock.value.start) return;
+  await moveTo(questionIndex.value - 1);
+}
+
+async function goToQuestion(index) {
+  if (index < currentBlock.value.start || index > currentBlock.value.end) return;
+  await moveTo(index);
+}
+
+async function waitForNextQuestion() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (questions.value.length > questionIndex.value) {
+      generatingQuestions.value = questions.value.length < totalQuestions;
+      return true;
+    }
+    await refreshGeneratedQuestions();
+    if (questions.value.length > questionIndex.value) return true;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  return questions.value.length > questionIndex.value;
+}
+
+async function handleBlockTimeout() {
   const blockIndex = currentBlockIndex.value;
   if (submittedBlocks.value[blockIndex]) return;
-  if (!currentQuestion.value || !sectionComplete.value) return;
 
-  const saved = await saveCurrentResponse(false);
-  if (!saved) return;
+  clearTimer();
+
+  const current = currentQuestion.value;
+  if (current && answers.value[current.id] !== undefined && answers.value[current.id] !== null) {
+    // A selected answer is saved normally when the section clock expires.
+    await saveCurrentResponse(false);
+  }
+
+  // The section is now permanently locked, even if some questions were skipped.
+  submittedBlocks.value[blockIndex] = true;
+
+  if (blockIndex === 0) {
+    questionIndex.value = blocks[1].start;
+    const ready = await waitForNextQuestion();
+    if (!ready || !currentQuestion.value) return;
+    startBlockTimer();
+    questionOpenedAt = performance.now();
+    return;
+  }
+
+  await finishAttempt();
+  screen.value = "results";
+}
+
+
+async function submitTest(fromTimeout = false) {
+  clearTimer();
+  clearQuestionPolling();
+
+  if (currentQuestion.value && answers.value[currentQuestion.value.id] !== undefined && answers.value[currentQuestion.value.id] !== null) {
+    const saved = await saveCurrentResponse(fromTimeout);
+    if (!saved) return;
+  }
+
+  await finishAttempt();
+  screen.value = "results";
+}
+
+
+async function finishAttempt() {
+  const stats = resultStats.value;
+  try {
+    await api("/api/attempts/" + attemptId.value, {
+      method: "PATCH",
+      body: JSON.stringify({
+        completed_at: new Date().toISOString(),
+        score: stats.score,
+        correct_count: stats.correct,
+        wrong_count: stats.incorrect,
+        timeout_count: stats.timeouts,
+        average_response_seconds: Number(stats.averageTime),
+        session_id: sessionId.value
+      })
+    });
+  } catch (error) {
+    console.error("Attempt finalisation failed", error);
+  }
+}
+
+function reset() {
+  clearTimer();
+  clearQuestionPolling();
+  generatingQuestions.value = false;
+  screen.value = "start";
+  questions.value = [];
+  results.value = {};
+  submittedBlocks.value = {};
+  feedback.value = null;
+  answers.value = {};
+  questionStates.value = {};
+  timeSpent.value = {};
+  questionIndex.value = 0;
+  remaining.value = 0;
+  sessionId.value = "";
+  attemptId.value = "";
+  startError.value = "";
+}
+
+onBeforeUnmount(() => {
+  clearTimer();
+  clearQuestionPolling();
+});
+</script>async function submitBlock() {
+  const blockIndex = currentBlockIndex.value;
+  if (submittedBlocks.value[blockIndex] || !currentQuestion.value) return;
+
+  const id = currentQuestion.value.id;
+
+  // First click on the final question saves it and shows feedback.
+  if (!results.value[id]) {
+    const answer = answers.value[id];
+    if (answer === undefined || answer === null) return;
+    const saved = await saveCurrentResponse(false);
+    if (!saved) return;
+    return;
+  }
+
+  // Second click is the actual section submission.
+  if (!sectionComplete.value) return;
 
   clearTimer();
   submittedBlocks.value[blockIndex] = true;
@@ -407,6 +565,7 @@ async function submitBlock() {
     questionIndex.value = blocks[1].start;
     const ready = await waitForNextQuestion();
     if (!ready) return;
+    feedback.value = null;
     startBlockTimer();
     questionOpenedAt = performance.now();
     return;
