@@ -17,7 +17,8 @@ This file records the current architecture, product decisions, implemented chang
 - Questions are generated on the server.
 - Same-IP question reuse is blocked using hashed IP + generated question IDs.
 - Session IDs are UUIDs and Admin shows student name with Session ID.
-- Student must not see correctness feedback during the test.
+- After a response is submitted, the student sees the correct answer and an explanation.
+- Once a response is submitted/feedback is shown, the student cannot change that response.
 - Student must not see a “Time's Up” message during the test.
 - Answers remain editable only while the current block is open.
 
@@ -46,9 +47,10 @@ These are block timers, not individual-question timers. Exact ACER question coun
 - Block 1 timer is 60 minutes for Questions 1–120.
 - Block 2 timer is 55 minutes for Questions 121–230.
 - There is no individual question timer in the intended design.
-- Student may select an answer and change it while still in the same block.
+- Student may select an answer while on a question, but the response is not locked until Next/section submission records it.
 - Selecting an option does NOT save the response.
-- A response is saved when the student moves away from an answered question using Next, Previous, or question navigation.
+- A response is saved when the student commits it with Next, Previous, or section submission; after saving, the response is locked.
+- After saving a response, the student sees the correct answer and explanation before continuing.
 - Response time is captured only for answered questions when their response is saved.
 - A skipped question is not written to `quiz_responses` and does not record time taken.
 - Student can skip unanswered questions and revisit them later within the same block.
@@ -160,11 +162,13 @@ The supplied `Volume 1 Exam Pack Question Book.pdf` was used as a blueprint for 
 ## Rules for future changes
 - Do not reintroduce Learning unless explicitly requested.
 - Do not mix sections unless explicitly requested.
-- Do not show correctness during the test.
+- Show the correct answer and explanation after a response is recorded.
+- Do not allow a recorded response to be changed.
 - Do not show a Time's Up message during the test.
 - Do not show per-question timers.
 - Use one overall timer per active testing block.
-- Save an answered question when the student leaves it, not when an option is clicked.
+- Save an answered question when the response is committed by navigation/section submission, not when an option is clicked.
+- Show correct answer and explanation after the response is committed, then lock the response.
 - Never record time for a skipped/unanswered question.
 - Permit revisits only within the current unsubmitted block.
 - Once a block is submitted or times out, lock it permanently.
