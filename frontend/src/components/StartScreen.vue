@@ -19,12 +19,12 @@
 
     <div class="year-badge">YEAR 10 ENTRY · LEVEL 2</div>
     <p class="assessment-note">Original ACER-style practice · Humanities + Mathematics & Science + Written Expression</p>
-    <button class="primary-btn type="button" :disabled="loading" @click="$emit('start')">
+    <button class="primary-btn" type="button" :disabled="loading" @click="$emit('start')">
       {{ loading ? "Generating assessment…" : "Start Assessment" }}
     </button>
 
     <p v-if="error" class="start-error">{{ error }}</p>
-    <div class="timer-note">⏱ Test 1: 25 min · Test 2: 40 min · Test 3: 40 min · Test 4: 25 min · No calculator.</div>
+    <div class="timer-note">⏱ Test 1: 25 min · Test 2: 40 min · Test 3: 40 min · Test 4: 25 min</div>
   </section>
 </template>
 
