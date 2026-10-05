@@ -90,7 +90,12 @@ function signAssessmentToken(sessionId, expiresAt) {
 
 function readCookie(req, name) {
   const match = (req.headers.cookie || "").match(new RegExp("(^|;\\s*)" + name + "=([^;]+)"));
-  return match ? decodeURIComponent(match[2]) : "";
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[2]);
+  } catch {
+    return "";
+  }
 }
 
 function verifyAssessmentToken(req, sessionId) {
@@ -113,7 +118,7 @@ function verifyAssessmentToken(req, sessionId) {
 }
 
 function setAssessmentCookie(res, token, maxAgeSeconds) {
-  const secure = process.env.NODE_ENV === "production" ? " Secure;" : "";
+  const secure = String(req.get("X-Forwarded-Proto") || "").toLowerCase() === "https" || req.secure ? " Secure;" : "";
   res.setHeader(
     "Set-Cookie",
     assessmentCookieName + "=" + encodeURIComponent(token) +
