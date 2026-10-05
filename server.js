@@ -580,58 +580,11 @@ async function generateQuestions(req, sessionId, config) {
   const pending = [];
   const pendingIds = new Set();
 
-  for (const [section, quota] of quotas) {
-    const needed = Math.max(0, quota - counts[section]);
-    if (!needed) continue;
-
-    const { data: bankRows, error } = await supabase
-      .from("generated_questions")
-      .select("id,session_id,section,difficulty,time,question_text,passage,answer_options,correct_answer,explanation")
-      .eq("year_level", config.yearLevel)
-      .eq("section", section)
-      .is("session_id", null)
-      .limit(5000);
-
-    if (error) {
-      console.error("Question bank lookup failed", error);
-      continue;
-    }
-
-    const selected = pickDiverseQuestions(
-      bankRows || [],
-      Math.min(needed, neededTotal - pending.length),
-      used,
-      pending.length ? questionType(pending[pending.length - 1]) : ""
-    );
-
-    for (const source of selected) {
-      if (pending.length >= neededTotal) break;
-      const number = currentTotal + pending.length + 1;
-      const question = {
-        id: String(number).padStart(3, "0") + "-" + crypto.randomUUID(),
-        year_level: config.yearLevel,
-        session_id: sessionId,
-        ip_hash: ipHash(req),
-        section: source.section,
-        difficulty: source.difficulty || "hard",
-        time: Number(source.time) || 60,
-        question_text: source.question_text,
-        passage: source.passage || "",
-        answer_options: source.answer_options,
-        correct_answer: source.correct_answer,
-        explanation: source.explanation || "",
-        reasoning_type: source.reasoning_type
-      };
-      const fp = questionFingerprint(question);
-      if (used.has(fp) || pendingIds.has(question.id)) continue;
-      pending.push(question);
-      pendingIds.add(question.id);
-      used.add(fp);
-    }
-  }
-
+  // Year 10 assessments now prefer fresh generated material so the old,
+  // narrower Year 9-style bank cannot dominate a new mock.
   let attempts = 0;
-  const maxAttempts = Math.max(3000, neededTotal * 250);
+  const maxAttempts = Math.max(6000, neededTotal * 500);
+
   while (pending.length < neededTotal && attempts < maxAttempts) {
     attempts += 1;
 
@@ -661,9 +614,72 @@ async function generateQuestions(req, sessionId, config) {
     const number = currentTotal + pending.length + 1;
     question.id = String(number).padStart(3, "0") + "-" + crypto.randomUUID();
 
+    if (pendingIds.has(question.id)) continue;
     pending.push(question);
     pendingIds.add(question.id);
     used.add(fp);
+  }
+
+  // Keep the existing bank as a fallback only when a full fresh set could
+  // not be produced. This preserves resilience without prioritising legacy material.
+  if (pending.length < neededTotal) {
+    for (const [section, quota] of quotas) {
+      if (pending.length >= neededTotal) break;
+
+      const needed = Math.max(
+        0,
+        quota - counts[section] - pending.filter(item => item.section === section).length
+      );
+      if (!needed) continue;
+
+      const { data: bankRows, error } = await supabase
+        .from("generated_questions")
+        .select("id,session_id,section,difficulty,time,question_text,passage,answer_options,correct_answer,explanation")
+        .eq("year_level", config.yearLevel)
+        .eq("section", section)
+        .is("session_id", null)
+        .limit(5000);
+
+      if (error) {
+        console.error("Question bank lookup failed", error);
+        continue;
+      }
+
+      const selected = pickDiverseQuestions(
+        bankRows || [],
+        Math.min(needed, neededTotal - pending.length),
+        used,
+        pending.length ? questionType(pending[pending.length - 1]) : ""
+      );
+
+      for (const source of selected) {
+        if (pending.length >= neededTotal) break;
+
+        const number = currentTotal + pending.length + 1;
+        const question = {
+          id: String(number).padStart(3, "0") + "-" + crypto.randomUUID(),
+          year_level: config.yearLevel,
+          session_id: sessionId,
+          ip_hash: ipHash(req),
+          section: source.section,
+          difficulty: source.difficulty || "hard",
+          time: Number(source.time) || 60,
+          question_text: source.question_text,
+          passage: source.passage || "",
+          answer_options: source.answer_options,
+          correct_answer: source.correct_answer,
+          explanation: source.explanation || "",
+          reasoning_type: source.reasoning_type
+        };
+
+        const fp = questionFingerprint(question);
+        if (used.has(fp) || pendingIds.has(question.id)) continue;
+
+        pending.push(question);
+        pendingIds.add(question.id);
+        used.add(fp);
+      }
+    }
   }
 
   if (pending.length < neededTotal) {
