@@ -461,22 +461,7 @@ export function useAssessment() {
   }
 
   async function previousQuestion() {
-    if (currentBlock.value.type !== "mcq") {
-      if (currentStage.value <= 0) return;
-      currentStage.value -= 1;
-      feedback.value = null;
-      if (currentBlock.value.type === "mcq") {
-        questionIndex.value = currentBlock.value.end;
-        await ensureQuestionLoaded(questionIndex.value);
-        questionOpenedAt = Date.now();
-      } else {
-        writingOpenedAt = Date.now();
-      }
-      blockStartedAt.value = Date.now();
-      startBlockTimer(blockStartedAt.value);
-      persistState();
-      return;
-    }
+    if (currentBlock.value.type !== "mcq") return;
     if (questionIndex.value <= currentBlock.value.start) return;
     questionIndex.value -= 1;
     const loaded = await ensureQuestionLoaded(questionIndex.value);
