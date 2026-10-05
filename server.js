@@ -469,9 +469,92 @@ function makeQuestion(section) {
 function questionFingerprint(question) {
   return JSON.stringify([
     question.section,
-    String(question.question_text || "").trim().replace(/\\s+/g, " "),
-    String(question.passage || "").trim().replace(/\\s+/g, " ")
+    String(question.question_text || "").trim().replace(/\s+/g, " "),
+    String(question.passage || "").trim().replace(/\s+/g, " ")
   ]);
+}
+
+function questionType(question) {
+  const section = String(question.section || "").toLowerCase();
+  const text = String(question.question_text || "").toLowerCase();
+
+  if (section === "numerical") {
+    if (/find the next number|next number|sequence|what is the rule/.test(text)) return "numerical:sequence";
+    if (/average/.test(text)) return "numerical:average";
+    if (/speed|km\/h|distance|travels/.test(text)) return "numerical:speed";
+    if (/ratio|boys:girls|girls|workers|worker-days/.test(text)) return "numerical:ratio";
+    if (/%|percent|percentage|increases by|decreases by/.test(text)) return "numerical:percentage";
+    if (/clock|time|starts at|finish|finishes|minutes|hours/.test(text)) return "numerical:time";
+    if (/table|chart|graph|data/.test(text)) return "numerical:data";
+    return "numerical:other";
+  }
+
+  if (section === "maths") {
+    if (/rectangle.*area|area.*rectangle/.test(text)) return "maths:rectangle-area";
+    if (/triangle.*area|area.*triangle/.test(text)) return "maths:triangle-area";
+    if (/jacket costs|item is reduced|sale price|reduced by|new price|increased by/.test(text)) return "maths:percentage";
+    if (/angles of a quadrilateral|largest angle|ratio/.test(text)) return "maths:angles";
+    if (/solve for x|value of x|when x =|what is y when x/.test(text)) return "maths:algebra";
+    if (/perimeter|circumference|volume|surface area/.test(text)) return "maths:measurement";
+    if (/fraction|decimal|proportion/.test(text)) return "maths:number";
+    if (/probability|chance|likely/.test(text)) return "maths:probability";
+    if (/mean|median|mode|data|graph|chart/.test(text)) return "maths:data";
+    return "maths:other";
+  }
+
+  if (section === "verbal") {
+    if (/closest in meaning|closest meaning|synonym/.test(text)) return "verbal:synonym";
+    if (/opposite in meaning|antonym/.test(text)) return "verbal:antonym";
+    if (/ is to .* as .* is to|analogy/.test(text)) return "verbal:analogy";
+    if (/odd one out/.test(text)) return "verbal:odd-one-out";
+    if (/must be true|all .* are|no .* are/.test(text)) return "verbal:logic";
+    if (/completes|complete|best completes/.test(text)) return "verbal:context";
+    if (/root|prefix|suffix|code/.test(text)) return "verbal:word-structure";
+    return "verbal:other";
+  }
+
+  if (section === "reading") {
+    if (/main idea|best describes the main idea/.test(text)) return "reading:main-idea";
+    if (/infer|inferred|can be inferred|what does .* reveal|what lesson/.test(text)) return "reading:inference";
+    if (/word .* means|most nearly means|most nearly refers|meaning of/.test(text)) return "reading:vocabulary";
+    if (/purpose|why might|why did/.test(text)) return "reading:purpose";
+    return "reading:detail";
+  }
+
+  return section + ":other";
+}
+
+function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastType = "") {
+  const buckets = new Map();
+
+  for (const candidate of shuffle(candidates)) {
+    const fingerprint = questionFingerprint(candidate);
+    if (usedFingerprints.has(fingerprint)) continue;
+
+    const type = questionType(candidate);
+    if (!buckets.has(type)) buckets.set(type, []);
+    buckets.get(type).push(candidate);
+  }
+
+  for (const bucket of buckets.values()) shuffle(bucket);
+
+  const result = [];
+  let lastType = initialLastType;
+
+  while (result.length < count) {
+    const availableTypes = [...buckets.keys()].filter(type => {
+      const bucket = buckets.get(type);
+      return bucket.length > 0 && type !== lastType;
+    });
+
+    if (!availableTypes.length) break;
+
+    const type = pick(availableTypes);
+    result.push(buckets.get(type).pop());
+    lastType = type;
+  }
+
+  return result;
 }
 
 async function generateQuestions(req, sessionId, targetCount, sectionCounts = DEFAULT_SECTION_COUNTS) {
@@ -527,9 +610,16 @@ async function generateQuestions(req, sessionId, targetCount, sectionCounts = DE
       continue;
     }
 
-    const candidates = shuffle((bankRows || []).filter(source => source.session_id !== sessionId));
+    const candidates = (bankRows || []).filter(source => source.session_id !== sessionId);
+    const lastPendingType = pending.length ? questionType(pending[pending.length - 1]) : "";
+    const selectedSources = pickDiverseQuestions(
+      candidates,
+      Math.min(sectionNeeded, toGenerate - pending.length),
+      usedFingerprints,
+      lastPendingType
+    );
 
-    for (const source of candidates) {
+    for (const source of selectedSources) {
       if (pending.filter(item => item.section === section).length >= sectionNeeded) break;
 
       const fingerprint = questionFingerprint(source);
@@ -588,6 +678,9 @@ async function generateQuestions(req, sessionId, targetCount, sectionCounts = DE
 
       const fingerprint = questionFingerprint(question);
       if (usedFingerprints.has(fingerprint)) continue;
+
+      const previousType = pending.length ? questionType(pending[pending.length - 1]) : "";
+      if (previousType && questionType(question) === previousType) continue;
 
       const questionNumber = currentTotal + pending.length + 1;
       question.id = String(questionNumber).padStart(3, "0") + "-" + crypto.randomUUID();
