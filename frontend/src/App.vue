@@ -118,6 +118,7 @@ const {
   questions,
   questionIndex,
   results,
+  questionStates,
   remaining,
   generatingQuestions,
   feedback,
