@@ -17,7 +17,7 @@
       </div>
     </div>
     <div class="action-row center">
-      <button class="primary-btn" type="button" @click="$emit('restart')">Take Another Test</button>
+      <button class="primary-btn" type="button" @click="$emit('restart')">Restart Assessment</button>
     </div>
   </section>
 </template>
