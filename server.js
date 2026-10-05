@@ -420,14 +420,19 @@ function makeQuestion(section) {
 async function generateQuestions(req, sessionId, targetCount) {
   if (!supabase) return [];
 
-  const hash = ipHash(req);
-
-  const [{ data: usedRows }, { data: sessionRows }] = await Promise.all([
-    supabase.from("generated_questions").select("id").eq("ip_hash", hash),
-    supabase.from("generated_questions").select("id,section").eq("session_id", sessionId).eq("year_level", "9")
+  const [{ data: sessionRows }, { data: allRows }] = await Promise.all([
+    supabase
+      .from("generated_questions")
+      .select("id,section")
+      .eq("session_id", sessionId)
+      .eq("year_level", "9"),
+    supabase
+      .from("generated_questions")
+      .select("id")
+      .eq("year_level", "9")
+      .limit(10000)
   ]);
 
-  const usedIds = new Set((usedRows || []).map(row => row.id));
   const sessionCounts = { numerical: 0, maths: 0, reading: 0, verbal: 0 };
   for (const row of sessionRows || []) {
     if (sessionCounts[row.section] !== undefined) sessionCounts[row.section] += 1;
@@ -445,32 +450,89 @@ async function generateQuestions(req, sessionId, targetCount) {
   if (!toGenerate) return [];
 
   const pending = [];
-  let attempts = 0;
+  const pendingIds = new Set();
 
-  while (pending.length < toGenerate && attempts < toGenerate * 120) {
-    attempts += 1;
+  for (const [section, quota] of quotas) {
+    const sectionNeeded = Math.max(0, quota - sessionCounts[section]);
+    const remaining = Math.min(sectionNeeded, toGenerate - pending.length);
+    if (remaining <= 0) continue;
 
-    let section = null;
-    for (const [candidate, quota] of quotas) {
-      if (sessionCounts[candidate] + pending.filter(item => item.section === candidate).length < quota) {
-        section = candidate;
-        break;
-      }
+    const { data: bankRows, error } = await supabase
+      .from("generated_questions")
+      .select("*")
+      .eq("year_level", "9")
+      .eq("section", section)
+      .neq("session_id", sessionId)
+      .limit(Math.max(remaining * 4, 50));
+
+    if (error) {
+      console.error("Question bank lookup failed", error);
+      continue;
     }
 
-    if (!section) break;
+    for (const source of shuffle(bankRows || []).slice(0, remaining)) {
+      const question = {
+        year_level: "9",
+        session_id: sessionId,
+        ip_hash: ipHash(req),
+        section: source.section,
+        difficulty: source.difficulty,
+        time: source.time || 30,
+        question_text: source.question_text,
+        passage: source.passage || "",
+        answer_options: source.answer_options,
+        correct_answer: source.correct_answer,
+        explanation: source.explanation
+      };
+      question.id = crypto.createHash("sha256")
+        .update(sessionId + "|" + source.id)
+        .digest("hex")
+        .slice(0, 24);
 
-    const question = makeQuestion(section);
-    question.year_level = "9";
-    question.session_id = sessionId;
-    question.ip_hash = hash;
-    question.time = 30;
-    question.id = generatedId(question);
+      if (pendingIds.has(question.id)) continue;
 
-    if (usedIds.has(question.id) || pending.some(item => item.id === question.id)) continue;
+      pending.push(question);
+      pendingIds.add(question.id);
+      if (pending.length >= toGenerate) break;
+    }
 
-    pending.push(question);
-    usedIds.add(question.id);
+    if (pending.length >= toGenerate) break;
+  }
+
+  if (pending.length < toGenerate) {
+    const usedIds = new Set((allRows || []).map(row => row.id));
+    let attempts = 0;
+
+    while (pending.length < toGenerate && attempts < toGenerate * 120) {
+      attempts += 1;
+
+      let section = null;
+      for (const [candidate, quota] of quotas) {
+        if (
+          sessionCounts[candidate] +
+            pending.filter(item => item.section === candidate).length <
+          quota
+        ) {
+          section = candidate;
+          break;
+        }
+      }
+
+      if (!section) break;
+
+      const question = makeQuestion(section);
+      question.year_level = "9";
+      question.session_id = sessionId;
+      question.ip_hash = ipHash(req);
+      question.time = 30;
+      question.id = generatedId(question);
+
+      if (usedIds.has(question.id) || pendingIds.has(question.id)) continue;
+
+      pending.push(question);
+      pendingIds.add(question.id);
+      usedIds.add(question.id);
+    }
   }
 
   if (!pending.length) return [];
@@ -495,12 +557,14 @@ async function generateQuestions(req, sessionId, targetCount) {
     const { error } = await supabase.from("generated_questions").insert(batch);
     if (error) {
       console.error("Question batch insert failed", error);
-      continue;
+      return [];
     }
   }
 
   return pending;
 }
+
+
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.post("/api/admin/login", (req,res) => {
