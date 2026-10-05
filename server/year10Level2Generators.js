@@ -494,10 +494,12 @@ function mathematicsScienceQuestion() {
   }
 
   if (type === 14) {
-    const rows=["A","B","C","D"].map((name,i)=>[name,pick([120,140,160])+i*5,pick([80,90,100])+i*3]);
+    const base=pick([120,130,140]);
+    const diffs=[40,50,60,70];
+    const initials=[base,base+8,base+16,base+24];
+    const rows=["A","B","C","D"].map((name,i)=>[name,initials[i],initials[i]-diffs[i]]);
     const target=pick(["greatest decrease","smallest decrease"]);
-    const diffs=rows.map(r=>r[1]-r[2]);
-    const idx=target==="greatest decrease"?diffs.indexOf(Math.max(...diffs)):diffs.indexOf(Math.min(...diffs));
+    const idx=target==="greatest decrease"?3:0;
     const answer=rows[idx][0];
     const r=four(answer,rows.filter((_,i)=>i!==idx).map(x=>x[0]));
     return {section:"mathematics_science",difficulty:"hard",time:65,passage:"Data table:\n"+rows.map(r=>r[0]+" — initial "+r[1]+"; final "+r[2]).join("\n"),question_text:"Which group shows the "+target+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:data-table"};
@@ -659,7 +661,7 @@ function mathematicsScienceQuestion() {
     const plans=[
       ["A",80,20],["B",90,35],["C",75,15],["D",85,25]
     ];
-    const minimum=pick([80,85]),maximumBudget=pick([25,30]);
+    const minimum=pick([82,85]),maximumBudget=pick([25,30]);
     const eligible=plans.filter(p=>p[1]>=minimum && p[2]<=maximumBudget);
     const answer=eligible.length?eligible[0][0]:"None";
     const distractors=plans.map(p=>p[0]).filter(x=>x!==answer).slice(0,3);
