@@ -719,7 +719,7 @@ async function ensureQuestionsGenerated(req, sessionId, config) {
   await promise;
 }
 
-app.get("/health"app.get("/health", (req, res) => res.json({ ok: true }));
+app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.post("/api/admin/login", (req,res) => {
   if (!adminEmail || !adminPassword) return res.status(503).json({ error:"Admin login is not configured" });
