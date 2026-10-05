@@ -41,24 +41,6 @@
         <div :style="{ width: progressPercent + '%' }"></div>
       </div>
 
-      <div class="question-grid">
-        <button
-          v-for="(item, offset) in currentBlockQuestions"
-          :key="item.id"
-          type="button"
-          class="question-nav"
-          :class="{
-            current: offset + currentBlock.start === questionIndex,
-            answered: questionStates[item.id] === 'answered',
-            skipped: questionStates[item.id] === 'skipped'
-          }"
-          :disabled="offset + currentBlock.start >= questions.length"
-          @click="goToQuestion(offset + currentBlock.start)"
-        >
-          {{ offset + 1 }}
-        </button>
-      </div>
-
       <QuestionCard
         v-if="currentQuestion"
         :question="currentQuestion"
@@ -79,6 +61,24 @@
         @previous="previousQuestion"
         @submit="submitBlock"
       />
+
+      <div class="question-grid">
+        <button
+          v-for="(item, offset) in currentBlockQuestions"
+          :key="item.id"
+          type="button"
+          class="question-nav"
+          :class="{
+            current: offset + currentBlock.start === questionIndex,
+            answered: questionStates[item.id] === 'answered',
+            skipped: questionStates[item.id] === 'skipped'
+          }"
+          :disabled="offset + currentBlock.start >= questions.length"
+          @click="goToQuestion(offset + currentBlock.start)"
+        >
+          {{ offset + 1 }}
+        </button>
+      </div>
 
       <p v-if="generationMessage" class="generation-message">{{ generationMessage }}</p>
     </section>
