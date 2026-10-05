@@ -3,8 +3,8 @@
     <header class="topbar">
       <div>
         <div class="eyebrow">SCHOLARSHIP TEST PRACTICE</div>
-        <h1>ACER-Style Year 9 Test Practice</h1>
-        <p class="subtitle">Original questions designed around publicly described reasoning-test characteristics. The test runs in two timed blocks: Quantitative + Mathematics, then Reading + Verbal.</p>
+        <h1>ACER Level 2 · Year 10 Entry Practice</h1>
+        <p class="subtitle">Original practice questions built around the reasoning patterns in the supplied ACER Years 9–10 practice booklet. The assessment has four timed tests: Written Expression, Humanities, Mathematics & Science, then Written Expression.</p>
       </div>
     </header>
 
@@ -12,7 +12,7 @@
       <div class="hero-icon">⏳</div>
       <div class="eyebrow">ASSESSMENT IN PROGRESS</div>
       <h2>Restoring your test…</h2>
-      <p>Your current question, answers and section timer are being restored. Refreshing the page will not start a new assessment.</p>
+      <p>Your current task, answers, writing and timer are being restored. Refreshing the page will not start a new assessment.</p>
     </section>
 
     <StartScreen
@@ -27,7 +27,8 @@
       <div class="quiz-meta">
         <div>
           <span>{{ currentBlock.label }}</span>
-          <strong>Question {{ blockQuestionNumber }} of {{ currentBlock.size }}</strong>
+          <strong v-if="currentBlock.type === 'writing'">{{ currentBlock.subtitle }}</strong>
+          <strong v-else>Question {{ blockQuestionNumber }} of {{ currentBlock.size }}</strong>
         </div>
         <div class="assessment-actions">
           <button class="ghost-btn" type="button" @click="abortAssessment">Abort Assessment</button>
@@ -37,7 +38,8 @@
 
       <div class="block-meta">
         <span>{{ currentBlock.subtitle }}</span>
-        <span>{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
+        <span v-if="currentBlock.type === 'mcq'">{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
+        <span v-else>{{ answeredCount ? 'Writing submitted' : 'Writing in progress' }}</span>
       </div>
 
       <div class="progress">
@@ -54,7 +56,7 @@
         :is-first="questionIndex === currentBlock.start"
         :is-last="questionIndex === totalQuestions - 1"
         :is-last-in-block="questionIndex === currentBlock.end"
-        :waiting-for-questions="generatingQuestions && questionIndex >= questions.length - 1"
+        :waiting-for-questions="!currentQuestion"
         :saving="savingResponse"
         :section-complete="sectionComplete"
         :unanswered-count="unansweredCount"
@@ -65,7 +67,20 @@
         @submit="submitBlock"
       />
 
-      <div class="question-grid">
+      <WritingCard
+        v-else-if="currentWritingTask"
+        :task="currentWritingTask"
+        :text="writingDrafts[currentWritingTask.id] || ''"
+        :locked="Boolean(writingSubmitted[currentWritingTask.id])"
+        :saving="savingResponse"
+        :can-previous="currentStage > 0"
+        :is-last="currentStage === 3"
+        @update:text="updateWriting"
+        @submit="submitBlock"
+        @previous="previousQuestion"
+      />
+
+      <div v-if="currentBlock.type === 'mcq'" class="question-grid">
         <button
           v-for="(item, offset) in currentBlockQuestions"
           :key="item.id"
@@ -83,7 +98,7 @@
         </button>
       </div>
 
-      <p v-if="generationMessage" class="generation-message">{{ generationMessage }}</p>
+      <p v-if="startError" class="generation-message">{{ startError }}</p>
     </section>
 
     <ResultsScreen
@@ -95,6 +110,7 @@
       :timeouts="resultStats.timeouts"
       :average-time="resultStats.averageTime"
       :breakdown="resultStats.breakdown"
+      :writing-completed="resultStats.writingCompleted"
       @restart="restartAssessment"
     />
 
@@ -106,6 +122,7 @@
 import StartScreen from "./components/StartScreen.vue";
 import Timer from "./components/Timer.vue";
 import QuestionCard from "./components/QuestionCard.vue";
+import WritingCard from "./components/WritingCard.vue";
 import ResultsScreen from "./components/ResultsScreen.vue";
 import { useAssessment, totalQuestions } from "./composables/useAssessment";
 
@@ -120,11 +137,13 @@ const {
   results,
   questionStates,
   remaining,
-  generatingQuestions,
-  feedback,
-  currentQuestion,
+  currentStage,
   currentBlock,
   currentBlockQuestions,
+  currentQuestion,
+  currentWritingTask,
+  writingDrafts,
+  writingSubmitted,
   selected,
   sectionLabel,
   blockQuestionNumber,
@@ -133,11 +152,11 @@ const {
   skippedCount,
   sectionComplete,
   unansweredCount,
-  generationMessage,
   resultStats,
   resultTitle,
   startTest,
   selectAnswer,
+  updateWriting,
   nextQuestion,
   skipQuestion,
   previousQuestion,
