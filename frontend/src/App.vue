@@ -8,8 +8,15 @@
       </div>
     </header>
 
+    <section v-if="screen === 'restoring'" class="card start-card">
+      <div class="hero-icon">⏳</div>
+      <div class="eyebrow">ASSESSMENT IN PROGRESS</div>
+      <h2>Restoring your test…</h2>
+      <p>Your current question, answers and section timer are being restored. Refreshing the page will not start a new assessment.</p>
+    </section>
+
     <StartScreen
-      v-if="screen === 'start'"
+      v-else-if="screen === 'start'"
       v-model:student-name="studentName"
       :loading="starting"
       :error="startError"
@@ -93,11 +100,13 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import StartScreen from "./components/StartScreen.vue";
 import Timer from "./components/Timer.vue";
 import QuestionCard from "./components/QuestionCard.vue";
 import ResultsScreen from "./components/ResultsScreen.vue";
+
+const STORAGE_KEY = "acer-year9-quiz-session-v3";
 
 const labels = {
   maths: "Mathematics",
@@ -130,6 +139,7 @@ const screen = ref("start");
 const studentName = ref("");
 const startError = ref("");
 const starting = ref(false);
+const restoring = ref(false);
 const savingResponse = ref(false);
 const sessionId = ref("");
 const attemptId = ref("");
@@ -141,6 +151,7 @@ const timeSpent = ref({});
 const results = ref({});
 const submittedBlocks = ref({});
 const remaining = ref(0);
+const blockStartedAt = ref(0);
 const generatingQuestions = ref(false);
 const feedback = ref(null);
 
@@ -239,6 +250,43 @@ async function api(path, options = {}) {
   return data;
 }
 
+function persistState() {
+  if (!sessionId.value || !attemptId.value) return;
+
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 3,
+      screen: screen.value,
+      studentName: studentName.value,
+      sessionId: sessionId.value,
+      attemptId: attemptId.value,
+      questionIndex: questionIndex.value,
+      answers: answers.value,
+      questionStates: questionStates.value,
+      timeSpent: timeSpent.value,
+      results: results.value,
+      submittedBlocks: submittedBlocks.value,
+      blockStartedAt: blockStartedAt.value,
+      questionOpenedAt
+    }));
+  } catch (error) {
+    console.warn("Could not persist quiz session", error);
+  }
+}
+
+function clearPersistedState() {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.warn("Could not clear quiz session", error);
+  }
+}
+
+function showFeedbackForCurrentQuestion() {
+  const result = currentQuestion.value ? results.value[currentQuestion.value.id] : null;
+  feedback.value = result?.feedback || null;
+}
+
 function clearTimer() {
   if (timerHandle) clearInterval(timerHandle);
   timerHandle = null;
@@ -266,6 +314,11 @@ async function refreshGeneratedQuestions() {
     generatingQuestions.value = response.questions.length < totalQuestions;
 
     if (response.ready) clearQuestionPolling();
+
+    if (screen.value === "restoring" && questions.value.length > questionIndex.value) {
+      screen.value = "quiz";
+      showFeedbackForCurrentQuestion();
+    }
   } catch (error) {
     console.error("Question generation polling failed", error);
   }
@@ -281,6 +334,30 @@ function startQuestionPolling() {
   refreshGeneratedQuestions();
 }
 
+function startBlockTimer(startTime = Date.now()) {
+  clearTimer();
+
+  blockStartedAt.value = Number(startTime) || Date.now();
+
+  const elapsed = Math.floor((Date.now() - blockStartedAt.value) / 1000);
+  remaining.value = Math.max(0, currentBlock.value.duration - elapsed);
+
+  timerHandle = setInterval(() => {
+    const elapsedNow = Math.floor((Date.now() - blockStartedAt.value) / 1000);
+    remaining.value = Math.max(0, currentBlock.value.duration - elapsedNow);
+
+    if (remaining.value <= 0) {
+      clearTimer();
+      handleBlockTimeout();
+    }
+  }, 1000);
+
+  if (remaining.value <= 0) {
+    clearTimer();
+    handleBlockTimeout();
+  }
+}
+
 async function startTest() {
   const name = studentName.value.trim();
 
@@ -292,6 +369,7 @@ async function startTest() {
   startError.value = "";
   starting.value = true;
   clearTimer();
+  clearPersistedState();
 
   try {
     sessionId.value = crypto.randomUUID();
@@ -316,6 +394,7 @@ async function startTest() {
       })
     });
 
+    studentName.value = name;
     attemptId.value = attempt.id;
     questions.value = response.questions;
     answers.value = {};
@@ -326,7 +405,10 @@ async function startTest() {
     feedback.value = null;
     questionIndex.value = 0;
     screen.value = "quiz";
-    startBlockTimer();
+    blockStartedAt.value = Date.now();
+    questionOpenedAt = Date.now();
+    persistState();
+    startBlockTimer(blockStartedAt.value);
     startQuestionPolling();
   } catch (error) {
     console.error(error);
@@ -334,20 +416,6 @@ async function startTest() {
   } finally {
     starting.value = false;
   }
-}
-
-function startBlockTimer() {
-  clearTimer();
-  remaining.value = currentBlock.value.duration;
-  questionOpenedAt = performance.now();
-
-  timerHandle = setInterval(() => {
-    if (remaining.value <= 0) {
-      handleBlockTimeout();
-      return;
-    }
-    remaining.value -= 1;
-  }, 1000);
 }
 
 async function saveCurrentResponse(timedOut = false) {
@@ -361,10 +429,11 @@ async function saveCurrentResponse(timedOut = false) {
   }
 
   if (results.value[question.id]) {
+    showFeedbackForCurrentQuestion();
     return true;
   }
 
-  const elapsed = Math.max(0, (performance.now() - questionOpenedAt) / 1000);
+  const elapsed = Math.max(0, (Date.now() - questionOpenedAt) / 1000);
   timeSpent.value[question.id] = elapsed;
   savingResponse.value = true;
 
@@ -381,21 +450,24 @@ async function saveCurrentResponse(timedOut = false) {
       })
     });
 
-    results.value[question.id] = {
-      question,
-      selected: answer,
-      correct: Boolean(response.correct),
-      timeout: Boolean(timedOut),
-      time: elapsed
-    };
-
-    questionStates.value[question.id] = "answered";
-    feedback.value = {
+    const resultFeedback = {
       correct: Boolean(response.correct),
       correctAnswer: Number(response.correct_answer),
       explanation: response.explanation || ""
     };
 
+    results.value[question.id] = {
+      question,
+      selected: answer,
+      correct: Boolean(response.correct),
+      timeout: Boolean(timedOut),
+      time: elapsed,
+      feedback: resultFeedback
+    };
+
+    questionStates.value[question.id] = "answered";
+    feedback.value = resultFeedback;
+    persistState();
     return true;
   } catch (error) {
     console.error("Response save failed", error);
@@ -412,6 +484,7 @@ async function selectAnswer(index) {
 
   answers.value[currentQuestion.value.id] = index;
   questionStates.value[currentQuestion.value.id] = "selected";
+  persistState();
 }
 
 async function moveTo(index) {
@@ -432,8 +505,9 @@ async function moveTo(index) {
   }
 
   questionIndex.value = index;
-  feedback.value = null;
-  questionOpenedAt = performance.now();
+  showFeedbackForCurrentQuestion();
+  questionOpenedAt = Date.now();
+  persistState();
 }
 
 async function nextQuestion() {
@@ -457,7 +531,8 @@ async function nextQuestion() {
 
   questionIndex.value += 1;
   feedback.value = null;
-  questionOpenedAt = performance.now();
+  questionOpenedAt = Date.now();
+  persistState();
 }
 
 async function skipQuestion() {
@@ -476,7 +551,8 @@ async function skipQuestion() {
 
   questionIndex.value += 1;
   feedback.value = null;
-  questionOpenedAt = performance.now();
+  questionOpenedAt = Date.now();
+  persistState();
 }
 
 async function previousQuestion() {
@@ -507,6 +583,7 @@ async function waitForNextQuestion() {
 
 async function submitBlock() {
   const blockIndex = currentBlockIndex.value;
+
   if (submittedBlocks.value[blockIndex] || !currentQuestion.value) return;
 
   const id = currentQuestion.value.id;
@@ -527,7 +604,6 @@ async function submitBlock() {
 
   clearTimer();
   submittedBlocks.value[blockIndex] = true;
-  feedback.value = null;
 
   if (blockIndex === 0) {
     questionIndex.value = blocks[1].start;
@@ -535,14 +611,18 @@ async function submitBlock() {
     const ready = await waitForNextQuestion();
     if (!ready || !currentQuestion.value) return;
 
-    startBlockTimer();
-    questionOpenedAt = performance.now();
+    feedback.value = null;
+    questionOpenedAt = Date.now();
+    blockStartedAt.value = Date.now();
+    persistState();
+    startBlockTimer(blockStartedAt.value);
     return;
   }
 
   clearQuestionPolling();
   await finishAttempt();
   screen.value = "results";
+  persistState();
 }
 
 async function handleBlockTimeout() {
@@ -565,7 +645,6 @@ async function handleBlockTimeout() {
 
   // Timer expiry permanently locks the entire section, including skipped questions.
   submittedBlocks.value[blockIndex] = true;
-  feedback.value = null;
 
   if (blockIndex === 0) {
     questionIndex.value = blocks[1].start;
@@ -573,14 +652,18 @@ async function handleBlockTimeout() {
     const ready = await waitForNextQuestion();
     if (!ready || !currentQuestion.value) return;
 
-    startBlockTimer();
-    questionOpenedAt = performance.now();
+    feedback.value = null;
+    questionOpenedAt = Date.now();
+    blockStartedAt.value = Date.now();
+    persistState();
+    startBlockTimer(blockStartedAt.value);
     return;
   }
 
   clearQuestionPolling();
   await finishAttempt();
   screen.value = "results";
+  persistState();
 }
 
 async function finishAttempt() {
@@ -604,9 +687,79 @@ async function finishAttempt() {
   }
 }
 
+async function restoreSession() {
+  let raw = null;
+
+  try {
+    raw = sessionStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.warn("Could not read saved quiz session", error);
+  }
+
+  if (!raw) return;
+
+  try {
+    const saved = JSON.parse(raw);
+
+    if (
+      saved?.version !== 3 ||
+      !saved.sessionId ||
+      !saved.attemptId ||
+      !saved.screen
+    ) {
+      clearPersistedState();
+      return;
+    }
+
+    restoring.value = true;
+    screen.value = "restoring";
+    studentName.value = saved.studentName || "";
+    sessionId.value = saved.sessionId;
+    attemptId.value = saved.attemptId;
+    questionIndex.value = Number.isInteger(saved.questionIndex) ? saved.questionIndex : 0;
+    answers.value = saved.answers || {};
+    questionStates.value = saved.questionStates || {};
+    timeSpent.value = saved.timeSpent || {};
+    results.value = saved.results || {};
+    submittedBlocks.value = saved.submittedBlocks || {};
+    blockStartedAt.value = Number(saved.blockStartedAt) || Date.now();
+    questionOpenedAt = Number(saved.questionOpenedAt) || Date.now();
+
+    if (saved.screen === "results") {
+      screen.value = "results";
+      restoring.value = false;
+      return;
+    }
+
+    const response = await api(
+      "/api/questions?year=9&session_id=" + encodeURIComponent(sessionId.value)
+    );
+
+    if (!Array.isArray(response.questions) || response.questions.length <= questionIndex.value) {
+      questions.value = Array.isArray(response.questions) ? response.questions : [];
+      startQuestionPolling();
+      restoring.value = false;
+      return;
+    }
+
+    questions.value = response.questions;
+    screen.value = "quiz";
+    showFeedbackForCurrentQuestion();
+    startBlockTimer(blockStartedAt.value);
+    startQuestionPolling();
+  } catch (error) {
+    console.error("Could not restore quiz session", error);
+    clearPersistedState();
+    screen.value = "start";
+  } finally {
+    restoring.value = false;
+  }
+}
+
 function reset() {
   clearTimer();
   clearQuestionPolling();
+  clearPersistedState();
   generatingQuestions.value = false;
   screen.value = "start";
   questions.value = [];
@@ -618,10 +771,14 @@ function reset() {
   timeSpent.value = {};
   questionIndex.value = 0;
   remaining.value = 0;
+  blockStartedAt.value = 0;
   sessionId.value = "";
   attemptId.value = "";
+  studentName.value = "";
   startError.value = "";
 }
+
+onMounted(restoreSession);
 
 onBeforeUnmount(() => {
   clearTimer();
