@@ -435,26 +435,24 @@ export function useAssessment() {
     const id = currentQuestion.value?.id;
     if (!id) return;
 
-    let review = null;
+    // First click records the answer and shows feedback on the same question.
     if (!results.value[id]) {
       const saved = await saveCurrentResponse(false);
       if (!saved) return;
-      review = results.value[id]?.feedback || feedback.value || null;
-    } else {
-      review = results.value[id]?.feedback || feedback.value || null;
+      previousFeedback.value = null;
+      persistState();
+      return;
     }
 
+    // Second click moves to the next question.
     if (questionIndex.value >= currentBlock.value.end) return;
 
-    const previousNumber = blockQuestionNumber.value;
     const nextIndex = questionIndex.value + 1;
     if (!(await ensureQuestionLoaded(nextIndex))) return;
 
     questionIndex.value = nextIndex;
     feedback.value = null;
-    previousFeedback.value = review
-      ? { ...review, questionNumber: previousNumber }
-      : null;
+    previousFeedback.value = null;
     questionOpenedAt = Date.now();
     persistState();
   }
@@ -511,11 +509,16 @@ export function useAssessment() {
     const id = currentQuestion.value?.id;
     if (!id) return;
 
+    // First click records the final answer and shows feedback on the same question.
     if (!results.value[id]) {
       const saved = await saveCurrentResponse(false);
       if (!saved) return;
+      previousFeedback.value = null;
+      persistState();
+      return;
     }
 
+    // Second click submits the completed test component.
     if (!sectionComplete.value) return;
     await advanceStage();
   }
