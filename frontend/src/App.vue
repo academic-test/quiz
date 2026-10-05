@@ -73,11 +73,9 @@
         :text="writingDrafts[currentWritingTask.id] || ''"
         :locked="Boolean(writingSubmitted[currentWritingTask.id])"
         :saving="savingResponse"
-        :can-previous="currentStage > 0"
         :is-last="currentStage === 3"
         @update:text="updateWriting"
         @submit="submitBlock"
-        @previous="previousQuestion"
       />
 
       <div v-if="currentBlock.type === 'mcq'" class="question-grid">
@@ -139,6 +137,7 @@ const {
   remaining,
   currentStage,
   currentBlock,
+  feedback,
   currentBlockQuestions,
   currentQuestion,
   currentWritingTask,
