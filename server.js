@@ -117,7 +117,7 @@ function verifyAssessmentToken(req, sessionId) {
   }
 }
 
-function setAssessmentCookie(res, token, maxAgeSeconds) {
+function setAssessmentCookie(req, res, token, maxAgeSeconds) {
   const secure = String(req.get("X-Forwarded-Proto") || "").toLowerCase() === "https" || req.secure ? " Secure;" : "";
   res.setHeader(
     "Set-Cookie",
@@ -731,7 +731,7 @@ app.post("/api/assessments/start", async (req,res) => {
       return res.status(400).json({ error:"Could not create assessment" });
     }
 
-    setAssessmentCookie(res, signAssessmentToken(sessionId, expiresAt), Math.floor(assessmentTtlMs / 1000));
+    setAssessmentCookie(req, res, signAssessmentToken(sessionId, expiresAt), Math.floor(assessmentTtlMs / 1000));
 
     const manifest = generated.map((q,index) => ({
       number:index + 1,
