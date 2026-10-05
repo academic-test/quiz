@@ -1,6 +1,7 @@
 export async function request(path, options = {}) {
   const response = await fetch(path, {
     ...options,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {})
@@ -16,17 +17,22 @@ export async function request(path, options = {}) {
   return data;
 }
 
-export function getQuestions(sessionId) {
-  return request(
-    "/api/questions?year=9&session_id=" + encodeURIComponent(sessionId)
-  );
-}
-
-export function createAttempt(payload) {
-  return request("/api/attempts", {
+export function startAssessment(payload) {
+  return request("/api/assessments/start", {
     method: "POST",
     body: JSON.stringify(payload)
   });
+}
+
+export function getQuestions(sessionId, offset = 0, limit = 10) {
+  return request(
+    "/api/assessments/" +
+      encodeURIComponent(sessionId) +
+      "/questions?offset=" +
+      encodeURIComponent(offset) +
+      "&limit=" +
+      encodeURIComponent(limit)
+  );
 }
 
 export function saveResponse(payload) {
