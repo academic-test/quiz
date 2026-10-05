@@ -501,7 +501,7 @@ async function generateQuestions(req, sessionId, targetCount) {
 
   return pending;
 }
-app.get("/health", (req, res) => res.json({ ok: true, supabaseConfigured: Boolean(supabase) }));
+app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.post("/api/admin/login", (req,res) => {
   if (!adminEmail || !adminPassword) return res.status(503).json({ error:"Admin login is not configured" });
