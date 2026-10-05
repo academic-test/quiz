@@ -545,7 +545,7 @@ function mathematicsScienceQuestion() {
 
   if (type === 18) {
     const scale=pick([1,2,5]),mapDistance=pick([3.2,4.5,6.8]),actual=mapDistance*scale;
-    const r=four(actual+" km",[(mapDistance/scale).toFixed(1)+" km",(actual+scale).toFixed(1)+" km",(actual-scale).toFixed(1)+" km"]);
+    const r=four(actual+" km",[(mapDistance+scale).toFixed(1)+" km",(actual+scale).toFixed(1)+" km",Math.max(0.1,actual-scale).toFixed(1)+" km"]);
     return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"On a map, 1 cm represents "+scale+" km. Two places are "+mapDistance+" cm apart on the map. What is the actual distance?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:scale"};
   }
 
