@@ -76,7 +76,7 @@
             answered: questionStates[item.id] === 'answered',
             skipped: questionStates[item.id] === 'skipped'
           }"
-          :disabled="offset + currentBlock.start >= questions.length"
+          :disabled="!questions[offset + currentBlock.start]"
           @click="goToQuestion(offset + currentBlock.start)"
         >
           {{ offset + 1 }}
