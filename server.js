@@ -21,8 +21,50 @@ const adminPassword = process.env.ADMIN_PASSWORD;
 const cookieName = "quiz_admin";
 const assessmentCookieName = "quiz_assessment";
 const assessmentTtlMs = 4 * 60 * 60 * 1000;
-const assessmentQuestionCount = 230;
 const rateLimitBuckets = new Map();
+const generationLocks = new Map();
+const DEFAULT_ASSESSMENT = Object.freeze({
+  yearLevel: "10",
+  sectionCounts: { humanities: 40, mathematics_science: 32 },
+  totalQuestionCount: 72,
+  writingTaskCount: 2
+});
+async function getAssessmentConfig() {
+  if (!supabase) return JSON.parse(JSON.stringify(DEFAULT_ASSESSMENT));
+  const { data, error } = await supabase
+    .from("assessment_configs")
+    .select("year_level,section_counts,total_question_count")
+    .eq("config_key", "year10_level2")
+    .eq("active", true)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error("Assessment config lookup failed", error);
+    return JSON.parse(JSON.stringify(DEFAULT_ASSESSMENT));
+  }
+  const sectionCounts = {
+    humanities: Number(data.section_counts?.humanities),
+    mathematics_science: Number(data.section_counts?.mathematics_science)
+  };
+  const totalQuestionCount = Object.values(sectionCounts).reduce((sum, value) => sum + value, 0);
+  if (
+    String(data.year_level) !== "10" ||
+    Object.values(sectionCounts).some(value => !Number.isInteger(value) || value <= 0) ||
+    totalQuestionCount !== Number(data.total_question_count)
+  ) {
+    console.error("Invalid Year 10 assessment config; using defaults");
+    return JSON.parse(JSON.stringify(DEFAULT_ASSESSMENT));
+  }
+  return { yearLevel:"10", sectionCounts, totalQuestionCount, writingTaskCount:2 };
+}
+
+const {
+  humanitiesQuestion,
+  mathematicsScienceQuestion,
+  questionFingerprint,
+  questionType,
+  pickDiverseQuestions,
+  getWritingTasks
+} = require("./server/year10Level2Generators");
 
 function signSession(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -504,136 +546,138 @@ function makeQuestion(section) {
   return makeReadingQuestion();
 }
 
-async function generateQuestions(req, sessionId, targetCount) {
+async function generateQuestions(req, sessionId, config) {
   if (!supabase) return [];
 
-  const [{ data: sessionRows }, { data: allRows }] = await Promise.all([
-    supabase
-      .from("generated_questions")
-      .select("id,section")
-      .eq("session_id", sessionId)
-      .eq("year_level", "9"),
-    supabase
-      .from("generated_questions")
-      .select("id")
-      .eq("year_level", "9")
-      .limit(10000)
-  ]);
+  const quotas = [
+    ["humanities", Number(config.sectionCounts.humanities) || 0],
+    ["mathematics_science", Number(config.sectionCounts.mathematics_science) || 0]
+  ];
+  const total = Number(config.totalQuestionCount) || 0;
 
-  const sessionCounts = { numerical: 0, maths: 0, reading: 0, verbal: 0 };
-  for (const row of sessionRows || []) {
-    if (sessionCounts[row.section] !== undefined) sessionCounts[row.section] += 1;
+  const { data: sessionRows, error: sessionError } = await supabase
+    .from("generated_questions")
+    .select("id,session_id,section,difficulty,time,question_text,passage,answer_options,correct_answer,explanation")
+    .eq("session_id", sessionId)
+    .eq("year_level", config.yearLevel);
+
+  if (sessionError) {
+    console.error("Session question lookup failed", sessionError);
+    return [];
   }
 
-  const quotas = [
-    ["numerical", 60],
-    ["maths", 60],
-    ["reading", 55],
-    ["verbal", 55]
-  ];
+  const counts = { humanities: 0, mathematics_science: 0 };
+  const used = new Set();
+  for (const row of sessionRows || []) {
+    if (counts[row.section] !== undefined) counts[row.section] += 1;
+    used.add(questionFingerprint(row));
+  }
 
-  const currentTotal = Object.values(sessionCounts).reduce((sum, value) => sum + value, 0);
-  const toGenerate = Math.max(0, targetCount - currentTotal);
-  if (!toGenerate) return [];
+  const currentTotal = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  const neededTotal = Math.max(0, total - currentTotal);
+  if (!neededTotal) return sessionRows || [];
 
   const pending = [];
   const pendingIds = new Set();
 
   for (const [section, quota] of quotas) {
-    const sectionNeeded = Math.max(0, quota - sessionCounts[section]);
-    const remaining = Math.min(sectionNeeded, toGenerate - pending.length);
-    if (remaining <= 0) continue;
+    const needed = Math.max(0, quota - counts[section]);
+    if (!needed) continue;
 
     const { data: bankRows, error } = await supabase
       .from("generated_questions")
-      .select("*")
-      .eq("year_level", "9")
+      .select("id,session_id,section,difficulty,time,question_text,passage,answer_options,correct_answer,explanation")
+      .eq("year_level", config.yearLevel)
       .eq("section", section)
-      .neq("session_id", sessionId)
-      .limit(Math.max(remaining * 4, 50));
+      .is("session_id", null)
+      .limit(5000);
 
     if (error) {
       console.error("Question bank lookup failed", error);
       continue;
     }
 
-    for (const source of shuffle(bankRows || []).slice(0, remaining)) {
+    const selected = pickDiverseQuestions(
+      bankRows || [],
+      Math.min(needed, neededTotal - pending.length),
+      used,
+      pending.length ? questionType(pending[pending.length - 1]) : ""
+    );
+
+    for (const source of selected) {
+      if (pending.length >= neededTotal) break;
+      const number = currentTotal + pending.length + 1;
       const question = {
-        year_level: "9",
+        id: String(number).padStart(3, "0") + "-" + crypto.randomUUID(),
+        year_level: config.yearLevel,
         session_id: sessionId,
         ip_hash: ipHash(req),
         section: source.section,
-        difficulty: source.difficulty,
-        time: source.time || 30,
+        difficulty: source.difficulty || "hard",
+        time: Number(source.time) || 60,
         question_text: source.question_text,
         passage: source.passage || "",
         answer_options: source.answer_options,
         correct_answer: source.correct_answer,
-        explanation: source.explanation
+        explanation: source.explanation || "",
+        reasoning_type: source.reasoning_type
       };
-      const questionNumber = currentTotal + pending.length + 1;
-      question.id = String(questionNumber).padStart(3, "0") + "-" + crypto.createHash("sha256")
-        .update(sessionId + "|" + questionNumber + "|" + source.id)
-        .digest("hex")
-        .slice(0, 20);
-
-      if (pendingIds.has(question.id)) continue;
-
+      const fp = questionFingerprint(question);
+      if (used.has(fp) || pendingIds.has(question.id)) continue;
       pending.push(question);
       pendingIds.add(question.id);
-      if (pending.length >= toGenerate) break;
+      used.add(fp);
     }
-
-    if (pending.length >= toGenerate) break;
   }
 
-  if (pending.length < toGenerate) {
-    const usedIds = new Set((allRows || []).map(row => row.id));
-    let attempts = 0;
+  let attempts = 0;
+  const maxAttempts = Math.max(3000, neededTotal * 250);
+  while (pending.length < neededTotal && attempts < maxAttempts) {
+    attempts += 1;
 
-    while (pending.length < toGenerate && attempts < toGenerate * 120) {
-      attempts += 1;
-
-      let section = null;
-      for (const [candidate, quota] of quotas) {
-        if (
-          sessionCounts[candidate] +
-            pending.filter(item => item.section === candidate).length <
-          quota
-        ) {
-          section = candidate;
-          break;
-        }
+    let section = null;
+    for (const [candidate, quota] of quotas) {
+      const planned = counts[candidate] + pending.filter(item => item.section === candidate).length;
+      if (planned < quota) {
+        section = candidate;
+        break;
       }
-
-      if (!section) break;
-
-      const question = makeQuestion(section);
-      question.year_level = "9";
-      question.session_id = sessionId;
-      question.ip_hash = ipHash(req);
-      question.time = 30;
-      const questionNumber = currentTotal + pending.length + 1;
-      question.id = String(questionNumber).padStart(3, "0") + "-" + crypto.createHash("sha256")
-        .update(sessionId + "|" + questionNumber + "|" + JSON.stringify(question))
-        .digest("hex")
-        .slice(0, 20);
-
-      if (usedIds.has(question.id) || pendingIds.has(question.id)) continue;
-
-      pending.push(question);
-      pendingIds.add(question.id);
-      usedIds.add(question.id);
     }
+    if (!section) break;
+
+    const question = section === "humanities"
+      ? humanitiesQuestion()
+      : mathematicsScienceQuestion();
+
+    question.year_level = config.yearLevel;
+    question.session_id = sessionId;
+    question.ip_hash = ipHash(req);
+    question.time = Number(question.time) || 60;
+
+    const fp = questionFingerprint(question);
+    const previousType = pending.length ? questionType(pending[pending.length - 1]) : "";
+    if (used.has(fp) || (previousType && questionType(question) === previousType)) continue;
+
+    const number = currentTotal + pending.length + 1;
+    question.id = String(number).padStart(3, "0") + "-" + crypto.randomUUID();
+
+    pending.push(question);
+    pendingIds.add(question.id);
+    used.add(fp);
   }
 
-  if (!pending.length) return [];
+  if (pending.length < neededTotal) {
+    console.error("Year 10 assessment pool could not satisfy the configured size", {
+      sessionId, generated: pending.length, target: neededTotal
+    });
+    return [];
+  }
 
   const rowsToInsert = pending.map(question => ({
     id: question.id,
     session_id: question.session_id,
     ip_hash: question.ip_hash,
-    year_level: "9",
+    year_level: config.yearLevel,
     section: question.section,
     difficulty: question.difficulty,
     time: question.time,
@@ -641,12 +685,13 @@ async function generateQuestions(req, sessionId, targetCount) {
     passage: question.passage || null,
     answer_options: question.answer_options,
     correct_answer: question.correct_answer,
-    explanation: question.explanation
+    explanation: question.explanation || ""
   }));
 
   for (let i = 0; i < rowsToInsert.length; i += 25) {
-    const batch = rowsToInsert.slice(i, i + 25);
-    const { error } = await supabase.from("generated_questions").insert(batch);
+    const { error } = await supabase
+      .from("generated_questions")
+      .insert(rowsToInsert.slice(i, i + 25));
     if (error) {
       console.error("Question batch insert failed", error);
       return [];
@@ -656,8 +701,25 @@ async function generateQuestions(req, sessionId, targetCount) {
   return pending;
 }
 
+async function ensureQuestionsGenerated(req, sessionId, config) {
+  const existing = generationLocks.get(sessionId);
+  if (existing) {
+    await existing;
+    return;
+  }
 
-app.get("/health", (req, res) => res.json({ ok: true }));
+  const promise = generateQuestions(req, sessionId, config)
+    .catch(error => {
+      console.error("Question generation failed", error);
+      return [];
+    })
+    .finally(() => generationLocks.delete(sessionId));
+
+  generationLocks.set(sessionId, promise);
+  await promise;
+}
+
+app.get("/health"app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.post("/api/admin/login", (req,res) => {
   if (!adminEmail || !adminPassword) return res.status(503).json({ error:"Admin login is not configured" });
@@ -701,29 +763,44 @@ app.post("/api/assessments/start", async (req,res) => {
       return res.status(429).json({ error:"Too many assessment starts. Please wait a few minutes and try again." });
     }
 
-    const { session_name, year_level, section, difficulty, question_count } = req.body || {};
+    const { session_name, year_level } = req.body || {};
     const name = String(session_name || "").trim();
-
     if (!name) return res.status(400).json({ error:"Student name is required" });
     if (name.length > 80) return res.status(400).json({ error:"Student name is too long" });
-    if (String(year_level) !== "9") return res.status(400).json({ error:"Only Year 9 is available" });
+    if (String(year_level) !== "10") {
+      return res.status(400).json({ error:"Only Year 10 Level 2 practice is available" });
+    }
 
+    const config = await getAssessmentConfig();
     const sessionId = crypto.randomUUID();
     const expiresAt = Date.now() + assessmentTtlMs;
-    const generated = await generateQuestions(req, sessionId, assessmentQuestionCount);
 
-    if (!Array.isArray(generated) || generated.length < assessmentQuestionCount) {
+    await ensureQuestionsGenerated(req, sessionId, config);
+
+    const { data: generated, error: generatedError } = await supabase
+      .from("generated_questions")
+      .select("id,section,difficulty,time,question_text,answer_options,passage,explanation")
+      .eq("session_id", sessionId)
+      .eq("year_level", config.yearLevel)
+      .order("id", { ascending:true });
+
+    if (generatedError || !generated || generated.length < config.totalQuestionCount) {
       return res.status(503).json({ error:"Could not prepare the assessment questions" });
     }
 
-    const { data: attempt, error: attemptError } = await supabase.from("quiz_attempts").insert({
-      session_id:sessionId,
-      session_name:name,
-      year_level:"9",
-      section:section || "quantitative + mathematics, then reading + verbal",
-      difficulty:difficulty || "all",
-      question_count:Number(question_count) || assessmentQuestionCount
-    }).select("id").single();
+    const { data: attempt, error: attemptError } = await supabase
+      .from("quiz_attempts")
+      .insert({
+        session_id:sessionId,
+        session_name:name,
+        year_level:"10",
+        section:"Written Expression, Humanities, Mathematics & Science, Written Expression",
+        difficulty:"all",
+        question_count:config.totalQuestionCount,
+        section_counts:config.sectionCounts
+      })
+      .select("id")
+      .single();
 
     if (attemptError) {
       console.error("Assessment attempt creation failed", attemptError);
@@ -733,30 +810,27 @@ app.post("/api/assessments/start", async (req,res) => {
     setAssessmentCookie(req, res, signAssessmentToken(sessionId, expiresAt), Math.floor(assessmentTtlMs / 1000));
 
     const manifest = generated.map((q,index) => ({
-      number:index + 1,
+      number:index+1,
       id:q.id,
       section:q.section,
       difficulty:q.difficulty,
-      time:q.time || 30
+      time:q.time || 60
     }));
 
     res.json({
       session_id:sessionId,
       attempt_id:attempt.id,
-      total:assessmentQuestionCount,
+      total:config.totalQuestionCount,
+      section_counts:config.sectionCounts,
       ready:true,
       manifest,
-      questions:generated.slice(0,10).map(q => ({
-        id:q.id,
-        section:q.section,
-        difficulty:q.difficulty,
-        time:q.time || 30,
-        q:q.question_text,
-        o:q.answer_options,
-        passage:q.passage || ""
+      writing_tasks:getWritingTasks(),
+      questions:generated.slice(0,10).map(q=>({
+        id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60,
+        q:q.question_text,o:q.answer_options,passage:q.passage||""
       }))
     });
-  } catch (error) {
+  } catch(error) {
     console.error(error);
     res.status(500).json({ error:"Assessment could not be started" });
   }
@@ -768,11 +842,11 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
 
   try {
     if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-
+    const config = await getAssessmentConfig();
     const offset = Number.isInteger(Number(req.query.offset)) ? Number(req.query.offset) : 0;
     const limit = Number.isInteger(Number(req.query.limit)) ? Number(req.query.limit) : 10;
 
-    if (offset < 0 || offset >= assessmentQuestionCount || limit < 1 || limit > 10) {
+    if (offset < 0 || offset >= config.totalQuestionCount || limit < 1 || limit > 10) {
       return res.status(400).json({ error:"Invalid question range" });
     }
 
@@ -780,44 +854,26 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
       .from("generated_questions")
       .select("id,section,difficulty,time,question_text,answer_options,passage")
       .eq("session_id", sessionId)
-      .eq("year_level", "9")
-      .order("id", { ascending:true });
+      .eq("year_level", config.yearLevel)
+      .order("id",{ascending:true});
 
-    if (error) {
-      console.error("Assessment question read failed", error);
-      return res.status(503).json({ error:"Could not read assessment questions" });
-    }
-
-    if (!rows || rows.length < assessmentQuestionCount) {
+    if (error || !rows || rows.length < config.totalQuestionCount) {
       return res.status(409).json({ error:"Assessment questions are not ready" });
     }
 
-    const manifest = rows.slice(0, assessmentQuestionCount).map((q,index) => ({
-      number:index + 1,
-      id:q.id,
-      section:q.section,
-      difficulty:q.difficulty,
-      time:q.time || 30
+    const manifest = rows.slice(0,config.totalQuestionCount).map((q,index)=>({
+      number:index+1,id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60
     }));
-
-    const selectedRows = rows.slice(offset, Math.min(offset + limit, assessmentQuestionCount));
+    const selectedRows = rows.slice(offset, Math.min(offset+limit, config.totalQuestionCount));
 
     res.json({
-      total:assessmentQuestionCount,
-      offset,
-      limit,
-      manifest,
-      questions:selectedRows.map(q => ({
-        id:q.id,
-        section:q.section,
-        difficulty:q.difficulty,
-        time:q.time || 30,
-        q:q.question_text,
-        o:q.answer_options,
-        passage:q.passage || ""
+      total:config.totalQuestionCount,offset,limit,section_counts:config.sectionCounts,manifest,
+      questions:selectedRows.map(q=>({
+        id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60,
+        q:q.question_text,o:q.answer_options,passage:q.passage||""
       }))
     });
-  } catch (error) {
+  } catch(error) {
     console.error(error);
     res.status(500).json({ error:"Could not load assessment questions" });
   }
@@ -888,6 +944,44 @@ app.post("/api/responses", async (req,res) => {
 
   if (error) return res.status(400).json({ error:error.message });
   res.status(200).json({ ok:true, correct, correct_answer:question.correct_answer, explanation:question.explanation });
+});
+
+app.post("/api/writing-responses", async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+  const { attempt_id, session_id, task_id, response_text } = req.body || {};
+  if (!validUuid(session_id) || !attempt_id || !task_id || !verifyAssessmentToken(req, session_id)) {
+    return res.status(401).json({ error:"Assessment access required" });
+  }
+  if (!rateLimit("assessment-writing:" + session_id, 20, 4 * 60 * 60 * 1000)) {
+    return res.status(429).json({ error:"Too many writing submissions." });
+  }
+  const text = String(response_text || "").trim();
+  if (!text || text.length > 20000) return res.status(400).json({ error:"Writing response is empty or too long" });
+  if (!getWritingTasks().some(task => task.id === task_id)) {
+    return res.status(400).json({ error:"Invalid writing task" });
+  }
+
+  const { data: attempt } = await supabase
+    .from("quiz_attempts")
+    .select("id,completed_at")
+    .eq("id",attempt_id)
+    .eq("session_id",session_id)
+    .maybeSingle();
+  if (!attempt || attempt.completed_at) return res.status(400).json({ error:"Attempt not found or already completed" });
+
+  const { data: existing } = await supabase
+    .from("quiz_writing_responses")
+    .select("id")
+    .eq("attempt_id",attempt_id)
+    .eq("task_id",task_id)
+    .maybeSingle();
+  if (existing) return res.status(409).json({ error:"This writing response is already locked" });
+
+  const { error } = await supabase.from("quiz_writing_responses").insert({
+    attempt_id,session_id,task_id,response_text:text,submitted_at:new Date().toISOString()
+  });
+  if (error) return res.status(400).json({ error:error.message });
+  res.json({ ok:true });
 });
 
 app.patch("/api/attempts/:id", async (req,res) => {
