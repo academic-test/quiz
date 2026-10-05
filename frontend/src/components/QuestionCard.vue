@@ -8,6 +8,12 @@
     <div v-if="question.passage" class="passage">{{ question.passage }}</div>
     <div class="question-text">{{ question.q }}</div>
 
+    <div v-if="previousFeedback" class="feedback" :class="previousFeedback.correct ? 'good' : 'bad'">
+      <strong>Previous answer: {{ previousFeedback.correct ? "Correct" : "Not quite" }}</strong>
+      <span> Correct answer: {{ String.fromCharCode(65 + Number(previousFeedback.correctAnswer)) }}.</span>
+      <div>{{ previousFeedback.explanation }}</div>
+    </div>
+
     <div class="options">
       <button
         v-for="(option, index) in question.o"
@@ -55,21 +61,19 @@
       <button
         v-if="!isLastInBlock"
         class="secondary-btn"
-        type="button"
         :disabled="(!feedback && (selected === null || selected === undefined)) || waitingForQuestions || saving"
         @click="$emit('next')"
       >
-        {{ feedback ? "Continue →" : "Next →" }}
+        Next Question →
       </button>
 
       <button
         v-else
         class="primary-btn"
-        type="button"
         :disabled="(!feedback && (selected === null || selected === undefined)) || waitingForQuestions || saving || (feedback && !sectionComplete)"
         @click="$emit('submit')"
       >
-        {{ feedback ? (isLast ? "Submit Test" : "Submit Section & Continue →") : "Submit Answer & Review" }}
+        {{ feedback ? (isLast ? "Submit Test" : "Submit Section & Continue →") : "Submit Answer & Continue →" }}
       </button>
     </div>
 
@@ -78,7 +82,7 @@
       <span v-else-if="isLastInBlock && !sectionComplete">
         Answer all {{ unansweredCount }} remaining question{{ unansweredCount === 1 ? "" : "s" }} before submitting this section.
       </span>
-      <span v-else-if="selected !== null && selected !== undefined">Answer selected — press Next to record your response.</span>
+      <span v-else-if="selected !== null && selected !== undefined">Answer selected — press Next Question to record your response.</span>
       <span v-else>Not answered yet. Use Skip to come back later.</span>
     </div>
   </article>
@@ -91,6 +95,7 @@ defineProps({
   selected: { type: Number, default: null },
   locked: { type: Boolean, default: false },
   feedback: { type: Object, default: null },
+  previousFeedback: { type: Object, default: null },
   isFirst: { type: Boolean, default: false },
   isLast: { type: Boolean, default: false },
   isLastInBlock: { type: Boolean, default: false },
