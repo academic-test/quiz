@@ -1,9 +1,9 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import {
-  createAttempt,
   finishAttempt as finishAttemptApi,
   getQuestions,
-  saveResponse as saveResponseApi
+  saveResponse as saveResponseApi,
+  startAssessment
 } from "../services/quizApi";
 
 export const totalQuestions = 230;
@@ -45,6 +45,7 @@ export function useAssessment() {
   const sessionId = ref("");
   const attemptId = ref("");
   const questions = ref([]);
+  const questionManifest = ref([]);
   const questionIndex = ref(0);
   const answers = ref({});
   const questionStates = ref({});
@@ -64,10 +65,7 @@ export function useAssessment() {
   const currentBlockIndex = computed(() => questionIndex.value >= blocks[1].start ? 1 : 0);
   const currentBlock = computed(() => blocks[currentBlockIndex.value]);
   const currentBlockQuestions = computed(() =>
-    questions.value.slice(
-      currentBlock.value.start,
-      Math.min(currentBlock.value.end + 1, questions.value.length)
-    )
+    questionManifest.value.slice(currentBlock.value.start, currentBlock.value.end + 1)
   );
   const selected = computed(() => {
     if (!currentQuestion.value) return null;
@@ -188,39 +186,36 @@ export function useAssessment() {
     questionPollHandle = null;
   }
 
-  async function refreshGeneratedQuestions() {
-    if (!sessionId.value) return;
+  async function loadQuestionBatch(offset = 0) {
+    if (!sessionId.value) return false;
+
+    const batchOffset = Math.max(0, Math.floor(offset / 10) * 10);
 
     try {
-      const response = await getQuestions(sessionId.value);
+      const response = await getQuestions(sessionId.value, batchOffset, 10);
 
-      if (!Array.isArray(response.questions)) return;
-
-      if (response.questions.length > questions.value.length) {
-        questions.value = response.questions;
+      if (Array.isArray(response.manifest) && response.manifest.length) {
+        questionManifest.value = response.manifest;
       }
 
-      generatingQuestions.value = response.questions.length < totalQuestions;
+      if (!Array.isArray(response.questions)) return false;
 
-      if (response.ready) clearQuestionPolling();
+      response.questions.forEach((question, index) => {
+        questions.value[batchOffset + index] = question;
+      });
 
-      if (screen.value === "restoring" && questions.value.length > questionIndex.value) {
-        screen.value = "quiz";
-        showFeedbackForCurrentQuestion();
-      }
+      return Boolean(questions.value[offset]);
     } catch (error) {
-      console.error("Question generation polling failed", error);
+      console.error("Question batch load failed", error);
+      startError.value = "The question could not be loaded. Please try again.";
+      return false;
     }
   }
 
-  function startQuestionPolling() {
-    clearQuestionPolling();
-    generatingQuestions.value = questions.value.length < totalQuestions;
-
-    if (!generatingQuestions.value) return;
-
-    questionPollHandle = setInterval(refreshGeneratedQuestions, 1500);
-    refreshGeneratedQuestions();
+  async function ensureQuestionLoaded(index) {
+    if (index < 0 || index >= totalQuestions) return false;
+    if (questions.value[index]) return true;
+    return loadQuestionBatch(index);
   }
 
   function startBlockTimer(startTime = Date.now()) {
@@ -261,16 +256,7 @@ export function useAssessment() {
     clearPersistedState();
 
     try {
-      sessionId.value = crypto.randomUUID();
-
-      const response = await getQuestions(sessionId.value);
-
-      if (!Array.isArray(response.questions) || response.questions.length < 10) {
-        throw new Error("The server did not return the first 10 questions.");
-      }
-
-      const attempt = await createAttempt({
-        session_id: sessionId.value,
+      const response = await startAssessment({
         session_name: name,
         year_level: "9",
         section: "quantitative + mathematics, then reading + verbal",
@@ -278,9 +264,22 @@ export function useAssessment() {
         question_count: totalQuestions
       });
 
-      studentName.value = name;
-      attemptId.value = attempt.id;
-      questions.value = response.questions;
+      if (
+        !response.session_id ||
+        !response.attempt_id ||
+        !Array.isArray(response.questions) ||
+        response.questions.length < 10
+      ) {
+        throw new Error("The server did not return the first 10 questions.");
+      }
+
+      sessionId.value = response.session_id;
+      attemptId.value = response.attempt_id;
+      questionManifest.value = Array.isArray(response.manifest) ? response.manifest : [];
+      questions.value = Array.from({ length: totalQuestions }, () => null);
+      response.questions.forEach((question, index) => {
+        questions.value[index] = question;
+      });
       answers.value = {};
       questionStates.value = {};
       timeSpent.value = {};
@@ -293,7 +292,6 @@ export function useAssessment() {
       questionOpenedAt = Date.now();
       persistState();
       startBlockTimer(blockStartedAt.value);
-      startQuestionPolling();
     } catch (error) {
       console.error(error);
       startError.value = "The test could not start. Please try again.";
@@ -369,7 +367,6 @@ export function useAssessment() {
   async function moveTo(index) {
     if (submittedBlocks.value[currentBlockIndex.value]) return;
     if (index < currentBlock.value.start || index > currentBlock.value.end) return;
-    if (index >= questions.value.length) return;
 
     const current = currentQuestion.value;
 
@@ -382,6 +379,9 @@ export function useAssessment() {
       const saved = await saveCurrentResponse(false);
       if (!saved) return;
     }
+
+    const loaded = await ensureQuestionLoaded(index);
+    if (!loaded) return;
 
     questionIndex.value = index;
     showFeedbackForCurrentQuestion();
@@ -406,7 +406,11 @@ export function useAssessment() {
 
     if (questionIndex.value >= currentBlock.value.end) return;
 
-    questionIndex.value += 1;
+    const nextIndex = questionIndex.value + 1;
+    const loaded = await ensureQuestionLoaded(nextIndex);
+    if (!loaded) return;
+
+    questionIndex.value = nextIndex;
     feedback.value = null;
     questionOpenedAt = Date.now();
     persistState();
@@ -441,20 +445,7 @@ export function useAssessment() {
   }
 
   async function waitForNextQuestion() {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      if (questions.value.length > questionIndex.value) {
-        generatingQuestions.value = questions.value.length < totalQuestions;
-        return true;
-      }
-
-      await refreshGeneratedQuestions();
-
-      if (questions.value.length > questionIndex.value) return true;
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    return questions.value.length > questionIndex.value;
+    return ensureQuestionLoaded(questionIndex.value);
   }
 
   async function submitBlock() {
@@ -599,19 +590,18 @@ export function useAssessment() {
         return;
       }
 
-      const response = await getQuestions(sessionId.value);
+      questions.value = Array.from({ length: totalQuestions }, () => null);
+      const loaded = await loadQuestionBatch(Math.min(saved.questionIndex, totalQuestions - 1));
 
-      if (!Array.isArray(response.questions) || response.questions.length <= questionIndex.value) {
-        questions.value = Array.isArray(response.questions) ? response.questions : [];
-        startQuestionPolling();
+      if (!loaded) {
+        clearPersistedState();
+        screen.value = "start";
         return;
       }
 
-      questions.value = response.questions;
       screen.value = "quiz";
       showFeedbackForCurrentQuestion();
       startBlockTimer(blockStartedAt.value);
-      startQuestionPolling();
     } catch (error) {
       console.error("Could not restore quiz session", error);
       clearPersistedState();
@@ -646,6 +636,7 @@ export function useAssessment() {
     generatingQuestions.value = false;
     screen.value = "start";
     questions.value = [];
+    questionManifest.value = [];
     results.value = {};
     submittedBlocks.value = {};
     feedback.value = null;
@@ -681,6 +672,7 @@ export function useAssessment() {
     results,
     remaining,
     generatingQuestions,
+    questionManifest,
     feedback,
     currentQuestion,
     currentBlock,
