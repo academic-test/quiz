@@ -42,6 +42,13 @@ export function saveResponse(payload) {
   });
 }
 
+export function saveWritingResponse(payload) {
+  return request("/api/writing-responses", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function finishAttempt(attemptId, payload) {
   return request("/api/attempts/" + encodeURIComponent(attemptId), {
     method: "PATCH",
