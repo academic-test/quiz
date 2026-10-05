@@ -19,7 +19,10 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const cookieName = "quiz_admin";
-const backgroundGenerationSessions = new Set();
+const assessmentCookieName = "quiz_assessment";
+const assessmentTtlMs = 4 * 60 * 60 * 1000;
+const assessmentQuestionCount = 230;
+const rateLimitBuckets = new Map();
 
 function signSession(payload) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -72,6 +75,90 @@ function shuffle(array) {
 
 function validUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+}
+
+function assessmentSecret() {
+  return process.env.ASSESSMENT_SESSION_SECRET || supabaseKey || "missing-assessment-secret";
+}
+
+function signAssessmentToken(sessionId, expiresAt) {
+  const body = Buffer.from(JSON.stringify({ sessionId, exp: expiresAt })).toString("base64url");
+  const signature = crypto.createHmac("sha256", assessmentSecret()).update(body).digest("base64url");
+  return body + "." + signature;
+}
+
+function readCookie(req, name) {
+  const match = (req.headers.cookie || "").match(new RegExp("(^|;\\s*)" + name + "=([^;]+)"));
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[2]);
+  } catch {
+    return "";
+  }
+}
+
+function verifyAssessmentToken(req, sessionId) {
+  const token = readCookie(req, assessmentCookieName);
+  if (!token) return false;
+
+  const [body, signature] = token.split(".");
+  if (!body || !signature) return false;
+
+  const expected = crypto.createHmac("sha256", assessmentSecret()).update(body).digest("base64url");
+  if (signature.length !== expected.length) return false;
+
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    return payload.sessionId === sessionId && Number(payload.exp) > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function setAssessmentCookie(req, res, token, maxAgeSeconds) {
+  const secure = String(req.get("X-Forwarded-Proto") || "").toLowerCase() === "https" || req.secure ? " Secure;" : "";
+  res.setHeader(
+    "Set-Cookie",
+    assessmentCookieName + "=" + encodeURIComponent(token) +
+    "; HttpOnly; SameSite=Lax; Path=/; Max-Age=" + maxAgeSeconds + ";" + secure
+  );
+}
+
+function clearAssessmentCookie(res) {
+  res.setHeader(
+    "Set-Cookie",
+    assessmentCookieName + "=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
+  );
+}
+
+function rateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  const current = rateLimitBuckets.get(key);
+
+  if (!current || current.resetAt <= now) {
+    rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+
+  if (current.count >= limit) return false;
+
+  current.count += 1;
+  return true;
+}
+
+function requireAssessmentAccess(req, res, sessionId, limitKey) {
+  if (!validUuid(sessionId) || !verifyAssessmentToken(req, sessionId)) {
+    res.status(401).json({ error: "Assessment access required" });
+    return false;
+  }
+
+  if (limitKey && !rateLimit(limitKey, 120, 60 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many assessment requests. Please wait and try again." });
+    return false;
+  }
+
+  return true;
 }
 
 function withAnswer(answer, distractors) {
@@ -484,10 +571,11 @@ async function generateQuestions(req, sessionId, targetCount) {
         correct_answer: source.correct_answer,
         explanation: source.explanation
       };
-      question.id = crypto.createHash("sha256")
-        .update(sessionId + "|" + source.id)
+      const questionNumber = currentTotal + pending.length + 1;
+      question.id = String(questionNumber).padStart(3, "0") + "-" + crypto.createHash("sha256")
+        .update(sessionId + "|" + questionNumber + "|" + source.id)
         .digest("hex")
-        .slice(0, 24);
+        .slice(0, 20);
 
       if (pendingIds.has(question.id)) continue;
 
@@ -525,7 +613,11 @@ async function generateQuestions(req, sessionId, targetCount) {
       question.session_id = sessionId;
       question.ip_hash = ipHash(req);
       question.time = 30;
-      question.id = generatedId(question);
+      const questionNumber = currentTotal + pending.length + 1;
+      question.id = String(questionNumber).padStart(3, "0") + "-" + crypto.createHash("sha256")
+        .update(sessionId + "|" + questionNumber + "|" + JSON.stringify(question))
+        .digest("hex")
+        .slice(0, 20);
 
       if (usedIds.has(question.id) || pendingIds.has(question.id)) continue;
 
@@ -602,84 +694,137 @@ app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
   res.json({ attempt, responses:responses || [] });
 });
 
-app.get("/api/questions", async (req,res) => {
+app.post("/api/assessments/start", async (req,res) => {
   try {
-    const year = Number(req.query.year);
-    const sessionId = String(req.query.session_id || "");
-
-    if (year !== 9) return res.status(400).json({ error:"Only Year 9 is available" });
-    if (!validUuid(sessionId)) return res.status(400).json({ error:"Valid session_id is required" });
     if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-
-    const { data: rows, error } = await supabase
-      .from("generated_questions")
-      .select("*")
-      .eq("session_id", sessionId)
-      .eq("year_level", "9")
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (error) return res.status(503).json({ error:"Could not read generated questions" });
-
-    let questions = rows || [];
-
-    if (questions.length < 10) {
-      const needed = 10 - questions.length;
-      const generated = await generateQuestions(req, sessionId, needed);
-      if (generated.length < needed) return res.status(503).json({ error:"Could not generate the first 10 questions" });
-
-      const refreshed = await supabase
-        .from("generated_questions")
-        .select("*")
-        .eq("session_id", sessionId)
-        .eq("year_level", "9")
-        .order("created_at", { ascending: true })
-        .order("id", { ascending: true });
-
-      if (refreshed.error) return res.status(503).json({ error:"Could not read generated questions" });
-      questions = refreshed.data || [];
+    if (!rateLimit("assessment-start:" + clientIp(req), 5, 15 * 60 * 1000)) {
+      return res.status(429).json({ error:"Too many assessment starts. Please wait a few minutes and try again." });
     }
 
-    if (questions.length < 230 && !backgroundGenerationSessions.has(sessionId)) {
-      backgroundGenerationSessions.add(sessionId);
-      generateQuestions(req, sessionId, 230)
-        .catch(error => console.error("Background question generation failed", error))
-        .finally(() => backgroundGenerationSessions.delete(sessionId));
+    const { session_name, year_level, section, difficulty, question_count } = req.body || {};
+    const name = String(session_name || "").trim();
+
+    if (!name) return res.status(400).json({ error:"Student name is required" });
+    if (name.length > 80) return res.status(400).json({ error:"Student name is too long" });
+    if (String(year_level) !== "9") return res.status(400).json({ error:"Only Year 9 is available" });
+
+    const sessionId = crypto.randomUUID();
+    const expiresAt = Date.now() + assessmentTtlMs;
+    const generated = await generateQuestions(req, sessionId, assessmentQuestionCount);
+
+    if (!Array.isArray(generated) || generated.length < assessmentQuestionCount) {
+      return res.status(503).json({ error:"Could not prepare the assessment questions" });
     }
+
+    const { data: attempt, error: attemptError } = await supabase.from("quiz_attempts").insert({
+      session_id:sessionId,
+      session_name:name,
+      year_level:"9",
+      section:section || "quantitative + mathematics, then reading + verbal",
+      difficulty:difficulty || "all",
+      question_count:Number(question_count) || assessmentQuestionCount
+    }).select("id").single();
+
+    if (attemptError) {
+      console.error("Assessment attempt creation failed", attemptError);
+      return res.status(400).json({ error:"Could not create assessment" });
+    }
+
+    setAssessmentCookie(req, res, signAssessmentToken(sessionId, expiresAt), Math.floor(assessmentTtlMs / 1000));
+
+    const manifest = generated.map((q,index) => ({
+      number:index + 1,
+      id:q.id,
+      section:q.section,
+      difficulty:q.difficulty,
+      time:q.time || 30
+    }));
 
     res.json({
-      total: questions.length,
-      target: 230,
-      ready: questions.length >= 230,
-      questions: questions.map(q => ({
-        id:q.id, section:q.section, difficulty:q.difficulty, time:30,
-        q:q.question_text, o:q.answer_options, passage:q.passage || ""
+      session_id:sessionId,
+      attempt_id:attempt.id,
+      total:assessmentQuestionCount,
+      ready:true,
+      manifest,
+      questions:generated.slice(0,10).map(q => ({
+        id:q.id,
+        section:q.section,
+        difficulty:q.difficulty,
+        time:q.time || 30,
+        q:q.question_text,
+        o:q.answer_options,
+        passage:q.passage || ""
       }))
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error:"Question generation failed" });
+    res.status(500).json({ error:"Assessment could not be started" });
   }
 });
 
-app.post("/api/attempts", async (req,res) => {
-  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-  const { session_id, session_name, year_level, section, difficulty, question_count } = req.body || {};
+app.get("/api/assessments/:sessionId/questions", async (req,res) => {
+  const sessionId = String(req.params.sessionId || "");
+  if (!requireAssessmentAccess(req, res, sessionId, "assessment-questions:" + sessionId)) return;
 
-  if (!validUuid(session_id)) return res.status(400).json({ error:"Valid session_id is required" });
-  if (String(year_level) !== "9") return res.status(400).json({ error:"Only Year 9 is available" });
+  try {
+    if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
 
-  const { data, error } = await supabase.from("quiz_attempts").insert({
-    session_id,
-    session_name,
-    year_level:"9",
-    section:section || "mixed",
-    difficulty:difficulty || "all",
-    question_count:question_count || 20
-  }).select("id").single();
+    const offset = Number.isInteger(Number(req.query.offset)) ? Number(req.query.offset) : 0;
+    const limit = Number.isInteger(Number(req.query.limit)) ? Number(req.query.limit) : 10;
 
-  if (error) return res.status(400).json({ error:error.message });
-  res.json({ id:data.id });
+    if (offset < 0 || offset >= assessmentQuestionCount || limit < 1 || limit > 10) {
+      return res.status(400).json({ error:"Invalid question range" });
+    }
+
+    const { data: rows, error } = await supabase
+      .from("generated_questions")
+      .select("id,section,difficulty,time,question_text,answer_options,passage")
+      .eq("session_id", sessionId)
+      .eq("year_level", "9")
+      .order("id", { ascending:true });
+
+    if (error) {
+      console.error("Assessment question read failed", error);
+      return res.status(503).json({ error:"Could not read assessment questions" });
+    }
+
+    if (!rows || rows.length < assessmentQuestionCount) {
+      return res.status(409).json({ error:"Assessment questions are not ready" });
+    }
+
+    const manifest = rows.slice(0, assessmentQuestionCount).map((q,index) => ({
+      number:index + 1,
+      id:q.id,
+      section:q.section,
+      difficulty:q.difficulty,
+      time:q.time || 30
+    }));
+
+    const selectedRows = rows.slice(offset, Math.min(offset + limit, assessmentQuestionCount));
+
+    res.json({
+      total:assessmentQuestionCount,
+      offset,
+      limit,
+      manifest,
+      questions:selectedRows.map(q => ({
+        id:q.id,
+        section:q.section,
+        difficulty:q.difficulty,
+        time:q.time || 30,
+        q:q.question_text,
+        o:q.answer_options,
+        passage:q.passage || ""
+      }))
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error:"Could not load assessment questions" });
+  }
+});
+
+app.get("/api/questions", (req,res) => {
+  res.status(404).json({ error:"Not found" });
 });
 
 app.post("/api/responses", async (req,res) => {
@@ -687,22 +832,25 @@ app.post("/api/responses", async (req,res) => {
   const { attempt_id, session_id, question_id, selected_answer, timed_out, response_seconds } = req.body || {};
 
   if (!validUuid(session_id) || !attempt_id || !question_id) return res.status(400).json({ error:"Invalid response data" });
+  if (!verifyAssessmentToken(req, session_id)) return res.status(401).json({ error:"Assessment access required" });
+  if (!rateLimit("assessment-response:" + session_id, 300, 60 * 60 * 1000)) {
+    return res.status(429).json({ error:"Too many response requests. Please wait and try again." });
+  }
 
   const { data: attempt } = await supabase
     .from("quiz_attempts")
-    .select("id")
+    .select("id,completed_at")
     .eq("id", attempt_id)
     .eq("session_id", session_id)
     .maybeSingle();
 
-  if (!attempt) return res.status(400).json({ error:"Attempt not found" });
+  if (!attempt || attempt.completed_at) return res.status(400).json({ error:"Attempt not found or already completed" });
 
   const { data: question, error:questionError } = await supabase
     .from("generated_questions")
     .select("*")
     .eq("id", question_id)
     .eq("session_id", session_id)
-    .eq("ip_hash", ipHash(req))
     .maybeSingle();
 
   if (questionError || !question) return res.status(400).json({ error:"Question not found" });
@@ -710,6 +858,15 @@ app.post("/api/responses", async (req,res) => {
   const chosen = selected_answer === null || selected_answer === undefined ? null : Number(selected_answer);
   const timedOut = Boolean(timed_out);
   const correct = !timedOut && chosen !== null && chosen === question.correct_answer;
+
+  const { data: existing } = await supabase
+    .from("quiz_responses")
+    .select("id")
+    .eq("attempt_id", attempt_id)
+    .eq("question_id", question_id)
+    .maybeSingle();
+
+  if (existing) return res.status(409).json({ error:"This response is already locked" });
 
   const payload = {
     attempt_id,
@@ -727,27 +884,21 @@ app.post("/api/responses", async (req,res) => {
     answer_options: question.answer_options
   };
 
-  const { data: existing } = await supabase
-    .from("quiz_responses")
-    .select("id")
-    .eq("attempt_id", attempt_id)
-    .eq("question_id", question_id)
-    .maybeSingle();
-
-  let error = null;
-  if (existing) {
-    ({ error } = await supabase.from("quiz_responses").update(payload).eq("id", existing.id));
-  } else {
-    ({ error } = await supabase.from("quiz_responses").insert(payload));
-  }
+  const { error } = await supabase.from("quiz_responses").insert(payload);
 
   if (error) return res.status(400).json({ error:error.message });
   res.status(200).json({ ok:true, correct, correct_answer:question.correct_answer, explanation:question.explanation });
 });
+
 app.patch("/api/attempts/:id", async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
   const { session_id } = req.body || {};
-  if (!validUuid(session_id)) return res.status(400).json({ error:"Valid session_id is required" });
+  if (!validUuid(session_id) || !verifyAssessmentToken(req, session_id)) {
+    return res.status(401).json({ error:"Assessment access required" });
+  }
+  if (!rateLimit("assessment-finish:" + session_id, 10, 60 * 60 * 1000)) {
+    return res.status(429).json({ error:"Too many assessment requests. Please wait and try again." });
+  }
 
   const allowed = ["completed_at","score","correct_count","wrong_count","timeout_count","average_response_seconds"];
   const patch = {};
@@ -755,6 +906,7 @@ app.patch("/api/attempts/:id", async (req,res) => {
 
   const { error } = await supabase.from("quiz_attempts").update(patch).eq("id",req.params.id).eq("session_id",session_id);
   if (error) return res.status(400).json({ error:error.message });
+
   res.json({ ok:true });
 });
 
