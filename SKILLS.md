@@ -74,35 +74,38 @@ Do not describe the previous 60/60/55/55 two-block structure as an official ACER
 Do not use individual-question countdowns as a substitute for the source test component timing unless explicitly requested for a practice mode.
 
 ## Student navigation and submission rules
-- One overall timer is shown for the active block.
-- Block 1 timer is 60 minutes for Questions 1–120.
-- Block 2 timer is 55 minutes for Questions 121–230.
-- There is no individual question timer in the intended design.
-- Student may select an answer while on a question, but the response is not locked until Next/section submission records it.
-- Selecting an option does NOT save the response.
-- A response is saved when the student commits it with Next, Previous, or section submission; after saving, the response is locked.
-- After saving a response, the student sees the correct answer and explanation before continuing.
-- Response time is captured only for answered questions when their response is saved.
-- A skipped question is not written to `quiz_responses` and does not record time taken.
-- Student can skip unanswered questions and revisit them later within the same block.
-- Question navigation shows current, answered and skipped status.
-- Previous/Next navigation is limited to the current block.
-- The student cannot move to the next block until every question in the current block has been answered.
-- The end-of-block action is an explicit section submission:
-  - Block 1: “Submit Section & Continue →”
-  - Block 2: “Submit Test”
-- Once a block is explicitly submitted, it is permanently locked.
-- An active assessment is persisted in browser session storage so a page refresh does not create a new attempt.
-- On refresh, the existing session ID, attempt ID, current question, selected answers, locked responses/feedback, block start time, and current-question start time are restored.
-- The overall block timer continues from its original block start timestamp after refresh; refreshing does not reset the 60-minute or 55-minute clock.
-- The current unanswered/selected question retains its active elapsed time across refresh until it is skipped or its response is committed.
-- After Block 1 submission, the student cannot return to Quantitative/Numerical or Mathematics questions, including previously skipped questions.
-- After Block 2 submission, the entire test is complete.
-- If a section timer reaches zero, that section is automatically submitted and permanently locked.
-- On timer expiry, an already-selected answer is saved normally if it has not yet been saved.
-- Unanswered/skipped questions remain unrecorded; the student cannot return to them after the section auto-submits.
-- On Block 1 timeout, Block 2 starts automatically.
-- On Block 2 timeout, the test ends automatically.
+- The student assessment has four source-supported test components in this order:
+  1. Written Expression — Test 1.
+  2. Humanities Comprehension and Interpretation — Test 2.
+  3. Mathematics and Science — Test 3.
+  4. Written Expression — Test 4.
+- Multiple-choice questions use four answer choices A–D, matching the supplied ACER practice booklet.
+- Written Expression 1 is 25 minutes.
+- Humanities is 40 minutes.
+- Mathematics & Science is 40 minutes.
+- Written Expression 2 is 25 minutes.
+- MCQ components use one overall component timer; there are no per-question countdowns.
+- Selecting an answer only highlights it locally. It is not saved or locked until the student commits it.
+- First click on Next Question records the selected answer, locks the response, and displays the correct answer plus explanation on the SAME question.
+- The student must click Next Question a SECOND time to move to the next MCQ question.
+- On the final MCQ of a component, the first click records the final answer and displays feedback on the same question; the second click submits the completed component when all questions are answered.
+- After feedback is displayed, the recorded response cannot be changed.
+- Skip is available only before an answer is selected. A skipped question can be revisited within the same unsubmitted MCQ component.
+- Previous navigation is allowed within the current unsubmitted MCQ component. Recorded answers remain locked and their feedback is restored when revisited.
+- The student cannot move to the next component until the current component is submitted or times out.
+- Writing responses are submitted once and then locked.
+- An active assessment is persisted in browser session storage so a page refresh does not create a new assessment.
+- A component timeout automatically submits and permanently locks that component.
+- There is no student-facing “Time's Up” message.
+- After Test 4 is submitted or times out, the assessment is completed and results are shown.
+
+## Question-data integrity
+- Every MCQ question shown to a student must contain exactly four non-empty answer choices A–D.
+- Answer choices must be unique after normalisation; duplicate choices are invalid and must never be shown.
+- `correct_answer` must be an integer from 0 to 3.
+- Legacy five-choice or malformed bank rows must be ignored by the Year 10 Level 2 assessment generator.
+- Generated questions must use the same four-choice shape.
+- Example invalid item: A=13, B=4, C=4, D=5. It must be rejected because B and C duplicate, even though B can be the mathematically correct answer.
 
 ## Timing analytics
 For each saved response, capture actual response time in seconds.
@@ -123,10 +126,13 @@ Improvement flags use internal practice thresholds:
 These thresholds are practice analytics only and are not ACER scoring rules.
 
 ## Answer persistence / backend behaviour
-- `POST /api/responses` validates attempt/session/question ownership and hashed IP.
-- The response route supports revisiting a question and updating its existing response instead of creating a duplicate response row.
+- `POST /api/responses` validates assessment access, attempt/session/question ownership and response integrity.
+- A selected option is not persisted when clicked.
+- The response is persisted when the student commits it with Next/submit.
+- The successful response API returns correctness, the correct answer index and explanation; the frontend displays these immediately on the same question.
+- A recorded response is locked. A second submission for the same attempt/question is rejected.
 - Skipped/unanswered questions are not sent to the response endpoint.
-- The student-facing app keeps local answer state so an answer can be changed before section submission.
+- Response time is captured when the response is committed.
 - Do not treat an option click as a completed response.
 
 ## Admin
@@ -138,11 +144,15 @@ These thresholds are practice analytics only and are not ACER scoring rules.
 - Admin timing data is intended to support speed/accuracy review without exposing correctness during the student test.
 
 ## Supabase tables
-`quiz_attempts`: id, session_id, session_name, year_level, section, difficulty, question_count, started_at, completed_at, score, correct_count, wrong_count, timeout_count, average_response_seconds.
+`quiz_attempts`: id, session_id, session_name, year_level, section, difficulty, question_count, section_counts, started_at, completed_at, score, correct_count, wrong_count, timeout_count, average_response_seconds.
 
 `quiz_responses`: attempt_id, session_id, question_id, section, difficulty, selected_answer, correct_answer, is_correct, timed_out, response_seconds, answered_at, question_text, answer_options.
 
+`quiz_writing_responses`: attempt_id, session_id, task_id, response_text, submitted_at.
+
 `generated_questions`: id, session_id, ip_hash, year_level, section, difficulty, time, question_text, passage, answer_options, correct_answer, explanation, created_at.
+
+`assessment_configs`: active assessment configuration. Current Year 10 Level 2 practice allocation uses 40 Humanities MCQs + 32 Mathematics & Science MCQs = 72 MCQs, plus two 25-minute Written Expression tasks. This is a project practice allocation based on the supplied ACER practice booklet and must not be described as an official ACER question count.
 
 ## Important files
 - `server.js` — APIs, generation, security, Supabase access, static serving.
@@ -204,19 +214,21 @@ The supplied LANTITE numeracy practice PDF is a secondary reference for numeracy
 
 ## Rules for future changes
 - Do not reintroduce Learning unless explicitly requested.
+- Keep the four source-supported test components in order: Written Expression 1, Humanities, Mathematics & Science, Written Expression 2.
 - Do not mix sections unless explicitly requested.
+- Show feedback on the SAME MCQ question after the first Next/submit click.
+- Require a second Next/submit click to move forward.
 - Show the correct answer and explanation after a response is recorded.
 - Do not allow a recorded response to be changed.
 - Do not show a Time's Up message during the test.
 - Do not show per-question timers.
-- Use one overall timer per active testing block.
-- Save an answered question when the response is committed by navigation/section submission, not when an option is clicked.
-- Show correct answer and explanation after the response is committed, then lock the response.
+- Use one overall timer per active test component.
+- Save an answered question when the response is committed, not when an option is clicked.
 - Never record time for a skipped/unanswered question.
-- Permit revisits only within the current unsubmitted block.
-- Once a block is submitted or times out, lock it permanently.
-- Require all questions in a block to be answered for manual section submission.
-- Auto-submit and lock a block when its timer reaches zero.
+- Permit revisits only within the current unsubmitted MCQ component.
+- Once a component is submitted or times out, lock it permanently.
+- Require all questions in an MCQ component to be answered for manual submission.
+- Auto-submit and lock a component when its timer reaches zero.
 - Keep answer keys and generated questions on the backend.
 - Preserve student name + Session ID in Admin.
 - Keep timing data for admin analysis.
