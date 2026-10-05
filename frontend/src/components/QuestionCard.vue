@@ -64,7 +64,7 @@
         :disabled="(!feedback && (selected === null || selected === undefined)) || waitingForQuestions || saving"
         @click="$emit('next')"
       >
-        Next Question →
+        {{ feedback ? "Next Question →" : "Save Answer & Review →" }}
       </button>
 
       <button
@@ -73,7 +73,7 @@
         :disabled="(!feedback && (selected === null || selected === undefined)) || waitingForQuestions || saving || (feedback && !sectionComplete)"
         @click="$emit('submit')"
       >
-        {{ feedback ? (isLast ? "Submit Test" : "Submit Section & Continue →") : "Submit Answer & Continue →" }}
+        {{ feedback ? (isLast ? "Submit Test →" : "Submit Section & Continue →") : "Save Answer & Review →" }}
       </button>
     </div>
 
