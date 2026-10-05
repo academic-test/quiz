@@ -621,7 +621,7 @@ function mathematicsScienceQuestion() {
     const target=pick(["heart","kidneys","muscles"]);
     const row=rows.find(x=>x[0]===target);
     const change=row[2]-row[1];
-    const r=four(change.toString(),[row[1].toString(),row[2].toString(),Math.abs(change).toString()]);
+    const r=four(change.toString(),[row[1].toString(),row[2].toString(),(Math.abs(change)+100).toString()]);
     return {section:"mathematics_science",difficulty:"hard",time:65,passage:"Blood flow (mL per minute):\n"+rows.map(x=>x[0]+" — rest "+x[1]+", exercise "+x[2]).join("\n"),question_text:"By how much does blood flow to the "+target+" change from rest to exercise?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:data-table"};
   }
 
