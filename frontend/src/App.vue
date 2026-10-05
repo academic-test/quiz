@@ -53,6 +53,7 @@
         :selected="selected"
         :locked="Boolean(results[currentQuestion.id])"
         :feedback="feedback"
+        :previous-feedback="previousFeedback"
         :is-first="questionIndex === currentBlock.start"
         :is-last="questionIndex === totalQuestions - 1"
         :is-last-in-block="questionIndex === currentBlock.end"
@@ -138,6 +139,7 @@ const {
   currentStage,
   currentBlock,
   feedback,
+  previousFeedback,
   currentBlockQuestions,
   currentQuestion,
   currentWritingTask,
