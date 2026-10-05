@@ -19,7 +19,7 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const cookieName = "quiz_admin";
-const backgroundGenerationSessions = new Set();
+const generationLocks = new Map();
 const DEFAULT_SECTION_COUNTS = Object.freeze({
   numerical: 60,
   maths: 60,
@@ -466,84 +466,95 @@ function makeQuestion(section) {
   return makeReadingQuestion();
 }
 
+function questionFingerprint(question) {
+  return JSON.stringify([
+    question.section,
+    String(question.question_text || "").trim().replace(/\\s+/g, " "),
+    String(question.passage || "").trim().replace(/\\s+/g, " ")
+  ]);
+}
+
 async function generateQuestions(req, sessionId, targetCount, sectionCounts = DEFAULT_SECTION_COUNTS) {
   if (!supabase) return [];
 
-  const [{ data: sessionRows }, { data: allRows }] = await Promise.all([
-    supabase
-      .from("generated_questions")
-      .select("id,section")
-      .eq("session_id", sessionId)
-      .eq("year_level", "9"),
-    supabase
-      .from("generated_questions")
-      .select("id")
-      .eq("year_level", "9")
-      .limit(10000)
-  ]);
+  const { data: sessionRows, error: sessionError } = await supabase
+    .from("generated_questions")
+    .select("id,session_id,section,difficulty,time,question_text,passage,answer_options,correct_answer,explanation")
+    .eq("session_id", sessionId)
+    .eq("year_level", "9");
 
-  const sessionCounts = { ...DEFAULT_SECTION_COUNTS };
-  Object.keys(sessionCounts).forEach(section => { sessionCounts[section] = 0; });
-  for (const row of sessionRows || []) {
-    if (sessionCounts[row.section] !== undefined) sessionCounts[row.section] += 1;
+  if (sessionError) {
+    console.error("Session question lookup failed", sessionError);
+    return [];
   }
 
-  const quotas = [
+  const sessionCounts = { numerical: 0, maths: 0, reading: 0, verbal: 0 };
+  const usedFingerprints = new Set();
+
+  for (const row of sessionRows || []) {
+    if (sessionCounts[row.section] !== undefined) sessionCounts[row.section] += 1;
+    usedFingerprints.add(questionFingerprint(row));
+  }
+
+  const configuredQuotas = [
     ["numerical", Number(sectionCounts.numerical) || 0],
     ["maths", Number(sectionCounts.maths) || 0],
     ["reading", Number(sectionCounts.reading) || 0],
     ["verbal", Number(sectionCounts.verbal) || 0]
   ];
 
+  const configuredTotal = configuredQuotas.reduce((sum, [, quota]) => sum + quota, 0);
   const currentTotal = Object.values(sessionCounts).reduce((sum, value) => sum + value, 0);
-  const toGenerate = Math.max(0, Math.min(targetCount, quotas.reduce((sum, [, quota]) => sum + quota, 0)) - currentTotal);
+  const toGenerate = Math.max(0, Math.min(targetCount, configuredTotal) - currentTotal);
   if (!toGenerate) return [];
 
   const pending = [];
   const pendingIds = new Set();
 
-  for (const [section, quota] of quotas) {
+  for (const [section, quota] of configuredQuotas) {
     const sectionNeeded = Math.max(0, quota - sessionCounts[section]);
-    const remaining = Math.min(sectionNeeded, toGenerate - pending.length);
-    if (remaining <= 0) continue;
+    if (!sectionNeeded) continue;
 
     const { data: bankRows, error } = await supabase
       .from("generated_questions")
-      .select("*")
+      .select("id,session_id,section,difficulty,time,question_text,passage,answer_options,correct_answer,explanation")
       .eq("year_level", "9")
       .eq("section", section)
-      .limit(Math.max(remaining * 2, 100));
+      .limit(5000);
 
     if (error) {
       console.error("Question bank lookup failed", error);
       continue;
     }
 
-    const availableBankRows = (bankRows || []).filter(source => source.session_id !== sessionId);
+    const candidates = shuffle((bankRows || []).filter(source => source.session_id !== sessionId));
 
-    for (const source of shuffle(availableBankRows).slice(0, remaining)) {
+    for (const source of candidates) {
+      if (pending.filter(item => item.section === section).length >= sectionNeeded) break;
+
+      const fingerprint = questionFingerprint(source);
+      if (usedFingerprints.has(fingerprint)) continue;
+
+      const questionNumber = currentTotal + pending.length + 1;
       const question = {
+        id: String(questionNumber).padStart(3, "0") + "-" + crypto.randomUUID(),
         year_level: "9",
         session_id: sessionId,
         ip_hash: ipHash(req),
         section: source.section,
-        difficulty: source.difficulty,
-        time: source.time || 30,
+        difficulty: source.difficulty || "medium",
+        time: Number(source.time) || 30,
         question_text: source.question_text,
         passage: source.passage || "",
         answer_options: source.answer_options,
         correct_answer: source.correct_answer,
-        explanation: source.explanation
+        explanation: source.explanation || ""
       };
-      question.id = crypto.createHash("sha256")
-        .update(sessionId + "|" + source.id)
-        .digest("hex")
-        .slice(0, 24);
-
-      if (pendingIds.has(question.id)) continue;
 
       pending.push(question);
       pendingIds.add(question.id);
+      usedFingerprints.add(fingerprint);
+
       if (pending.length >= toGenerate) break;
     }
 
@@ -551,14 +562,17 @@ async function generateQuestions(req, sessionId, targetCount, sectionCounts = DE
   }
 
   if (pending.length < toGenerate) {
-    const usedIds = new Set((allRows || []).map(row => row.id));
+    let attempts = 0;
+    const maxAttempts = Math.max(500, toGenerate * 100);
 
-    while (pending.length < toGenerate) {
+    while (pending.length < toGenerate && attempts < maxAttempts) {
+      attempts += 1;
+
       let section = null;
-
-      for (const [candidate, quota] of quotas) {
-        const alreadyPlanned = pending.filter(item => item.section === candidate).length;
-        if (sessionCounts[candidate] + alreadyPlanned < quota) {
+      for (const [candidate, quota] of configuredQuotas) {
+        const planned = sessionCounts[candidate] +
+          pending.filter(item => item.section === candidate).length;
+        if (planned < quota) {
           section = candidate;
           break;
         }
@@ -570,32 +584,29 @@ async function generateQuestions(req, sessionId, targetCount, sectionCounts = DE
       question.year_level = "9";
       question.session_id = sessionId;
       question.ip_hash = ipHash(req);
-      question.time = question.time || 30;
+      question.time = Number(question.time) || 30;
 
-      let candidateId = crypto.createHash("sha256")
-        .update(sessionId + "|" + crypto.randomUUID() + "|" + JSON.stringify(question))
-        .digest("hex")
-        .slice(0, 24);
+      const fingerprint = questionFingerprint(question);
+      if (usedFingerprints.has(fingerprint)) continue;
 
-      let attempts = 0;
-      while ((usedIds.has(candidateId) || pendingIds.has(candidateId)) && attempts < 10) {
-        attempts += 1;
-        candidateId = crypto.createHash("sha256")
-          .update(sessionId + "|" + crypto.randomUUID() + "|" + JSON.stringify(question))
-          .digest("hex")
-          .slice(0, 24);
-      }
+      const questionNumber = currentTotal + pending.length + 1;
+      question.id = String(questionNumber).padStart(3, "0") + "-" + crypto.randomUUID();
 
-      if (usedIds.has(candidateId) || pendingIds.has(candidateId)) break;
+      if (pendingIds.has(question.id)) continue;
 
-      question.id = candidateId;
       pending.push(question);
-      pendingIds.add(candidateId);
-      usedIds.add(candidateId);
+      pendingIds.add(question.id);
+      usedFingerprints.add(fingerprint);
     }
   }
 
-  if (!pending.length) return [];
+  if (pending.length < toGenerate) {
+    console.error(
+      "Question pool could not satisfy the configured assessment size",
+      { sessionId, targetCount, currentTotal, generated: pending.length, sectionCounts }
+    );
+    return [];
+  }
 
   const rowsToInsert = pending.map(question => ({
     id: question.id,
@@ -624,6 +635,23 @@ async function generateQuestions(req, sessionId, targetCount, sectionCounts = DE
   return pending;
 }
 
+async function ensureQuestionsGenerated(req, sessionId, targetCount, sectionCounts) {
+  const existing = generationLocks.get(sessionId);
+  if (existing) {
+    await existing;
+    return;
+  }
+
+  const promise = generateQuestions(req, sessionId, targetCount, sectionCounts)
+    .catch(error => {
+      console.error("Question generation failed", error);
+      return [];
+    })
+    .finally(() => generationLocks.delete(sessionId));
+
+  generationLocks.set(sessionId, promise);
+  await promise;
+}
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
@@ -673,50 +701,54 @@ app.get("/api/questions", async (req,res) => {
 
     const config = await getAssessmentConfig();
     const totalTarget = config.totalQuestionCount;
-    const { data: rows, error } = await supabase
+
+    let { data: questions, error } = await supabase
       .from("generated_questions")
       .select("*")
       .eq("session_id", sessionId)
       .eq("year_level", "9")
-      .order("created_at", { ascending: true })
       .order("id", { ascending: true });
 
     if (error) return res.status(503).json({ error:"Could not read generated questions" });
 
-    let questions = rows || [];
+    questions = questions || [];
 
-    if (questions.length < 10) {
-      const needed = 10 - questions.length;
-      const generated = await generateQuestions(req, sessionId, needed, config.sectionCounts);
-      if (generated.length < needed) return res.status(503).json({ error:"Could not generate the first 10 questions" });
+    if (questions.length < totalTarget) {
+      await ensureQuestionsGenerated(req, sessionId, totalTarget, config.sectionCounts);
 
       const refreshed = await supabase
         .from("generated_questions")
         .select("*")
         .eq("session_id", sessionId)
         .eq("year_level", "9")
-        .order("created_at", { ascending: true })
         .order("id", { ascending: true });
 
       if (refreshed.error) return res.status(503).json({ error:"Could not read generated questions" });
       questions = refreshed.data || [];
     }
 
-    if (questions.length < totalTarget && !backgroundGenerationSessions.has(sessionId)) {
-      backgroundGenerationSessions.add(sessionId);
-      generateQuestions(req, sessionId, totalTarget, config.sectionCounts)
-        .catch(error => console.error("Background question generation failed", error))
-        .finally(() => backgroundGenerationSessions.delete(sessionId));
+    if (questions.length < totalTarget) {
+      return res.status(503).json({
+        error:"The full assessment question set could not be prepared",
+        ready:false,
+        total:questions.length,
+        target:totalTarget
+      });
     }
 
     res.json({
-      total: questions.length,
-      target: totalTarget,
-      ready: questions.length >= totalTarget,
-      section_counts: config.sectionCounts,
-      questions: questions.map(q => ({
-        id:q.id, section:q.section, difficulty:q.difficulty, time:q.time || 30,
-        q:q.question_text, o:q.answer_options, passage:q.passage || ""
+      total:totalTarget,
+      target:totalTarget,
+      ready:true,
+      section_counts:config.sectionCounts,
+      questions:questions.slice(0,totalTarget).map(q => ({
+        id:q.id,
+        section:q.section,
+        difficulty:q.difficulty,
+        time:q.time || 30,
+        q:q.question_text,
+        o:q.answer_options,
+        passage:q.passage || ""
       }))
     });
   } catch (error) {
@@ -740,7 +772,7 @@ app.post("/api/attempts", async (req,res) => {
     year_level:"9",
     section:section || "mixed",
     difficulty:difficulty || "all",
-    question_count:Number(question_count) || config.totalQuestionCount,
+    question_count:config.totalQuestionCount,
     section_counts:config.sectionCounts
   }).select("id").single();
 
