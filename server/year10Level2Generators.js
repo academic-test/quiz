@@ -519,7 +519,7 @@ function mathematicsScienceQuestion() {
 
   if (type === 15) {
     const rate=pick([45,50,60,72]),time=pick([1.5,2,2.5,3]),distance=rate*time;
-    const r=four(rate+" km/h",[(rate-5)+" km/h",(rate+5)+" km/h",(distance/2)+" km/h"]);
+    const r=four(rate+" km/h",[(rate-5)+" km/h",(rate+5)+" km/h",(rate*2)+" km/h"]);
     return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"A vehicle travels "+distance+" km in "+time+" hours. What is its average speed?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:rate"};
   }
 
