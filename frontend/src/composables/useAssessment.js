@@ -45,6 +45,12 @@ export function useAssessment() {
   const sessionId = ref("");
   const attemptId = ref("");
   const questions = ref([]);
+  const sectionCounts = ref({
+    numerical: 60,
+    maths: 60,
+    reading: 55,
+    verbal: 55
+  });
   const questionIndex = ref(0);
   const answers = ref({});
   const questionStates = ref({});
@@ -95,6 +101,12 @@ export function useAssessment() {
     generatingQuestions.value
       ? "More questions are being prepared in the background. You can continue as they become available."
       : ""
+  );
+
+  const sectionCountSummary = computed(() =>
+    currentBlockIndex.value === 0
+      ? sectionCounts.value.numerical + " Quantitative · " + sectionCounts.value.maths + " Mathematics"
+      : sectionCounts.value.reading + " Reading · " + sectionCounts.value.verbal + " Verbal"
   );
 
   const resultList = computed(() => Object.values(results.value));
@@ -151,6 +163,7 @@ export function useAssessment() {
         studentName: studentName.value,
         sessionId: sessionId.value,
         attemptId: attemptId.value,
+        sectionCounts: sectionCounts.value,
         questionIndex: questionIndex.value,
         answers: answers.value,
         questionStates: questionStates.value,
@@ -264,6 +277,15 @@ export function useAssessment() {
       sessionId.value = crypto.randomUUID();
 
       const response = await getQuestions(sessionId.value);
+
+      if (response.section_counts && typeof response.section_counts === "object") {
+        sectionCounts.value = {
+          numerical: Number(response.section_counts.numerical) || 60,
+          maths: Number(response.section_counts.maths) || 60,
+          reading: Number(response.section_counts.reading) || 55,
+          verbal: Number(response.section_counts.verbal) || 55
+        };
+      }
 
       if (!Array.isArray(response.questions) || response.questions.length < 10) {
         throw new Error("The server did not return the first 10 questions.");
@@ -585,6 +607,7 @@ export function useAssessment() {
       studentName.value = saved.studentName || "";
       sessionId.value = saved.sessionId;
       attemptId.value = saved.attemptId;
+      sectionCounts.value = saved.sectionCounts || { numerical: 60, maths: 60, reading: 55, verbal: 55 };
       questionIndex.value = Number.isInteger(saved.questionIndex) ? saved.questionIndex : 0;
       answers.value = saved.answers || {};
       questionStates.value = saved.questionStates || {};
@@ -646,6 +669,7 @@ export function useAssessment() {
     generatingQuestions.value = false;
     screen.value = "start";
     questions.value = [];
+    sectionCounts.value = { numerical: 60, maths: 60, reading: 55, verbal: 55 };
     results.value = {};
     submittedBlocks.value = {};
     feedback.value = null;
@@ -675,6 +699,8 @@ export function useAssessment() {
     starting,
     savingResponse,
     questions,
+    sectionCounts,
+    sectionCountSummary,
     questionIndex,
     answers,
     questionStates,
