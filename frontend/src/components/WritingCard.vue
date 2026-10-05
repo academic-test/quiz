@@ -27,14 +27,6 @@
 
     <div class="action-row navigation-row">
       <button
-        class="ghost-btn"
-        type="button"
-        :disabled="!canPrevious || saving"
-        @click="$emit('previous')"
-      >
-        ← Previous Test
-      </button>
-      <button
         class="primary-btn"
         type="button"
         :disabled="!localText.trim() || locked || saving"
@@ -59,11 +51,10 @@ const props = defineProps({
   text: { type: String, default: "" },
   locked: { type: Boolean, default: false },
   saving: { type: Boolean, default: false },
-  canPrevious: { type: Boolean, default: false },
   isLast: { type: Boolean, default: false }
 });
 
-defineEmits(["update:text", "submit", "previous"]);
+defineEmits(["update:text", "submit"]);
 
 const localText = ref(props.text);
 watch(() => props.text, value => {
