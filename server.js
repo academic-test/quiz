@@ -19,7 +19,6 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const cookieName = "quiz_admin";
-const backgroundGenerationSessions = new Set();
 const assessmentCookieName = "quiz_assessment";
 const assessmentTtlMs = 4 * 60 * 60 * 1000;
 const assessmentQuestionCount = 230;
@@ -826,31 +825,6 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
 
 app.get("/api/questions", (req,res) => {
   res.status(404).json({ error:"Not found" });
-});
-
-app.post("/api/attempts", async (req,res) => {
-  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-  const { session_id, session_name, year_level, section, difficulty, question_count } = req.body || {};
-
-  if (!validUuid(session_id) || !verifyAssessmentToken(req, session_id)) {
-    return res.status(401).json({ error:"Assessment access required" });
-  }
-  if (!rateLimit("assessment-attempt:" + session_id, 10, 60 * 60 * 1000)) {
-    return res.status(429).json({ error:"Too many assessment requests. Please wait and try again." });
-  }
-  if (String(year_level) !== "9") return res.status(400).json({ error:"Only Year 9 is available" });
-
-  const { data, error } = await supabase.from("quiz_attempts").insert({
-    session_id,
-    session_name,
-    year_level:"9",
-    section:section || "mixed",
-    difficulty:difficulty || "all",
-    question_count:question_count || assessmentQuestionCount
-  }).select("id").single();
-
-  if (error) return res.status(400).json({ error:error.message });
-  res.json({ id:data.id });
 });
 
 app.post("/api/responses", async (req,res) => {
