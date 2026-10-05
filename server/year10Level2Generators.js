@@ -462,8 +462,9 @@ function mathematicsScienceQuestion() {
 
   if (type === 9) {
     const limit=pick([18,22,30]),step=pick([2,3,4]),x=limit-step;
-    const r=four("x < "+limit,[ "x > "+limit, "x < "+step, "x = "+limit]);
-    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Which inequality describes numbers that are at least "+step+" less than "+limit+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:inequality"};
+    const answer="x ≤ "+x;
+    const r=four(answer,["x ≥ "+x,"x ≤ "+limit,"x < "+step]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Which inequality describes numbers that are at most "+step+" less than "+limit+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:inequality"};
   }
 
   if (type === 10) {
@@ -637,8 +638,8 @@ function mathematicsScienceQuestion() {
 
   if (type === 31) {
     const start=pick([3,4,5]),times=pick([2,3]),answer=start*times;
-    const r=four(answer,[start+times,start*times+1,answer+times]);
-    return {section:"mathematics_science",difficulty:"hard",time:60,passage:"A shape is enlarged so that each linear dimension is multiplied by "+times+".",question_text:"By what factor does a length of "+start+" cm become?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:transformation"};
+    const r=four(answer,[start+times,start*times+1,start+times*2]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage:"A shape is enlarged so that each linear dimension is multiplied by "+times+".",question_text:"A length of "+start+" cm is enlarged by a factor of "+times+". What is the new length?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:transformation"};
   }
 
   if (type === 32) {
