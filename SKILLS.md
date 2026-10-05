@@ -134,6 +134,10 @@ These thresholds are practice analytics only and are not ACER scoring rules.
 - GitHub main auto-deploy is enabled.
 - Express 5 wildcard fallback issue was fixed.
 - Vue asset MIME-type issue was fixed by explicitly serving the built assets.
+- Public health endpoint: `GET /health`.
+- Health response includes `ok: true` and `supabaseConfigured`.
+- `/health` is suitable as a lightweight external cron/uptime request to keep the Render service active.
+- Example health URL: `https://quiz-tv23.onrender.com/health`.
 
 Recent deployment sequence:
 - `a916872a5f0670668ff08d30ac626f3cd32fdded` — restored stable quiz app.
