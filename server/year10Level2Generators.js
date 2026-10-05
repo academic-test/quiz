@@ -18,6 +18,18 @@ function four(answer, distractors) {
   return { options, index: options.indexOf(String(answer)) };
 }
 
+function validQuestionShape(question) {
+  const options = Array.isArray(question?.answer_options) ? question.answer_options : [];
+  if (options.length !== 4) return false;
+
+  const normalised = options.map(value => String(value ?? "").trim().replace(/\s+/g, " "));
+  if (normalised.some(value => !value)) return false;
+  if (new Set(normalised).size !== 4) return false;
+
+  const correct = Number(question?.correct_answer);
+  return Number.isInteger(correct) && correct >= 0 && correct < 4;
+}
+
 function humanitiesQuestion() {
   const type = Math.floor(Math.random() * 30);
 
