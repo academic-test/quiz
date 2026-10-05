@@ -429,7 +429,7 @@ function mathematicsScienceQuestion() {
   }
 
   if (type === 2) {
-    const a=pick([2,3,4]),b=pick([4,5,6]),c=pick([3,5,7]),total=(a+b+c)*pick([4,5]);
+    const [a,b,c]=shuffle([2,3,4,5,6]).slice(0,3),total=(a+b+c)*pick([4,5]);
     const answer=total*b/(a+b+c);
     const r=four(answer,[total*a/(a+b+c),total*c/(a+b+c),answer+4]);
     return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Three components are in the ratio "+a+":"+b+":"+c+". If there are "+total+" units altogether, how many are in the second component?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:ratio"};
