@@ -119,10 +119,10 @@ function humanitiesQuestion() {
 
   if (type === 8) {
     const counts = [
-      pick([18,22,27,31]),
-      pick([25,29,34,38]),
-      pick([12,16,21,24]),
-      pick([8,11,15,19])
+      pick([18,22,26]),
+      pick([30,34,38]),
+      pick([10,14,17]),
+      pick([5,8,11])
     ];
     const passage = "Survey responses:\nStrongly support — "+counts[0]+"\nSupport — "+counts[1]+"\nNeutral — "+counts[2]+"\nOppose — "+counts[3];
     const r = four("Support has more responses than Strongly support, Neutral or Oppose.", [
