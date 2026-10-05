@@ -7,14 +7,15 @@ This file records the current architecture, product decisions, implemented chang
 - Student app: Vue 3 + Vite
 - Backend: Express 5
 - Database: Supabase
-- Student test: Year 9 only
-- Original ACER-style practice questions; no ACER affiliation or copied questions
+- Student target: Year 10 entry preparation using ACER Level 2 practice material for entry in Years 9 and 10
+- Original practice questions informed by the supplied ACER Scholarship and Select Entry Tests practice booklet; no ACER affiliation and no copied ACER questions
 
 ## Key product decisions
 - Testing only; Learning was removed from the intended student experience.
 - Student enters a name and starts a generated test.
 - Five answer choices A–E.
 - Questions are generated on the server.
+- The content target is the supplied ACER Scholarship/Select Entry Tests practice structure for entry in Years 9 and 10, with this project focused on Year 10 entry.
 - Same-IP question reuse is blocked using hashed IP + generated question IDs.
 - Session IDs are UUIDs and Admin shows student name with Session ID.
 - After a response is submitted, the student sees the correct answer and an explanation.
@@ -22,25 +23,55 @@ This file records the current architecture, product decisions, implemented chang
 - Student must not see a “Time's Up” message during the test.
 - Answers remain editable only while the current block is open.
 
-## Question format
-- Current intended practice test: 230 questions.
-- Intended allocation: 60 Quantitative/Numerical, 60 Mathematics, 55 Reading, 55 Verbal.
-- Questions stay in fixed section order; they are not mixed.
-- First 10 questions should be generated before the student starts; the rest generate in the background.
-- Background generation polls for newly available questions.
-- Database inserts were changed to batches for speed.
+## Assessment sections and content target
+The supplied ACER Scholarship and Select Entry Tests practice booklet is explicitly for entry in Years 9 and 10. It contains four test components:
+- Written Expression: Test 1 — 25 minutes.
+- Humanities Comprehension and Interpretation: Test 2 — 40 minutes.
+- Mathematics and Science: Test 3 — 40 minutes.
+- Written Expression: Test 4 — 25 minutes.
 
-## ACER-style timing design
-Current Victorian practice design used for the student app:
-- Block 1: Mathematics + Quantitative Reasoning — 60 minutes.
-- Break: 20 minutes.
-- Block 2: Reading + Verbal Reasoning — 55 minutes.
-- Break: 5 minutes.
-- Writing: 40 minutes.
+For this project, the student target is Year 10 entry. The four source-supported assessment components are therefore:
+1. Written Expression — Test 1.
+2. Humanities Comprehension and Interpretation — Test 2.
+3. Mathematics and Science — Test 3.
+4. Written Expression — Test 4.
 
-The app currently implements the two timed testing blocks only; Writing/break screens are not yet part of the student test flow.
+The supplied booklet describes Written Expression as an original response to a stimulus. Students may respond with a story, persuasive piece or personal reflection. Assessment emphasis is on:
+- quality of thoughts and content
+- structure and organisation
+- quality, effectiveness and appropriateness of language
+- responding to the stimulus rather than using a rehearsed response
 
-These are block timers, not individual-question timers. Exact ACER question counts within subtests are not publicly specified, so the 60/60 and 55/55 split is a practice allocation, not an ACER claim.
+Humanities Comprehension and Interpretation should use varied written and visual information, including literary passages, charts, diagrams, cartoons, advertisements, graphs and source material. Questions should emphasise comprehension, interpretation, inference, comparison, evidence evaluation and drawing conclusions.
+
+Mathematics and Science should use reasoning-first problems built from supplied information. Question families should include mathematics, data interpretation, spatial/visual reasoning, graphs, tables, patterns, measurement, proportional reasoning, probability, logical deduction and science contexts where students analyse evidence, relationships and experimental information.
+
+The practice bank should support both text-only and image/diagram-based questions.
+
+Important: the supplied booklet establishes the four components above. It does not support keeping the previous 230-question split as the official ACER structure. Any project-specific question counts are practice allocations and must not be described as official ACER counts.
+
+## Question-bank design requirements
+- Preserve useful existing questions, but classify them as suitable, upgrade, replace or add for Year 10 Level 2 practice.
+- Reduce repeated templates and repeated wording; distinct scenarios and reasoning tasks matter, not just unique IDs.
+- Avoid consecutive questions using the same reasoning type within a section where practical.
+- Prefer unfamiliar, multi-step and interpretation-heavy problems over routine textbook exercises.
+- Include richer data displays and visual information rather than relying mainly on short prose questions.
+- Add a dedicated Science question family to Mathematics and Science.
+- Add Written Expression practice with two separate 25-minute tasks.
+- Do not copy ACER questions, passages, charts or answer choices. Use original material that mirrors the reasoning demands and formats.
+
+
+## Source-based timing design
+The supplied ACER practice booklet gives these timings:
+- Written Expression Test 1 — 25 minutes.
+- Humanities Comprehension and Interpretation Test 2 — 40 minutes.
+- Mathematics and Science Test 3 — 40 minutes.
+- Written Expression Test 4 — 25 minutes.
+
+For the project, these four source-based components should be treated as the content and timing target. Any alternative practice mode or condensed mock mode must be clearly labelled as project-specific.
+
+Do not describe the previous 60/60/55/55 two-block structure as an official ACER structure.
+Do not use individual-question countdowns as a substitute for the source test component timing unless explicitly requested for a practice mode.
 
 ## Student navigation and submission rules
 - One overall timer is shown for the active block.
@@ -165,7 +196,11 @@ Recent deployment sequence:
 Important: always verify the newest intended commit is **Live** before asking the user to test. A build-in-progress or queued deployment is not confirmed live.
 
 ## Source material
-The supplied `Volume 1 Exam Pack Question Book.pdf` was used as a blueprint for sample question types/structures. It is not an ACER publication and explicitly states it is not affiliated with ACER. Official ACER material was also consulted for current Victorian schedule information.
+Primary source for the current assessment design: the supplied `Scholarship_Practice_Questions_Y9-10.pdf`, published by the Australian Council for Educational Research, titled `Scholarship and Select Entry Tests Practice Questions for entry in Years 9 and 10`. It contains Written Expression Tests 1 and 4, Humanities Comprehension and Interpretation Test 2, and Mathematics and Science Test 3.
+
+The supplied `Volume 1 Exam Pack Question Book.pdf` remains a secondary blueprint for general question-type variety; it is not an ACER publication and explicitly states it is not affiliated with ACER.
+
+The supplied LANTITE numeracy practice PDF is a secondary reference for numeracy/data question formats only. It must not be treated as the scholarship-test structure and must not be copied.
 
 ## Rules for future changes
 - Do not reintroduce Learning unless explicitly requested.
