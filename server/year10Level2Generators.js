@@ -13,7 +13,7 @@ function four(answer, distractors) {
   const values = [String(answer), ...distractors.map(String)];
   const unique = [];
   for (const value of values) if (!unique.includes(value)) unique.push(value);
-  while (unique.length < 4) unique.push(String(unique.length + 1));
+  while (unique.length < 4) { let filler = 1; while (unique.includes(String(filler))) filler += 1; unique.push(String(filler)); }
   const options = shuffle(unique.slice(0, 4));
   return { options, index: options.indexOf(String(answer)) };
 }
