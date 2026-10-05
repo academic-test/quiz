@@ -746,14 +746,15 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
 
 app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-  const [{ data: attempt, error: attemptError }, { data: responses, error: responseError }] = await Promise.all([
+  const [{ data: attempt, error: attemptError }, { data: responses, error: responseError }, { data: writingResponses, error: writingError }] = await Promise.all([
     supabase.from("quiz_attempts").select("*").eq("id", req.params.id).maybeSingle(),
-    supabase.from("quiz_responses").select("*").eq("attempt_id", req.params.id).order("answered_at",{ascending:true})
+    supabase.from("quiz_responses").select("*").eq("attempt_id", req.params.id).order("answered_at",{ascending:true}),
+    supabase.from("quiz_writing_responses").select("*").eq("attempt_id", req.params.id).order("submitted_at",{ascending:true})
   ]);
   if (attemptError) return res.status(400).json({ error:attemptError.message });
   if (!attempt) return res.status(404).json({ error:"Attempt not found" });
-  if (responseError) return res.status(400).json({ error:responseError.message });
-  res.json({ attempt, responses:responses || [] });
+  if (responseError || writingError) return res.status(400).json({ error:(responseError || writingError).message });
+  res.json({ attempt, responses:responses || [], writing_responses:writingResponses || [] });
 });
 
 app.post("/api/assessments/start", async (req,res) => {
