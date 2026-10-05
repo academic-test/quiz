@@ -61,6 +61,10 @@ These are block timers, not individual-question timers. Exact ACER question coun
   - Block 1: “Submit Section & Continue →”
   - Block 2: “Submit Test”
 - Once a block is explicitly submitted, it is permanently locked.
+- An active assessment is persisted in browser session storage so a page refresh does not create a new attempt.
+- On refresh, the existing session ID, attempt ID, current question, selected answers, locked responses/feedback, block start time, and current-question start time are restored.
+- The overall block timer continues from its original block start timestamp after refresh; refreshing does not reset the 60-minute or 55-minute clock.
+- The current unanswered/selected question retains its active elapsed time across refresh until it is skipped or its response is committed.
 - After Block 1 submission, the student cannot return to Quantitative/Numerical or Mathematics questions, including previously skipped questions.
 - After Block 2 submission, the entire test is complete.
 - If a section timer reaches zero, that section is automatically submitted and permanently locked.
