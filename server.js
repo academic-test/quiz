@@ -777,19 +777,33 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
       .select("id,section,difficulty,time,question_text,answer_options,passage")
       .eq("session_id", sessionId)
       .eq("year_level", "9")
-      .order("id", { ascending:true })
-      .range(offset, Math.min(offset + limit - 1, assessmentQuestionCount - 1));
+      .order("id", { ascending:true });
 
     if (error) {
       console.error("Assessment question read failed", error);
       return res.status(503).json({ error:"Could not read assessment questions" });
     }
 
+    if (!rows || rows.length < assessmentQuestionCount) {
+      return res.status(409).json({ error:"Assessment questions are not ready" });
+    }
+
+    const manifest = rows.slice(0, assessmentQuestionCount).map((q,index) => ({
+      number:index + 1,
+      id:q.id,
+      section:q.section,
+      difficulty:q.difficulty,
+      time:q.time || 30
+    }));
+
+    const selectedRows = rows.slice(offset, Math.min(offset + limit, assessmentQuestionCount));
+
     res.json({
       total:assessmentQuestionCount,
       offset,
       limit,
-      questions:(rows || []).map(q => ({
+      manifest,
+      questions:selectedRows.map(q => ({
         id:q.id,
         section:q.section,
         difficulty:q.difficulty,
