@@ -19,306 +19,700 @@ function four(answer, distractors) {
 }
 
 function humanitiesQuestion() {
-  const topics = [
-    ["a city tram network", "access, cost and reliability"],
-    ["a community library", "access to services and long-term funding"],
-    ["a coastal reserve", "conservation and public recreation"],
-    ["a school phone policy", "concentration, safety and personal responsibility"],
-    ["a town market", "local business and use of public space"],
-    ["a youth arts program", "participation, funding and community benefit"]
-  ];
-  const [topic, issue] = pick(topics);
-  const variant = pick(["however", "nevertheless", "in contrast", "at the same time"]);
-  const type = Math.floor(Math.random() * 14);
+  const type = Math.floor(Math.random() * 30);
 
   if (type === 0) {
-    const name = pick(["Mia","Noah","Asha","Luca","Sienna","Eli"]);
-    const passage = name + " expected the meeting about " + topic + " to produce a simple yes-or-no decision. Instead, speakers agreed on several facts but interpreted their importance differently. One resident argued that the proposal would improve " + issue + "; another accepted the possible benefit but questioned who would bear the cost. " + variant + ", both used evidence from the same report.";
-    const r = four("People can interpret the same evidence differently when they give different weight to its consequences.", [
-      "Disagreement shows that the evidence must be unreliable.",
-      "People reach agreement whenever they use the same report.",
-      "The financial cost is always more important than every other factor."
-    ]);
-    return { section:"humanities", difficulty:"hard", time:60, passage, question_text:"What conclusion is best supported by the passage?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:inference" };
+    const items = [
+      {
+        passage: "In her diary, Lena described the town hall meeting as polite but uneasy. Supporters repeatedly referred to the plan's immediate benefits, while opponents kept returning to what might happen after five years. No speaker disputed the figures in the report; they disagreed about how much weight the figures should carry.",
+        q: "What best explains the disagreement?",
+        a: "The speakers place different importance on short- and long-term consequences.",
+        d: ["The speakers are using completely different data.", "The figures in the report were proven false.", "The meeting focused on a topic unrelated to the plan."]
+      },
+      {
+        passage: "A museum guide noted that visitors often stopped longest at a faded photograph. The image showed an ordinary street, yet people kept pointing to details in the background. The guide suggested that the photograph mattered less for its composition than for the clues it offered about a way of life that had since disappeared.",
+        q: "Why does the photograph attract attention?",
+        a: "It provides clues about a past way of life.",
+        d: ["It is the museum's most colourful work.", "It was painted by a famous modern artist.", "It shows an event that visitors witnessed personally."]
+      },
+      {
+        passage: "When the new footbridge opened, residents initially praised its appearance. A year later, the council found that people were using it at different times for different reasons: commuters valued the shorter route, older residents valued the handrails, and shopkeepers valued the extra foot traffic. A single measure of 'success' did not capture all these effects.",
+        q: "What conclusion is best supported?",
+        a: "The value of a public project can depend on the priorities of different users.",
+        d: ["Public projects should have only one intended use.", "The bridge failed because residents used it differently.", "Shopkeepers were the only group to benefit."]
+      }
+    ];
+    const item = pick(items);
+    const r = four(item.a, item.d);
+    return { section:"humanities", difficulty:"hard", time:70, passage:item.passage, question_text:item.q, answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:literary-inference" };
   }
 
   if (type === 1) {
-    const a = pick(["Elena","Marcus","Priya","Daniel"]);
-    const b = pick(["a shop owner","a parent","a student","a council planner"]);
-    const passage = a + " argues that " + topic + " should be expanded because it would improve " + issue + ". " + b + " accepts that benefit but warns that expansion could create a new problem unless limits are introduced.";
-    const r = four("The speakers recognise a potential benefit but differ over risks and safeguards.", [
-      "Both speakers believe the proposal has no benefit.",
-      "The second speaker rejects the evidence entirely.",
-      "Both speakers are primarily discussing advertising."
-    ]);
-    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which statement best compares the two viewpoints?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:viewpoints" };
+    const items = [
+      ["The writer calls the proposal 'ambitious, but not yet convincing' and notes that several assumptions remain untested.", "cautious"],
+      ["The article describes the decision as 'an avoidable mistake' and lists consequences in increasingly severe terms.", "critical"],
+      ["The speaker thanks the committee for listening before calmly explaining why the recommendation should still be reconsidered.", "respectful but questioning"],
+      ["The reviewer repeatedly uses phrases such as 'surprisingly effective' and 'far better than expected'.", "strongly approving"],
+      ["The memoir describes the old station with warm details, but also hints that some memories are unreliable.", "nostalgic but reflective"],
+      ["The report states that the evidence is incomplete and recommends further investigation before any final judgement.", "tentative"]
+    ];
+    const item = pick(items);
+    const r = four(item[1], shuffle(["angry","humorous","celebratory"]).slice(0,3));
+    return { section:"humanities", difficulty:"hard", time:60, passage:item[0], question_text:"Which tone best describes the passage?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:tone" };
   }
 
   if (type === 2) {
-    const cities = ["A","B","C","D"];
-    const data = cities.map((c,i)=>"Option "+c+" — reliability "+[5,4,3,2][i]+"/5; cost "+[4,2,3,1][i]+"/5; access "+[3,5,4,2][i]+"/5");
-    const priority = pick(["reliability","cost","access"]);
-    const best = priority === "reliability" ? "Option A" : priority === "cost" ? "Option D" : "Option B";
-    const r = four(best, cities.filter(c=>"Option "+c!==best).map(c=>"Option "+c));
-    return { section:"humanities", difficulty:"hard", time:65, passage:"Comparison data:\n"+data.join("\n"), question_text:"A decision-maker gives the highest priority to "+priority+". Which option is the best choice?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:data" };
+    const topic = pick(["a late-night bus service","a ban on single-use drink containers","a new community sports centre","a proposed park redevelopment"]);
+    const first = pick(["emphasises immediate convenience","emphasises environmental costs","emphasises access for families","emphasises the effect on local businesses"]);
+    const second = pick(["questions long-term costs","questions whether alternatives were considered","questions whether benefits will be shared equally","questions whether the evidence is strong enough"]);
+    const passage = "Two commentators discuss " + topic + ". Commentator A " + first + ", while Commentator B " + second + ". Both refer to the same council report but select different consequences to emphasise.";
+    const r = four("They use the same evidence but give different weight to different consequences.", [
+      "They disagree about whether the council exists.",
+      "They rely on completely unrelated topics.",
+      "They both argue that only cost matters."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"What is the key difference between the commentators' approaches?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:viewpoint-comparison" };
   }
 
   if (type === 3) {
     const rows = [
-      ["Plan Red","green space +20%","traffic +5%","within budget"],
-      ["Plan Blue","green space +10%","traffic unchanged","within budget"],
-      ["Plan Green","green space +25%","traffic +12%","over budget"],
-      ["Plan Gold","green space unchanged","traffic -8%","within budget"]
+      ["North","reliability 5/5","cost 3/5","access 2/5"],
+      ["East","reliability 4/5","cost 5/5","access 4/5"],
+      ["South","reliability 3/5","cost 2/5","access 5/5"],
+      ["West","reliability 2/5","cost 4/5","access 3/5"]
     ];
-    const best = rows[1][0];
-    const r = four(best, rows.slice(0,1).concat(rows.slice(2)).map(x=>x[0]));
-    return { section:"humanities", difficulty:"hard", time:65, passage:"Proposal summary:\n"+rows.map(x=>x.join(" — ")).join("\n"), question_text:"A community wants more green space, no increase in traffic, and a plan within budget. Which plan satisfies all three conditions?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:evaluation" };
+    const priority = pick(["reliability","cost","access"]);
+    const map = { reliability:"North", cost:"East", access:"South" };
+    const answer = map[priority];
+    const r = four(answer, ["North","East","South","West"].filter(x => x !== answer));
+    return { section:"humanities", difficulty:"hard", time:60, passage:"Comparison table:\n" + rows.map(x=>x.join(" — ")).join("\n"), question_text:"A decision-maker gives the highest priority to " + priority + ". Which option is best?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:data-priority" };
   }
 
   if (type === 4) {
-    const year = pick([1912,1931,1948,1963,1977]);
-    const passage = "Source written in "+year+": “Supporters presented the change as a practical response to new circumstances. Opponents accepted some immediate benefits but questioned whether its longer-term effects had been examined.”";
-    const r = four("The source presents both a claimed benefit and a concern about long-term consequences.", [
-      "The source proves that everyone supported the change.",
-      "The source gives no evidence of disagreement.",
-      "The source says the change had already been reversed."
+    const plans = [
+      ["Plan A","trees +20%","traffic +3%","within budget"],
+      ["Plan B","trees +10%","traffic unchanged","within budget"],
+      ["Plan C","trees +30%","traffic +12%","over budget"],
+      ["Plan D","trees unchanged","traffic -5%","within budget"]
+    ];
+    const constraints = pick([
+      "more trees, no increase in traffic, and staying within budget",
+      "lower traffic, no loss of trees, and staying within budget",
+      "more trees and more traffic allowed, but staying within budget"
     ]);
-    return { section:"humanities", difficulty:"hard", time:60, passage, question_text:"Which statement best captures the source?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:source" };
+    let answer;
+    if (constraints.startsWith("more trees, no")) answer = "Plan B";
+    else if (constraints.startsWith("lower traffic")) answer = "Plan D";
+    else answer = "Plan A";
+    const r = four(answer, plans.map(x=>x[0]).filter(x=>x!==answer));
+    return { section:"humanities", difficulty:"hard", time:65, passage:"Proposal summary:\n" + plans.map(x=>x.join(" — ")).join("\n"), question_text:"Which plan satisfies the stated requirements: " + constraints + "?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:constraint-evaluation" };
   }
 
   if (type === 5) {
-    const product = pick(["a weekend pass","a new reading app","a museum membership","a city festival pass"]);
-    const passage = "Advertisement: “Why leave possibilities unexplored? Choose "+product+" and turn an ordinary month into a collection of experiences. One simple decision. More to discover.”";
-    const r = four("It appeals to the desire for variety and new experiences.", [
-      "It relies mainly on fear of punishment.",
-      "It proves that the product is the cheapest option.",
-      "It encourages customers to avoid unfamiliar activities."
+    const cities = ["Harbour","Ridge","Plain","Valley"];
+    const start = pick([820,960,1100]);
+    const step = pick([70,90,110]);
+    const values = cities.map((c,i)=>[c,start + i*step]);
+    const direction = pick(["increases steadily","decreases steadily","remains unchanged"]);
+    if (direction === "decreases steadily") values.reverse();
+    if (direction === "remains unchanged") values.forEach(x=>x[1]=start);
+    const r = four(direction, [
+      "rises sharply then falls",
+      "changes direction twice",
+      "cannot be compared"
     ]);
-    return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"What desire does the advertisement appeal to most strongly?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:advertising" };
+    return { section:"humanities", difficulty:"medium", time:55, passage:"Population index:\n" + values.map(x=>x[0] + ": " + x[1]).join("\n"), question_text:"Which description best matches the pattern shown?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:trend-data" };
   }
 
   if (type === 6) {
-    const groups = ["large cities","small cities","suburban areas","rural areas"];
-    const base = pick([3600,4200,4800]);
-    const vals = groups.map((g,i)=>g+": "+(base-i*540+(i%2)*90)+" net moves");
-    const best = groups[0];
-    const r = four(best, groups.slice(1));
-    return { section:"humanities", difficulty:"hard", time:65, passage:"Net movement data:\n"+vals.join("\n"), question_text:"Which settlement type shows the largest net movement into it?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:flow-data" };
+    const passage = "A survey of 420 residents found that 62% supported extending library opening hours. The survey was conducted online over three days and was promoted on the library's social-media page.";
+    const r = four("The exact views of all residents cannot be known from this survey alone.", [
+      "Exactly 62% of every resident supports the proposal.",
+      "The survey proves that the proposal will reduce costs.",
+      "The online responses must represent every age group equally."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which conclusion cannot be claimed with certainty from the information?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:limit-of-evidence" };
   }
 
   if (type === 7) {
-    const rainfall = pick([42,58,71]);
-    const passage = "A council measured water quality before and after a wetland restoration. Fish numbers rose, water became clearer and aquatic insects increased. The study lasted only three months, and rainfall varied considerably; the recorded rainfall during one monitoring period was "+rainfall+" mm.";
-    const r = four("The results are promising, but the short study and changing rainfall limit how confidently long-term effects can be claimed.", [
-      "The restoration definitely caused every observed change.",
-      "Rainfall had no possible effect on the measurements.",
-      "The data are useless because measurements were repeated."
-    ]);
-    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which is the most cautious conclusion?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:evidence" };
+    const sources = [
+      ["a signed diary entry written during the event","direct first-hand evidence"],
+      ["a government summary written twenty years later","secondary account"],
+      ["an anonymous comment posted recently","unclear provenance"],
+      ["a textbook chapter that compares several sources","synthesised secondary account"]
+    ];
+    const item = pick(sources);
+    const r = four(item[1], shuffle(["direct first-hand evidence","secondary account","unclear provenance"]).filter(x=>x!==item[1]).slice(0,3));
+    return { section:"humanities", difficulty:"hard", time:60, passage:"Possible source: " + item[0] + ".", question_text:"How should this source best be described?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:source-type" };
   }
 
   if (type === 8) {
-    const counts = [
-      pick([18,22,26]),
-      pick([30,34,38]),
-      pick([10,14,17]),
-      pick([5,8,11])
+    const passage = "A newspaper editorial arguing for a new stadium quotes three local business owners who support the project. It does not mention the residents' group that has published a detailed objection.";
+    const r = four("The editorial may give a one-sided picture because it selects supportive voices.", [
+      "The stadium project is definitely harmful.",
+      "All business owners oppose the project.",
+      "The residents' group has no evidence."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"What limitation should a reader notice?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:bias" };
+  }
+
+  if (type === 9) {
+    const products = ["the museum night pass","the festival membership","the travel card","the weekend discovery pass"];
+    const product = pick(products);
+    const passage = "Advertisement: \"" + product + " — one decision, many possibilities. Try something unfamiliar, follow a new path and make this month larger than the last.\"";
+    const r = four("It appeals to curiosity and the desire for new experiences.", [
+      "It mainly appeals to fear of punishment.",
+      "It proves the product is the cheapest available.",
+      "It discourages people from trying unfamiliar activities."
+    ]);
+    return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"What desire does the advertisement appeal to most strongly?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:advertising-purpose" };
+  }
+
+  if (type === 10) {
+    const scenes = [
+      "A cartoon shows a person carrying an enormous stack of forms while a sign above a tiny counter says 'Simple Application'.",
+      "A cartoon shows two clocks labelled 'meeting starts' and 'meeting actually starts', with the second clock far ahead.",
+      "A cartoon shows a manager praising a worker for being 'highly flexible' while the worker is visibly tied to a desk."
     ];
-    const passage = "Survey responses:\nStrongly support — "+counts[0]+"\nSupport — "+counts[1]+"\nNeutral — "+counts[2]+"\nOppose — "+counts[3];
-    const r = four("Support has more responses than Strongly support, Neutral or Oppose.", [
-      "Oppose has the largest number of responses.",
-      "Neutral and Oppose are equal.",
-      "Strongly support has more responses than every other category."
+    const interpretations = [
+      ["The cartoon is mocking a process described as simple even though it is burdensome.","irony"],
+      ["The cartoon is criticising the gap between an official schedule and what actually happens.","contrast"],
+      ["The cartoon is questioning whether a positive description matches the worker's reality.","irony"]
+    ];
+    const item = interpretations[pick(scenes.map((_,i)=>i))];
+    const scene = scenes[interpretations.indexOf(item)];
+    const r = four(item[1], ["celebration","historical nostalgia","literal instruction"]);
+    return { section:"humanities", difficulty:"hard", time:60, passage:scene, question_text:"What device is most important to the cartoon's message?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:cartoon-inference" };
+  }
+
+  if (type === 11) {
+    const passage = "A project was announced. Residents submitted responses. Engineers collected extra measurements. The design was amended. A revised proposal was published. The council then scheduled a final vote.";
+    const r = four("The design was changed after both public responses and additional measurements.", [
+      "The final vote occurred before the proposal was published.",
+      "Extra measurements were collected after the final vote.",
+      "Residents responded only after the design had been finalised."
+    ]);
+    return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"Which statement best describes the sequence?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:chronology" };
+  }
+
+  if (type === 12) {
+    const quote = pick([
+      "We had little time, but we learned more from the failed attempt than from the easy successes.",
+      "The new rule was praised as efficient, yet its effects on people with fewer resources were not considered.",
+      "The explorer wrote that reaching the summit mattered less than what the difficult journey had revealed."
+    ]);
+    const r = four("The speaker values what can be learned from experience, not simply the final outcome.", [
+      "The speaker believes failure always makes people weaker.",
+      "The speaker thinks outcomes are irrelevant.",
+      "The speaker argues that difficult tasks should be avoided."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage:quote, question_text:"Which interpretation is best supported?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:quotation-interpretation" };
+  }
+
+  if (type === 13) {
+    const words = [
+      ["qualified","limited or conditional"],
+      ["tentative","not certain"],
+      ["ambiguous","open to more than one interpretation"],
+      ["provisional","temporary and subject to change"],
+      ["selective","carefully choosing some things rather than all"]
+    ];
+    const item = pick(words);
+    const passage = "The writer described the conclusion as '" + item[0] + "', adding that new evidence could change it.";
+    const r = four(item[1], shuffle(words.filter(x=>x[0]!==item[0]).map(x=>x[1])).slice(0,3));
+    return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"In this context, which meaning best matches '" + item[0] + "'?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:vocabulary-context" };
+  }
+
+  if (type === 14) {
+    const items = [
+      ["A town restored an old theatre. Attendance initially rose, local businesses benefited, and the building became a venue for school performances and community meetings.","The restored theatre became useful to the wider community in several ways."],
+      ["A researcher compared two explanations for falling bird numbers. Both fit some observations, but one required fewer unsupported assumptions and matched more of the measured data.","The stronger explanation was the one that fitted the evidence with fewer unsupported assumptions."],
+      ["A school changed its timetable. Students appreciated having longer breaks, but transport services became harder to coordinate and some after-school activities started later.","A single change can create benefits as well as practical trade-offs."]
+    ];
+    const item = pick(items);
+    const r = four(item[1], [
+      "The passage mainly describes a complete failure.",
+      "The passage proves that one group is always correct.",
+      "The passage contains no evidence for its conclusion."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage:item[0], question_text:"Which statement best gives the main idea?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:main-idea" };
+  }
+
+  if (type === 15) {
+    const passage = "After a wetland was restored, fish numbers increased and the water became clearer. However, rainfall was unusually high during the study, and the monitoring period lasted only three months.";
+    const r = four("The restoration may have helped, but other factors mean the result should be interpreted cautiously.", [
+      "The restoration definitely caused every change.",
+      "Rainfall could not have affected the result.",
+      "A three-month study is enough to prove all long-term effects."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which is the most defensible conclusion?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:evidence-and-alternative" };
+  }
+
+  if (type === 16) {
+    const support = pick([44,48,52]);
+    const oppose = pick([12,16,20]);
+    const neutral = 100 - support - oppose;
+    const passage = "Survey of respondents:\nSupport: " + support + "%\nNeutral: " + neutral + "%\nOppose: " + oppose + "%";
+    const r = four("Support was the largest of the three categories.", [
+      "Oppose was larger than support.",
+      "Neutral was exactly half of support.",
+      "All respondents had the same view."
     ]);
     return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"Which statement is directly supported by the survey?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:survey" };
   }
 
-  if (type === 9) {
-    const passage = "Event sequence:\n1. A proposal was announced.\n2. Residents submitted responses.\n3. Additional data were collected.\n4. The proposal was modified.\n5. A final decision was published.";
-    const r = four("The proposal changed after both responses and additional evidence were considered.", [
-      "The final decision came before residents responded.",
-      "No new information was collected after the announcement.",
-      "Residents responded only after the final decision."
+  if (type === 17) {
+    const start = pick(["north-east","south-east","south-west","north-west"]);
+    const clockwise = pick([45,90,135]);
+    const directions = ["north","north-east","east","south-east","south","south-west","west","north-west"];
+    let index = directions.indexOf(start);
+    index = (index + Math.round(clockwise/45)) % 8;
+    const answer = directions[index];
+    const r = four(answer, directions.filter(x=>x!==answer).slice(0,3));
+    return { section:"humanities", difficulty:"hard", time:60, passage:"A vehicle is initially heading " + start + " and turns clockwise by " + clockwise + " degrees.", question_text:"Which direction is it heading after the turn?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:spatial-direction" };
+  }
+
+  if (type === 18) {
+    const passage = "Source A, written immediately after the event, says the crowd was small. Source B, a later newspaper summary, says thousands attended. A photograph taken that afternoon shows a dense crowd near the main entrance.";
+    const r = four("The photograph provides independent evidence that can be compared with both written sources.", [
+      "The photograph proves exactly how many people attended.",
+      "Source B must be correct because it was published later.",
+      "Source A must be correct because it was written first."
     ]);
-    return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"Which statement best describes the sequence?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:sequence" };
+    return { section:"humanities", difficulty:"hard", time:70, passage, question_text:"What is the most useful way to use the photograph?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:corroboration" };
   }
 
-  if (type === 10) {
-    const sourceTypes = ["a first-hand diary entry","a government summary written decades later","an anonymous social-media post","an advertisement published at the time"];
-    const r = four("a first-hand diary entry", sourceTypes.slice(1));
-    return { section:"humanities", difficulty:"hard", time:60, passage:"Possible sources:\n"+sourceTypes.join("\n"), question_text:"Which source would most directly reveal how an individual experienced an event at the time?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:sources" };
+  if (type === 19) {
+    const passage = "A council can either spend its available funds on a new sports court or upgrade an older community hall. The court would benefit more young people, while the hall is used by a wider range of age groups and currently needs urgent repairs.";
+    const r = four("The decision involves a trade-off between the size of the beneficiary group and the urgency and breadth of the existing need.", [
+      "The option helping more young people must always be chosen.",
+      "Urgent repairs can never outweigh future benefits.",
+      "The two projects have exactly the same consequences."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which statement best describes the decision?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:policy-tradeoff" };
   }
 
-  if (type === 11) {
-    const word = pick(["qualified","tentative","selective","ambiguous","provisional"]);
-    const definitions = {
-      qualified:"limited or conditional",
-      tentative:"not certain",
-      selective:"carefully choosing",
-      ambiguous:"open to more than one interpretation",
-      provisional:"temporary and subject to change"
-    };
-    const answer = definitions[word];
-    const r = four(answer, shuffle(Object.values(definitions).filter(v=>v!==answer)).slice(0,3));
-    return { section:"humanities", difficulty:"medium", time:55, passage:"The writer described the conclusion as '"+word+"', adding that more evidence might change it.", question_text:"In this context, which meaning best matches '"+word+"'?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:vocabulary" };
+  if (type === 20) {
+    const values = shuffle([12,15,17,18,19,41]);
+    const ordered = [...values].sort((a,b)=>a-b);
+    const r = four(41, [12,18,19]);
+    return { section:"humanities", difficulty:"medium", time:55, passage:"Daily visitor counts: " + values.join(", "), question_text:"Which value is the most obvious outlier in this data set?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:outlier" };
   }
 
-  if (type === 12) {
-    const a = pick([14,16,18,20]);
-    const b = pick([6,8,10,12]);
-    const passage = "A historical population record reports "+a+" units in one decade and "+b+" in a later decade. The report notes that the change followed a period of migration.";
-    const difference = a-b;
-    const r = four(difference, [a+b,a/b,Math.abs(a+b)]);
-    return { section:"humanities", difficulty:"medium", time:55, passage, question_text:"Which calculation gives the decrease between the two reported figures?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:quantitative-reading" };
+  if (type === 21) {
+    const headlines = [
+      ["Council approves revised bike plan","neutral"],
+      ["Council finally admits bike plan was flawed","critical"],
+      ["Council unveils exciting new bike plan","positive"]
+    ];
+    const item = pick(headlines);
+    const r = four(item[1], ["critical","positive","neutral"].filter(x=>x!==item[1]));
+    return { section:"humanities", difficulty:"hard", time:55, passage:"Headline: " + item[0], question_text:"What tone does the headline most strongly convey?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:framing" };
   }
 
-  const passage = "Two commentators discuss "+topic+". Commentator 1 argues that the proposal should be judged mainly by its immediate effect. Commentator 2 argues that the same proposal should be judged by its likely long-term consequences.";
-  const r = four("They use different time horizons when evaluating the proposal.", [
-    "They disagree about whether the proposal exists.",
-    "They use completely different evidence about the same short-term outcome.",
-    "They both argue that only financial information matters."
-  ]);
-  return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"What is the key difference between the commentators' approaches?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:comparison" };
+  if (type === 22) {
+    const passage = "The town introduced a free shuttle. Within six months, foot traffic around the central shops increased. A separate report also shows that the main road was partially closed for construction during the same period.";
+    const r = four("The increase in foot traffic may have more than one possible explanation.", [
+      "The shuttle definitely caused the entire increase.",
+      "Road construction could not have changed shopping behaviour.",
+      "The data prove that every resident used the shuttle."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which conclusion is most appropriate?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:causal-reasoning" };
+  }
+
+  if (type === 23) {
+    const passage = "A museum's attendance rose from 18 000 to 21 000 after a new evening program began. During the same months, a major school holiday exhibition was also running.";
+    const r = four("The attendance increase cannot be attributed to the evening program alone from this information.", [
+      "The evening program had no effect.",
+      "The school holiday exhibition reduced attendance.",
+      "Attendance would have fallen without the program."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"What can most reasonably be inferred?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:confounding-factor" };
+  }
+
+  if (type === 24) {
+    const source = pick([
+      ["a personal diary","first-hand personal source"],
+      ["a newspaper editorial","opinionated commentary"],
+      ["a census table","statistical record"],
+      ["a political campaign poster","persuasive source"],
+      ["a laboratory report","scientific report"]
+    ]);
+    const r = four(source[1], [
+      "first-hand personal source","opinionated commentary","statistical record"
+    ].filter(x=>x!==source[1]).concat(source[1]==="statistical record"?["persuasive source"]:[]).slice(0,3));
+    return { section:"humanities", difficulty:"medium", time:55, passage:"Source presented: " + source[0] + ".", question_text:"Which category best describes this source?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:source-classification" };
+  }
+
+  if (type === 25) {
+    const passage = "A proposal claims that extending the library's opening hours will increase student reading. The evidence cited is that students who already use the library frequently tend to read more.";
+    const r = four("Students who would use the longer opening hours will respond in the same way as the students already observed.", [
+      "Libraries are always open at the best time.",
+      "Every student prefers reading to other activities.",
+      "The existing users are a random sample of all students."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:70, passage, question_text:"Which assumption is needed for the argument to be persuasive?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:assumption" };
+  }
+
+  if (type === 26) {
+    const passage = "Argument A gives one example of a successful school garden. Argument B compares results from twelve schools, notes differences in rainfall and explains how the measurements were collected.";
+    const r = four("Argument B is stronger because it uses broader evidence and addresses relevant differences.", [
+      "Argument A is stronger because examples are always better than data.",
+      "Argument A is stronger because it is shorter.",
+      "The two arguments are equally supported."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which argument is better supported?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:argument-strength" };
+  }
+
+  if (type === 27) {
+    const horizon = pick(["immediate effect","effect over five years","effect on the next generation"]);
+    const passage = "Two commentators evaluate the same transport proposal. One focuses on its " + horizon + ". The other focuses on the financial and environmental consequences over a different time period.";
+    const r = four("They may reach different judgements because they are evaluating different time horizons.", [
+      "They must be using different facts about the proposal.",
+      "Only one commentator has considered evidence.",
+      "A proposal cannot have more than one consequence."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:60, passage, question_text:"Why might the commentators reach different judgements?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:time-horizon" };
+  }
+
+  if (type === 28) {
+    const passage = "A school reports that students who join the new study club tend to achieve higher marks. The report gives the students' marks and attendance at the club but does not say whether they were already high-achieving before joining.";
+    const r = four("Whether club members already differed from other students before joining.", [
+      "The colour of the club's logo.",
+      "The exact day on which the club began.",
+      "Whether the school has a sports team."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which missing information would most help interpret the result?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:missing-information" };
+  }
+
+  if (type === 29) {
+    const passage = "A new pedestrian crossing appears safer because fewer accidents were reported after it was installed. However, the road also became busier during the same period.";
+    const r = four("Compare accident rates with traffic volume before and after the installation.", [
+      "Ask drivers whether they like the crossing.",
+      "Measure the colour of the road markings only.",
+      "Ignore traffic volume because accidents were reported."
+    ]);
+    return { section:"humanities", difficulty:"hard", time:65, passage, question_text:"Which additional evidence would best test the safety claim?", answer_options:r.options, correct_answer:r.index, reasoning_type:"humanities:best-next-evidence" };
+  }
 }
 
 function mathematicsScienceQuestion() {
-  const type = Math.floor(Math.random() * 18);
+  const type = Math.floor(Math.random() * 41);
 
   if (type === 0) {
-    const original = pick([160,180,240,320]), decrease = pick([15,20,25]), increase = pick([10,20]);
-    const value = original * (1-decrease/100) * (1+increase/100);
-    const r = four(value.toFixed(0), [
+    const original=pick([160,180,240,320]), decrease=pick([10,15,20,25]), increase=pick([10,15,20]);
+    const value=original*(1-decrease/100)*(1+increase/100);
+    const r=four(value.toFixed(0),[
       (original*(1-decrease/100)).toFixed(0),
       (original*(1+increase/100)).toFixed(0),
       (original*(1-(decrease-increase)/100)).toFixed(0)
     ]);
-    return { section:"mathematics_science", difficulty:"hard", time:65, question_text:"A quantity of "+original+" is reduced by "+decrease+"% and then increased by "+increase+"%. What is the final value?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:multi-step-percentage" };
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"A quantity of "+original+" is reduced by "+decrease+"% and then increased by "+increase+"%. What is the final value?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:multi-step-percentage"};
   }
 
   if (type === 1) {
-    const a = pick([12,15,18,21]), b = pick([7,9,11,13]), c = pick([14,16,20,22]), mean = pick([16,18,20]);
-    const d = mean*4-a-b-c;
-    const r = four(d,[d-2,d+2,mean]);
-    return { section:"mathematics_science", difficulty:"medium", time:60, question_text:"Three measurements are "+a+", "+b+" and "+c+". What fourth measurement is needed to make the mean "+mean+"?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:mean" };
+    const original=pick([72,80,96,120]), pct=pick([20,25,30,40]), final=original*(1+pct/100);
+    const r=four(original,[final,final-pct,original-pct]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"A value becomes "+final+" after increasing by "+pct+"%. What was the original value?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:reverse-percentage"};
   }
 
   if (type === 2) {
-    const r1=pick([2,3,4]), r2=pick([4,5,6]), r3=pick([3,4,5]), total=(r1+r2+r3)*pick([4,5]);
-    const answer=total*r2/(r1+r2+r3);
-    const r=four(answer,[total*r1/(r1+r2+r3),total*r3/(r1+r2+r3),answer+4]);
-    return { section:"mathematics_science", difficulty:"hard", time:60, question_text:"Three components are in the ratio "+r1+":"+r2+":"+r3+". If there are "+total+" units altogether, how many are in the second component?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:ratio" };
+    const a=pick([2,3,4]),b=pick([4,5,6]),c=pick([3,5,7]),total=(a+b+c)*pick([4,5]);
+    const answer=total*b/(a+b+c);
+    const r=four(answer,[total*a/(a+b+c),total*c/(a+b+c),answer+4]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Three components are in the ratio "+a+":"+b+":"+c+". If there are "+total+" units altogether, how many are in the second component?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:ratio"};
   }
 
   if (type === 3) {
-    const x=pick([3,4,5,6]), m=pick([2,3,4]), c=pick([1,2,5]), y=m*x+c;
-    const r=four(x,[y,m+c,x+1]);
-    return { section:"mathematics_science", difficulty:"medium", time:60, question_text:"For y = "+m+"x + "+c+", which value of x gives y = "+y+"?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:algebra" };
+    const rate=pick([6,8,12,15]), amount=pick([4,5,7]), answer=rate*amount;
+    const r=four(answer,[answer+rate,answer-rate,amount*amount]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"If "+rate+" units are needed for each item, how many units are needed for "+amount+" items?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:direct-proportion"};
   }
 
   if (type === 4) {
-    const base=pick([9,12,15,18]), height=pick([6,8,10]), area=base*height/2;
-    const r=four(area,[base*height,area+height,area-base]);
-    return { section:"mathematics_science", difficulty:"medium", time:60, question_text:"A triangle has base "+base+" cm and perpendicular height "+height+" cm. What is its area?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:geometry" };
+    const metres=pick([1.2,1.5,2.4,3.6]), centimetres=metres*100;
+    const r=four(centimetres+" cm",[metres+" cm",(metres*10)+" cm",(metres*1000).toFixed(0)+" cm"]);
+    return {section:"mathematics_science",difficulty:"medium",time:50,question_text:"A length is "+metres+" m. What is the length in centimetres?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:unit-conversion"};
   }
 
   if (type === 5) {
-    const total=pick([20,24,30]), success=pick([6,8,9]), pct=(success/total)*100;
-    const r=four(pct.toFixed(0)+"%",[(100-pct).toFixed(0)+"%",(pct/2).toFixed(0)+"%",(pct+5).toFixed(0)+"%"]);
-    return { section:"mathematics_science", difficulty:"medium", time:55, question_text:"In a trial, "+success+" of "+total+" outcomes are successful. What percentage is successful?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:percentage" };
+    const l=pick([9,11,14]),w=pick([5,6,8]), border=pick([1,2]);
+    const outer=(l+2*border)*(w+2*border), inner=l*w, answer=outer-inner;
+    const r=four(answer,[2*(l+w),outer,inner+border]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"A rectangular sign is "+l+" cm by "+w+" cm. A uniform border "+border+" cm wide surrounds it. What is the area of the border?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:composite-geometry"};
   }
 
   if (type === 6) {
-    const start=pick([2,3,4,5]), factor=pick([2,3]), terms=[start];
-    for(let i=1;i<5;i++) terms.push(terms[i-1]*factor);
-    const answer=terms[4]*factor;
-    const r=four(answer,[terms[4],answer+factor,answer-factor]);
-    return { section:"mathematics_science", difficulty:"medium", time:55, question_text:"Find the next number: "+terms.join(", ")+", ?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:pattern" };
+    const a=pick([4,5,6]),b=pick([3,4,5]),h=pick([5,6,8]),vol=a*b*h;
+    const r=four(vol,[a*b+h,a*b*2,vol+h]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"A rectangular prism measures "+a+" cm by "+b+" cm by "+h+" cm. What is its volume?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:volume"};
   }
 
   if (type === 7) {
-    const rows=[
-      ["A",pick([130,150,170]),pick([90,100,110])],
-      ["B",pick([125,145,165]),pick([100,115,130])],
-      ["C",pick([140,160,180]),pick([105,115,125])],
-      ["D",pick([135,155,175]),pick([80,95,110])]
-    ];
-    const differences=rows.map(x=>x[1]-x[2]);
-    const bestIndex=differences.indexOf(Math.max(...differences));
-    const answer=rows[bestIndex][0];
-    const r=four(answer,rows.filter((_,i)=>i!==bestIndex).map(x=>x[0]));
-    return { section:"mathematics_science", difficulty:"hard", time:65, passage:"Data table:\n"+rows.map(x=>x[0]+" — week 1: "+x[1]+"; week 4: "+x[2]).join("\n"), question_text:"Which group shows the greatest decrease between the two weeks?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:data" };
+    const den=pick([8,10,12]),num=pick([3,5,7]),whole=pick([24,30,36]),part=whole*num/den;
+    const r=four(part,[whole-part,whole/den,part+num]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"What is "+num+"/"+den+" of "+whole+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:fraction"};
   }
 
   if (type === 8) {
-    const hours=pick([4,6,8,10]);
-    const passage="Plant experiment:\nGroup A: "+hours+" hours of light/day\nGroup B: "+(hours+2)+" hours/day\nGroup C: "+(hours+4)+" hours/day\nSoil type, pot size and water are kept constant. Growth is measured after four weeks.";
-    const r=four("hours of light",["soil type","pot size","amount of water"]);
-    return { section:"mathematics_science", difficulty:"hard", time:60, passage, question_text:"Which variable is deliberately changed between the groups?", answer_options:r.options, correct_answer:r.index, reasoning_type:"science:variables" };
+    const a=pick([3,4,5,6]),x=pick([4,5,6,7]),b=pick([2,4,7]),rhs=a*x+b;
+    const r=four(x,[x+1,x-1,rhs]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Solve for x: "+a+"x + "+b+" = "+rhs+".",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:algebra"};
   }
 
   if (type === 9) {
-    const repeats=pick([3,5,8]);
-    const r=four("Repeat the experiment "+repeats+" times and compare the results while keeping other variables controlled.",[
-      "Change several variables at once.",
-      "Use only the trial that supports the prediction.",
-      "Remove the measurements that disagree."
-    ]);
-    return { section:"mathematics_science", difficulty:"hard", time:65, question_text:"Which change would most improve the reliability of an experiment?", answer_options:r.options, correct_answer:r.index, reasoning_type:"science:design" };
+    const limit=pick([18,22,30]),step=pick([2,3,4]),x=limit-step;
+    const answer="x ≤ "+x;
+    const r=four(answer,["x ≥ "+x,"x ≤ "+limit,"x < "+step]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Which inequality describes numbers that are at most "+step+" less than "+limit+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:inequality"};
   }
 
   if (type === 10) {
-    const passage="Food web: algae are eaten by small crustaceans; small fish eat the crustaceans; larger fish eat the small fish. A pollutant sharply reduces the algae population for several weeks.";
-    const r=four("The small crustacean population is likely to fall.",[
-      "The larger fish population must immediately double.",
-      "The pollutant increases the amount of algae available.",
-      "The food web is unaffected because algae are not animals."
-    ]);
-    return { section:"mathematics_science", difficulty:"hard", time:65, passage, question_text:"What is the most likely consequence of the algae reduction?", answer_options:r.options, correct_answer:r.index, reasoning_type:"science:food-web" };
+    const start=pick([2,3,4,5]),a=pick([2,3]),b=pick([1,2]),terms=[start];
+    for(let i=1;i<5;i++) terms.push(terms[i-1]*a+b);
+    const answer=terms[4]*a+b;
+    const r=four(answer,[terms[4],answer+a,answer-b]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"A sequence follows a rule. The terms are "+terms.join(", ")+" . What is the next term?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:nonlinear-pattern"};
   }
 
   if (type === 11) {
-    const rest=pick([600,750,900]), factor=pick([1.5,2,2.5]), newRate=rest*factor;
-    const r=four(newRate,[newRate+rest,newRate-rest,rest]);
-    return { section:"mathematics_science", difficulty:"medium", time:55, question_text:"A tissue receives "+rest+" mL of blood per minute at rest. During exercise its flow becomes "+factor+" times as large. What is the new rate?", answer_options:r.options, correct_answer:r.index, reasoning_type:"science:rate" };
+    const a=pick([12,15,18]),b=pick([7,9,11]),c=pick([14,16,20]),mean=pick([16,18,20]),d=mean*4-a-b-c;
+    const r=four(d,[d-2,d+2,mean]);
+    return {section:"mathematics_science",difficulty:"medium",time:60,question_text:"Three measurements are "+a+", "+b+" and "+c+". What fourth measurement is needed to make the mean "+mean+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:mean"};
   }
 
   if (type === 12) {
-    const base=pick([2.5,3,4]), laps=pick([3,4,5]), distance=base*laps;
-    const r=four(distance.toFixed(1)+" km",[(distance-base).toFixed(1)+" km",(distance+base).toFixed(1)+" km",(distance/2).toFixed(1)+" km"]);
-    return { section:"mathematics_science", difficulty:"medium", time:55, question_text:"A runner covers "+base+" km per lap and completes "+laps+" laps. How far does the runner travel?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:measurement" };
+    const values=shuffle([12,15,18,22,27]),sorted=[...values].sort((a,b)=>a-b),answer=sorted[2];
+    const r=four(answer,[sorted[1],sorted[3],sorted[4]]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"The five values are "+values.join(", ")+" . What is the median?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:median"};
   }
 
   if (type === 13) {
-    const values=shuffle([18,24,30,36]), ordered=[...values].sort((a,b)=>a-b), answer=ordered[3]-ordered[2];
-    const r=four(answer,[ordered[3],ordered[2],ordered[3]+ordered[2]]);
-    return { section:"mathematics_science", difficulty:"medium", time:55, question_text:"The four values are "+values.join(", ")+". What is the difference between the largest and second-largest?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:comparison" };
+    const total=pick([20,24,30]),favourable=pick([5,6,8]),p=favourable/total;
+    const r=four(p.toFixed(2),[(1-p).toFixed(2),(p/2).toFixed(2),((favourable+1)/total).toFixed(2)]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"A result occurs "+favourable+" times in "+total+" equally likely trials. What is the experimental probability?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:probability"};
   }
 
   if (type === 14) {
-    const initial=pick([45,90,135]), turn=pick([45,90,135]), answer=(initial+turn)%360;
-    const r=four(answer+"°",[((initial-turn)+360)%360+"°",(initial+2*turn)%360+"°",(answer+90)%360+"°"]);
-    return { section:"mathematics_science", difficulty:"hard", time:60, question_text:"A direction is initially "+initial+"°. It is rotated clockwise by "+turn+"°. What is the new direction?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:spatial" };
+    const base=pick([120,130,140]);
+    const diffs=[40,50,60,70];
+    const initials=[base,base+8,base+16,base+24];
+    const rows=["A","B","C","D"].map((name,i)=>[name,initials[i],initials[i]-diffs[i]]);
+    const target=pick(["greatest decrease","smallest decrease"]);
+    const idx=target==="greatest decrease"?3:0;
+    const answer=rows[idx][0];
+    const r=four(answer,rows.filter((_,i)=>i!==idx).map(x=>x[0]));
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage:"Data table:\n"+rows.map(r=>r[0]+" — initial "+r[1]+"; final "+r[2]).join("\n"),question_text:"Which group shows the "+target+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:data-table"};
   }
 
   if (type === 15) {
-    const mass=pick([240,300,360]), percent=pick([20,25,30]), part=mass*percent/100;
-    const r=four(part,[mass-percent,mass+part,mass*(1-percent/100)]);
-    return { section:"mathematics_science", difficulty:"medium", time:55, question_text:"A sample has a mass of "+mass+" g. "+percent+"% of it is a particular component. What is the mass of that component?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:percentage" };
+    const rate=pick([45,50,60,72]),time=pick([1.5,2,2.5,3]),distance=rate*time;
+    const r=four(rate+" km/h",[(rate-5)+" km/h",(rate+5)+" km/h",(distance/2)+" km/h"]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"A vehicle travels "+distance+" km in "+time+" hours. What is its average speed?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:rate"};
   }
 
   if (type === 16) {
-    const duration=pick([40,55,70]), rate=pick([12,15,18]), output=duration*rate;
-    const r=four(output,[output-rate,output+rate,output/duration]);
-    return { section:"mathematics_science", difficulty:"hard", time:60, question_text:"A machine produces "+rate+" units per minute for "+duration+" minutes. How many units does it produce?", answer_options:r.options, correct_answer:r.index, reasoning_type:"math:rate" };
+    const start=pick([8,8.5,9]),duration=pick([75,95,110]),second=pick([15,20,25]);
+    const [h,m]=String(start).includes(".")?String(start).split("."):[""+start,"0"];
+    const startMin=Number(h)*60+(m==="5"?30:0);
+    const firstFinish=startMin+duration;
+    const secondStart=firstFinish+second;
+    const hour=Math.floor(secondStart/60),minute=secondStart%60;
+    const answer=(hour%12||12)+":"+String(minute).padStart(2,"0")+" "+(hour>=12?"pm":"am");
+    const r=four(answer,[ (hour%12||12)+":"+String((minute+10)%60).padStart(2,"0")+" "+(hour>=12?"pm":"am"), (hour%12||12)+":"+String((minute+20)%60).padStart(2,"0")+" "+(hour>=12?"pm":"am"), "10:00 am"]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage:"Schedule:\nActivity 1 starts at "+String(start).replace(".5",":30")+" and lasts "+duration+" minutes.\nA "+second+"-minute changeover follows before Activity 2.",question_text:"When does Activity 2 begin?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:timetable"};
   }
 
-  const passage="An experiment compares two materials. Material A is heated from 20°C to 40°C and expands by 3 mm. Material B is heated through the same temperature change and expands by 5 mm. All other conditions are kept constant.";
-  const r=four("Material B expands more for the same temperature increase.",[
-    "Material A expands more because it started colder.",
-    "Both materials expand by the same amount.",
-    "No comparison is possible because temperature was measured."
+  if (type === 17) {
+    const start=pick(["north-east","south-east","south-west","north-west"]),turn=pick([45,90,135]);
+    const dirs=["north","north-east","east","south-east","south","south-west","west","north-west"];
+    let idx=dirs.indexOf(start); idx=(idx+turn/45)%8; const answer=dirs[idx];
+    const r=four(answer,dirs.filter(x=>x!==answer).slice(0,3));
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"A hiker is initially heading "+start+" and turns clockwise by "+turn+"°. Which direction is the hiker now facing?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:spatial"};
+  }
+
+  if (type === 18) {
+    const scale=pick([1,2,5]),mapDistance=pick([3.2,4.5,6.8]),actual=mapDistance*scale;
+    const r=four(actual+" km",[(mapDistance/scale).toFixed(1)+" km",(actual+scale).toFixed(1)+" km",(actual-scale).toFixed(1)+" km"]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"On a map, 1 cm represents "+scale+" km. Two places are "+mapDistance+" cm apart on the map. What is the actual distance?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:scale"};
+  }
+
+  if (type === 19) {
+    const changed=pick(["light intensity","water volume","temperature","soil type"]);
+    const passage="Plant experiment:\nGroup A and Group B are identical except for one variable. The groups are given the same seeds, pot size and soil, and growth is measured after four weeks. The groups differ in "+changed+".";
+    const r=four(changed,["seed type","pot size","measurement time"]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage,question_text:"Which variable is deliberately changed between the groups?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:variables"};
+  }
+
+  if (type === 20) {
+    const improvement=pick(["repeat the experiment with more trials","change two variables at once","remove results that disagree","use only the most successful trial"]);
+    const r=four(improvement,["change two variables at once","remove results that disagree","use only the most successful trial"]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"Which change would most improve the reliability of an experiment?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:reliability"};
+  }
+
+  if (type === 21) {
+    const values=[pick([4,6,8]),pick([9,11,13]),pick([14,16,18]),pick([19,21,23])];
+    const trend=values[3]>values[2]?"increasing":"decreasing";
+    const r=four("The measured quantity generally increases over time.",[
+      "The measured quantity stays exactly constant.",
+      "The measured quantity falls at every measurement.",
+      "No trend can be identified."
+    ]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage:"Measurement graph data:\nTime 1: "+values[0]+"\nTime 2: "+values[1]+"\nTime 3: "+values[2]+"\nTime 4: "+values[3],question_text:"Which conclusion is best supported by the measurements?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:graph-trend"};
+  }
+
+  if (type === 22) {
+    const a=pick([10,12,14]),b=a+10,c=b+10,target=a+15;
+    const estimate=(b-a)/ (b-a)===1 ?  b-((c-b)*0.5) : b;
+    const r=four(b,[a,c,target]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage:"A measured quantity is  "+a+" units at one point and "+c+" units at a later point. The change is approximately steady between the two points.",question_text:"Which value is most reasonable for the quantity halfway between the two measurements?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:interpolation"};
+  }
+
+  if (type === 23) {
+    const passage="Students who sleep more hours tend to report higher concentration scores. The study is observational: students' sleep was not assigned by the researchers.";
+    const r=four("The relationship does not by itself prove that extra sleep causes the higher scores.",[
+      "Sleep and concentration must be unrelated.",
+      "The study proves exactly how much sleep every student needs.",
+      "Observational studies always give false results."
+    ]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage,question_text:"Which conclusion is scientifically most appropriate?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:correlation-causation"};
+  }
+
+  if (type === 24) {
+    const passage="A pond food web contains algae, small insects, fish and herons. A chemical spill sharply reduces the algae population. Small insects feed on algae; fish feed on the insects; herons feed on fish.";
+    const r=four("The insect population is likely to decrease after the algae decline.",[
+      "The fish population must immediately increase.",
+      "The algae population will increase because of the spill.",
+      "The food web is unaffected because algae are not animals."
+    ]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage,question_text:"What is the most likely first consequence in the food web?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:food-web"};
+  }
+
+  if (type === 25) {
+    const a=pick([2,3,4]),b=a+2;
+    const passage="Two metal strips are heated through the same temperature increase. Strip A expands by "+a+" mm. Strip B expands by "+b+" mm. Other conditions are kept constant.";
+    const r=four("Strip B expands more for the same temperature increase.",[
+      "Strip A expands more because it is shorter.",
+      "Both strips expand by the same amount.",
+      "No comparison is possible."
+    ]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage,question_text:"Which conclusion is supported by the data?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:material-comparison"};
+  }
+
+  if (type === 26) {
+    const rows=[
+      ["brain",pick([700,750,800]),pick([700,750,800])],
+      ["heart",pick([180,220,260]),pick([650,700,750])],
+      ["kidneys",pick([1050,1100,1150]),pick([550,600,650])],
+      ["muscles",pick([700,750,800]),pick([11000,12000,13000])]
+    ];
+    const target=pick(["heart","kidneys","muscles"]);
+    const row=rows.find(x=>x[0]===target);
+    const change=row[2]-row[1];
+    const r=four(change.toString(),[row[1].toString(),row[2].toString(),Math.abs(change).toString()]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage:"Blood flow (mL per minute):\n"+rows.map(x=>x[0]+" — rest "+x[1]+", exercise "+x[2]).join("\n"),question_text:"By how much does blood flow to the "+target+" change from rest to exercise?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:data-table"};
+  }
+
+  if (type === 27) {
+    const mass=pick([240,300,360]),volume=pick([30,40,60]),density=mass/volume;
+    const r=four(density+" g/cm³",[density+1,density/2,mass+volume]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"A sample has a mass of "+mass+" g and a volume of "+volume+" cm³. What is its density?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:density"};
+  }
+
+  if (type === 28) {
+    const km=pick([18,24,36]),minutes=pick([15,20,30]),hours=minutes/60,speed=km/hours;
+    const r=four(speed+" km/h",[speed/2+" km/h",(speed+10)+" km/h",(km/minutes)+" km/h"]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"A cyclist travels "+km+" km in "+minutes+" minutes. What is the average speed in km/h?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:rate-conversion"};
+  }
+
+  if (type === 29) {
+    const total=pick([240,300,360]),pct=pick([15,20,25,30]),part=total*pct/100;
+    const r=four(part,[total-pct,total+part,total*(1-pct/100)]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"A sample has a total mass of "+total+" g. "+pct+"% is one component. What is the mass of that component?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:percentage-composition"};
+  }
+
+  if (type === 30) {
+    const choices=["A","B","C","D","E"],first=pick(choices),second=pick(choices.filter(x=>x!==first));
+    const answer=choices.length*(choices.length-1);
+    const r=four(answer, [choices.length, choices.length*2, choices.length+choices.length-1]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"Five different cards are labelled A to E. Two different cards are selected in order, without replacement. How many ordered pairs are possible?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:counting"};
+  }
+
+  if (type === 31) {
+    const start=pick([3,4,5]),times=pick([2,3]),answer=start*times;
+    const r=four(answer,[start+times,start*times+1,start+times*2]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage:"A shape is enlarged so that each linear dimension is multiplied by "+times+".",question_text:"A length of "+start+" cm is enlarged by a factor of "+times+". What is the new length?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:transformation"};
+  }
+
+  if (type === 32) {
+    const known=pick([35,45,55]),other=pick([40,50,60]),third=180-known-other;
+    const r=four(third,[180-third,known+other,third+10]);
+    return {section:"mathematics_science",difficulty:"medium",time:55,question_text:"Two angles of a triangle are "+known+"° and "+other+"°. What is the third angle?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:angles"};
+  }
+
+  if (type === 33) {
+    const measured=pick([8,12,20]),error=pick([0.5,1,2]);
+    const lower=measured-error,upper=measured+error;
+    const r=four("between "+lower+" and "+upper+" inclusive",[String(measured-error*2)+" to "+(measured+error*2),String(measured)+" to "+(upper+error),String(lower-error)+" to "+measured]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"A measurement is recorded as "+measured+" units with a possible error of ±"+error+". Which range is reasonable for the true value?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:bounds"};
+  }
+
+  if (type === 34) {
+    const plans=[
+      ["A",80,20],["B",90,35],["C",75,15],["D",85,25]
+    ];
+    const minimum=pick([82,85]),maximumBudget=pick([25,30]);
+    const eligible=plans.filter(p=>p[1]>=minimum && p[2]<=maximumBudget);
+    const answer=eligible.length?eligible[0][0]:"None";
+    const distractors=plans.map(p=>p[0]).filter(x=>x!==answer).slice(0,3);
+    if(answer==="None") distractors=["A","B","C"];
+    const r=four(answer,distractors);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage:"Plan data (output score, cost units):\n"+plans.map(p=>p[0]+" — "+p[1]+" score; "+p[2]+" cost").join("\n"),question_text:"A plan must have an output score of at least "+minimum+" and a cost of no more than "+maximumBudget+". Which plan meets the requirements?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:optimisation"};
+  }
+
+  if (type === 35) {
+    const passage="A school wants to estimate how many students support a new lunchtime program. It surveys only students who are already members of lunchtime clubs.";
+    const r=four("The sample may not represent students who do not usually join lunchtime clubs.",[
+      "The sample is guaranteed to represent every student.",
+      "The result proves the program will be popular with all students.",
+      "Students in clubs cannot answer survey questions."
+    ]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage,question_text:"What is the main limitation of this sample?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:sampling-bias"};
+  }
+
+  if (type === 36) {
+    const values=shuffle([12,16,18,22]),newValue=pick([30,36,40]);
+    const before=values.reduce((a,b)=>a+b,0)/values.length;
+    const after=(values.reduce((a,b)=>a+b,0)+newValue)/(values.length+1);
+    const r=four(after.toFixed(1),[before.toFixed(1),newValue.toFixed(1),(after+2).toFixed(1)]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,question_text:"The mean of "+values.join(", ")+" is calculated. A new value of "+newValue+" is then added. What is the new mean?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:mean-effect"};
+  }
+
+  if (type === 37) {
+    const rate=pick([4,5,6]),time=pick([3,4,5]),output=rate*time;
+    const r=four("output = rate × time",["output = rate + time","output = rate ÷ time","output = time ÷ rate"]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,passage:"Observed machine data:\nAt "+time+" minutes, output was "+output+" units.\nThe rate of production stayed constant.",question_text:"Which formula best represents the relationship between output, rate and time?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:formula-from-data"};
+  }
+
+  if (type === 38) {
+    const passage="A student tests whether different soils affect plant growth. The student uses the same plant variety, same pot size and same volume of water, but uses three different soils.";
+    const r=four("Keep the plant variety, pot size and water volume the same.",[
+      "Change soil and plant variety together.",
+      "Use a different amount of water for each soil.",
+      "Measure one plant only and select the best result."
+    ]);
+    return {section:"mathematics_science",difficulty:"hard",time:65,passage,question_text:"Which design choice best isolates the effect of soil?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:experimental-control"};
+  }
+
+  const values=shuffle([18,21,24,27,42]);
+  const expected=values.filter((v,i)=>i<4).reduce((a,v)=>a+v,0)/4;
+  const anomaly=42;
+  const r=four("42 is inconsistent with the pattern in the other measurements.",[
+    "18 is the only useful measurement.",
+    "All values are identical.",
+    "No value can be compared with another."
   ]);
-  return { section:"mathematics_science", difficulty:"hard", time:65, passage, question_text:"Which conclusion is supported by the information?", answer_options:r.options, correct_answer:r.index, reasoning_type:"science:comparison" };
+  return {section:"mathematics_science",difficulty:"hard",time:60,passage:"Repeated measurements: "+values.join(", "),question_text:"Which observation should prompt a student to check the measurement for a possible anomaly?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:anomaly"};
 }
 
 function questionFingerprint(question) {
@@ -358,20 +752,23 @@ function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastTy
 }
 
 function getWritingTasks() {
-  return [
-    {
-      id: "we-1",
-      title: "Written Expression 1",
-      time: 25 * 60,
-      prompt: "Write a piece in response to this idea: A decision that seems small can sometimes change everything. You may write a story, persuasive piece, discussion or personal reflection."
-    },
-    {
-      id: "we-2",
-      title: "Written Expression 2",
-      time: 25 * 60,
-      prompt: "Write a piece in response to this idea: People often notice what is missing before they notice what is present. You may write a story, persuasive piece, discussion or personal reflection."
-    }
+  const conceptualPrompts = [
+    "A small choice can reveal a great deal about a person.",
+    "What looks like a problem from one point of view may be an opportunity from another.",
+    "Some changes are obvious. Others are noticed only after time has passed.",
+    "People sometimes understand an experience only after it is over.",
+    "A rule can protect people, but it can also create a problem.",
+    "The most useful lesson is not always the one we expected to learn.",
+    "Being heard is not the same as being agreed with.",
+    "What is left unsaid can sometimes be as important as what is said."
   ];
+  const prompts = shuffle(conceptualPrompts).slice(0,2);
+  return prompts.map((prompt,index)=>({
+    id:"we-"+(index+1),
+    title:"Written Expression "+(index+1),
+    time:25*60,
+    prompt:"Write a piece in response to this idea: "+prompt+" You may write a story, persuasive piece, discussion or personal reflection."
+  }));
 }
 
 module.exports = {

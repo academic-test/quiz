@@ -18,7 +18,8 @@
     </label>
 
     <div class="year-badge">YEAR 10 ENTRY · LEVEL 2</div>
-    <button class="primary-btn" type="button" :disabled="loading" @click="$emit('start')">
+    <p class="assessment-note">Original ACER-style practice · Humanities + Mathematics & Science + Written Expression</p>
+    <button class="primary-btn type="button" :disabled="loading" @click="$emit('start')">
       {{ loading ? "Generating assessment…" : "Start Assessment" }}
     </button>
 
