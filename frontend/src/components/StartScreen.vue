@@ -1,20 +1,29 @@
 <template>
   <section class="card start-card">
     <div class="hero-icon">🎯</div>
-    <div class="eyebrow">YEAR 9</div>
-    <h2>Ready to begin?</h2>
-    <p>Enter the student's name. A full 230-question Year 9 practice test will run in four fixed sections: 60 Quantitative/Numerical, 60 Mathematics, 55 Reading, then 55 Verbal.</p>
+    <div class="eyebrow">ACER LEVEL 2</div>
+    <h2>Year 10 Entry Practice</h2>
+    <p>Enter the student's name. This original practice assessment follows the structure of the supplied ACER Years 9–10 booklet: two Written Expression tasks, Humanities, and Mathematics & Science.</p>
+
     <label class="name-field">
       Student name
-      <input :value="studentName" type="text" autocomplete="name" placeholder="Enter student name"
-        @input="$emit('update:studentName', $event.target.value)" @keyup.enter="$emit('start')" />
+      <input
+        :value="studentName"
+        type="text"
+        autocomplete="name"
+        placeholder="Enter student name"
+        @input="$emit('update:studentName', $event.target.value)"
+        @keyup.enter="$emit('start')"
+      />
     </label>
-    <div class="year-badge">YEAR 9 ONLY</div>
+
+    <div class="year-badge">YEAR 10 ENTRY · LEVEL 2</div>
     <button class="primary-btn" type="button" :disabled="loading" @click="$emit('start')">
-      {{ loading ? "Generating test…" : "Start Test" }}
+      {{ loading ? "Generating assessment…" : "Start Assessment" }}
     </button>
+
     <p v-if="error" class="start-error">{{ error }}</p>
-    <div class="timer-note">⏱ Block 1: 60 minutes · Block 2: 55 minutes · 230 questions total · You may skip and revisit questions.</div>
+    <div class="timer-note">⏱ Test 1: 25 min · Test 2: 40 min · Test 3: 40 min · Test 4: 25 min · No calculator.</div>
   </section>
 </template>
 

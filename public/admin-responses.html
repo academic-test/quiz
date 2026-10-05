@@ -72,6 +72,7 @@ async function load(){
   const data=await api("/api/admin/attempts/"+encodeURIComponent(id)+"/responses");
   const a=data.attempt,r=data.responses||[];
   const total=a.question_count||r.length;
+  const writing=data.writing_responses||[];
   const html=`
     <section class="card session-card">
       <div class="eyebrow">STUDENT</div>
@@ -90,6 +91,18 @@ async function load(){
       <h2>Areas for Improvement</h2>
       <div id="improvementList" class="improvement-list"></div>
     </section>
+    <section class="card" style="margin-bottom:18px">
+      <div class="eyebrow">WRITTEN EXPRESSION</div>
+      <h2>Writing Responses</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Task</th><th>Response</th><th>Submitted</th></tr></thead>
+          <tbody>
+            ${writing.length ? writing.map(x=>`<tr><td>${esc(x.task_id)}</td><td style="white-space:pre-wrap;min-width:420px">${esc(x.response_text)}</td><td>${esc(new Date(x.submitted_at).toLocaleString())}</td></tr>`).join("") : '<tr><td colspan="3">No writing response recorded.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </section>
     <section class="card">
       <div class="table-wrap">
         <table>
@@ -102,8 +115,8 @@ async function load(){
     </section>`;
   $("content").innerHTML=html;
 
-  const order=["numerical","maths","reading","verbal"];
-  const labels={numerical:"Quantitative / Numerical Reasoning",maths:"Mathematics",reading:"Reading",verbal:"Verbal Reasoning"};
+  const order=["humanities","mathematics_science"];
+  const labels={humanities:"Humanities",mathematics_science:"Mathematics & Science"};
   const grouped={};
   order.forEach(section=>grouped[section]={correct:0,total:0,time:0,timeouts:0});
   r.forEach(x=>{
