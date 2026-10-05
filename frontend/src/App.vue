@@ -29,7 +29,10 @@
           <span>{{ currentBlock.label }}</span>
           <strong>Question {{ blockQuestionNumber }} of {{ currentBlock.size }}</strong>
         </div>
-        <Timer :remaining="remaining" />
+        <div class="assessment-actions">
+          <button class="ghost-btn" type="button" @click="abortAssessment">Abort Assessment</button>
+          <Timer :remaining="remaining" />
+        </div>
       </div>
 
       <div class="block-meta">
@@ -92,7 +95,7 @@
       :timeouts="resultStats.timeouts"
       :average-time="resultStats.averageTime"
       :breakdown="resultStats.breakdown"
-      @restart="reset"
+      @restart="restartAssessment"
     />
 
     <footer>Questions are original and are not ACER questions. This practice tool is not affiliated with ACER.</footer>
@@ -754,6 +757,24 @@ async function restoreSession() {
   } finally {
     restoring.value = false;
   }
+}
+
+function confirmRestart() {
+  return window.confirm("Are you sure you want to restart the assessment? Your current progress will be lost.");
+}
+
+function abortAssessment() {
+  if (!window.confirm("Are you sure you want to abort the assessment? Your current progress will be lost.")) {
+    return;
+  }
+  reset();
+}
+
+function restartAssessment() {
+  if (!confirmRestart()) {
+    return;
+  }
+  reset();
 }
 
 function reset() {
