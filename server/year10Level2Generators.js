@@ -742,6 +742,7 @@ function questionType(question) {
 function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastType = "") {
   const buckets = new Map();
   for (const candidate of shuffle(candidates)) {
+    if (!validQuestionShape(candidate)) continue;
     const fp = questionFingerprint(candidate);
     if (usedFingerprints.has(fp)) continue;
     const type = questionType(candidate);
