@@ -473,10 +473,10 @@ function mathematicsScienceQuestion() {
   }
 
   if (type === 9) {
-    const limit=pick([18,22,30]),step=pick([2,3,4]),x=limit-step;
-    const answer="x ≤ "+x;
-    const r=four(answer,["x ≥ "+x,"x ≤ "+limit,"x < "+step]);
-    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Which inequality describes numbers that are at most "+step+" less than "+limit+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:inequality"};
+    const limit=pick([18,22,30]),step=pick([2,3,4]),lower=limit-step;
+    const answer=""+lower+" <= x <= "+limit;
+    const r=four(answer,["x <= "+lower,"x >= "+lower,""+lower+" < x < "+limit]);
+    return {section:"mathematics_science",difficulty:"hard",time:60,question_text:"Which inequality describes numbers that are no more than "+step+" below "+limit+" and do not exceed "+limit+"?",answer_options:r.options,correct_answer:r.index,reasoning_type:"math:inequality"};
   }
 
   if (type === 10) {
