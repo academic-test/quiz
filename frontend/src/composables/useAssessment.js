@@ -59,7 +59,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v1";
+const STORAGE_KEY = "acer-level2-year10-quiz-v2";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -83,6 +83,7 @@ export function useAssessment() {
   const remaining = ref(0);
   const blockStartedAt = ref(0);
   const feedback = ref(null);
+  const previousFeedback = ref(null);
 
   let timerHandle = null;
   let questionOpenedAt = 0;
@@ -186,7 +187,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 1,
+        version: 2,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -202,7 +203,8 @@ export function useAssessment() {
         writingSubmitted: writingSubmitted.value,
         blockStartedAt: blockStartedAt.value,
         questionOpenedAt,
-        writingOpenedAt
+        writingOpenedAt,
+        previousFeedback: previousFeedback.value
       }));
     } catch (error) {
       console.warn("Could not persist quiz session", error);
@@ -298,6 +300,7 @@ export function useAssessment() {
       questionIndex.value = 0;
       currentStage.value = 0;
       feedback.value = null;
+      previousFeedback.value = null;
       screen.value = "quiz";
       blockStartedAt.value = Date.now();
       writingOpenedAt = Date.now();
@@ -412,6 +415,7 @@ export function useAssessment() {
     }
 
     currentStage.value += 1;
+    previousFeedback.value = null;
     if (currentBlock.value.type === "mcq") {
       questionIndex.value = currentBlock.value.start;
       const ready = await ensureQuestionLoaded(questionIndex.value);
@@ -430,16 +434,27 @@ export function useAssessment() {
     if (currentBlock.value.type !== "mcq") return advanceStage();
     const id = currentQuestion.value?.id;
     if (!id) return;
+
+    let review = null;
     if (!results.value[id]) {
       const saved = await saveCurrentResponse(false);
       if (!saved) return;
-      return;
+      review = results.value[id]?.feedback || feedback.value || null;
+    } else {
+      review = results.value[id]?.feedback || feedback.value || null;
     }
+
     if (questionIndex.value >= currentBlock.value.end) return;
+
+    const previousNumber = blockQuestionNumber.value;
     const nextIndex = questionIndex.value + 1;
     if (!(await ensureQuestionLoaded(nextIndex))) return;
+
     questionIndex.value = nextIndex;
     feedback.value = null;
+    previousFeedback.value = review
+      ? { ...review, questionNumber: previousNumber }
+      : null;
     questionOpenedAt = Date.now();
     persistState();
   }
@@ -456,6 +471,7 @@ export function useAssessment() {
     if (!(await ensureQuestionLoaded(nextIndex))) return;
     questionIndex.value = nextIndex;
     feedback.value = null;
+    previousFeedback.value = null;
     questionOpenedAt = Date.now();
     persistState();
   }
@@ -467,6 +483,7 @@ export function useAssessment() {
     const loaded = await ensureQuestionLoaded(questionIndex.value);
     if (loaded) {
       feedback.value = results.value[currentQuestion.value?.id]?.feedback || null;
+      previousFeedback.value = null;
       questionOpenedAt = Date.now();
       persistState();
     }
@@ -478,6 +495,7 @@ export function useAssessment() {
     if (await ensureQuestionLoaded(index)) {
       questionIndex.value = index;
       feedback.value = results.value[questions.value[index]?.id]?.feedback || null;
+      previousFeedback.value = null;
       questionOpenedAt = Date.now();
       persistState();
     }
@@ -492,11 +510,12 @@ export function useAssessment() {
 
     const id = currentQuestion.value?.id;
     if (!id) return;
+
     if (!results.value[id]) {
       const saved = await saveCurrentResponse(false);
       if (!saved) return;
-      return;
     }
+
     if (!sectionComplete.value) return;
     await advanceStage();
   }
@@ -554,6 +573,7 @@ export function useAssessment() {
     questionIndex.value = 0;
     remaining.value = 0;
     feedback.value = null;
+    previousFeedback.value = null;
   }
 
   async function restoreSession() {
@@ -564,7 +584,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 1 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 2 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
@@ -585,6 +605,7 @@ export function useAssessment() {
       blockStartedAt.value = Number(saved.blockStartedAt) || Date.now();
       questionOpenedAt = Number(saved.questionOpenedAt) || Date.now();
       writingOpenedAt = Number(saved.writingOpenedAt) || Date.now();
+      previousFeedback.value = saved.previousFeedback || null;
 
       if (saved.screen === "results") {
         screen.value = "results";
@@ -597,6 +618,7 @@ export function useAssessment() {
         if (!loaded) throw new Error("Could not restore question");
       }
       screen.value = "quiz";
+      feedback.value = results.value[questions.value[questionIndex.value]?.id]?.feedback || null;
       startBlockTimer(blockStartedAt.value);
     } catch (error) {
       console.error("Could not restore quiz session", error);
@@ -636,6 +658,8 @@ export function useAssessment() {
     skippedCount,
     sectionComplete,
     unansweredCount,
+    feedback,
+    previousFeedback,
     resultStats,
     resultTitle,
     startTest,
