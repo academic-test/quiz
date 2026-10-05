@@ -36,7 +36,7 @@
       </div>
 
       <div class="block-meta">
-        <span>{{ currentBlock.subtitle }}</span>
+        <span>{{ sectionCountSummary }}</span>
         <span>{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
       </div>
 
@@ -134,6 +134,7 @@ const {
   sectionComplete,
   unansweredCount,
   generationMessage,
+  sectionCountSummary,
   resultStats,
   resultTitle,
   startTest,
