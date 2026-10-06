@@ -69,19 +69,18 @@
       </button>
 
       <button
-        v-else
-        class="primary-btn"
+        class="primary-btn review-submit-btn"
         type="button"
         :disabled="saving || !sectionComplete"
         @click="$emit('submit')"
       >
-        Submit Answer & Review →
+        Save Answer & Review →
       </button>
     </div>
 
     <div class="question-state">
-      <span v-if="isLast">This is the only Submit Answer & Review button for the Humanities test.</span>
-      <span v-else>Choose an answer for each question, then move to the next stimulus. Your selections are saved automatically.</span>
+      <span v-if="sectionComplete">All 40 answers are selected. You can save your answers and review the test.</span>
+      <span v-else>Choose an answer for each question. Your selections are saved automatically; Save Answer & Review becomes available after all 40 are answered.</span>
     </div>
   </article>
 </template>
