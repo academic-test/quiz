@@ -63,6 +63,7 @@ const {
   questionFingerprint,
   questionType,
   pickDiverseQuestions,
+  pickStimulusGroups,
   getWritingTasks
 } = require("./server/year10Level2Generators");
 
@@ -604,12 +605,15 @@ async function generateQuestions(req, sessionId, config) {
       continue;
     }
 
-    const selected = pickDiverseQuestions(
-      bankRows || [],
-      Math.min(needed, neededTotal - pending.length),
-      used,
-      pending.length ? questionType(pending[pending.length - 1]) : ""
-    );
+    const bankCount = Math.min(needed, neededTotal - pending.length);
+    const selected = section === "humanities"
+      ? pickStimulusGroups(bankRows || [], bankCount, used, 5)
+      : pickDiverseQuestions(
+          bankRows || [],
+          bankCount,
+          used,
+          pending.length ? questionType(pending[pending.length - 1]) : ""
+        );
 
     if (!selected.length) continue;
 
