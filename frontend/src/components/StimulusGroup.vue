@@ -25,13 +25,6 @@
         </div>
 
         <div class="question-text">{{ question.q }}</div>
-        <div v-if="results?.[question.id]" class="stimulus-feedback" :class="{ correct: results[question.id].correct, incorrect: !results[question.id].correct }">
-          <strong>{{ results[question.id].correct ? "Correct" : "Incorrect" }}</strong>
-          <span v-if="!results[question.id].correct">
-            Correct answer: {{ String.fromCharCode(65 + Number(results[question.id].feedback?.correctAnswer ?? 0)) }}
-          </span>
-          <p v-if="results[question.id].feedback?.explanation">{{ results[question.id].feedback.explanation }}</p>
-        </div>
 
         <div class="options">
           <button
@@ -47,37 +40,39 @@
             <span>{{ option }}</span>
           </button>
         </div>
+
+        <div
+          v-if="results?.[question.id]"
+          class="stimulus-feedback"
+          :class="{ correct: results[question.id].correct, incorrect: !results[question.id].correct }"
+        >
+          <strong>{{ results[question.id].correct ? "Correct" : "Incorrect" }}</strong>
+          <span v-if="!results[question.id].correct">
+            Correct answer: {{ String.fromCharCode(65 + Number(results[question.id].feedback?.correctAnswer ?? 0)) }}
+          </span>
+          <p v-if="results[question.id].feedback?.explanation">
+            {{ results[question.id].feedback.explanation }}
+          </p>
+        </div>
       </section>
     </div>
 
     <div class="stimulus-navigation">
       <button
-        class="ghost-btn"
-        type="button"
-        :disabled="isFirst || saving"
-        @click="$emit('previous')"
-      >
-        ← Previous Stimulus
-      </button>
-
-      <div class="stimulus-navigation-note">
-        <strong v-if="pageComplete">Page reviewed — feedback is shown below.</strong>
-        <span v-else>{{ unansweredCount }} answer{{ unansweredCount === 1 ? "" : "s" }} still needed on this page.</span>
-      </div>
-
-      <button
+        v-if="!pageComplete"
         class="primary-btn review-submit-btn"
         type="button"
-        :disabled="saving || pageComplete || unansweredCount > 0"
+        :disabled="saving || unansweredCount > 0"
         @click="$emit('submit')"
       >
-        {{ pageComplete ? "Answer Saved & Reviewed ✓" : "Save Answer & Review →" }}
+        Save Answer & Review →
       </button>
 
       <button
-        class="primary-btn"
+        v-else
+        class="primary-btn review-submit-btn"
         type="button"
-        :disabled="saving || !pageComplete"
+        :disabled="saving"
         @click="$emit('next')"
       >
         {{ isLast ? "Finish Humanities →" : "Next Page →" }}
@@ -85,8 +80,8 @@
     </div>
 
     <div class="question-state">
-      <span v-if="pageComplete">Your answers for this page have been saved. Feedback is shown with each question.</span>
-      <span v-else>Answer every question on this page, then select Save Answer & Review to receive feedback before moving to the next page.</span>
+      <span v-if="pageComplete">Your answers for this page have been saved. Explanations are shown below each question. Click Next Page to continue.</span>
+      <span v-else>Answer every question on this page, then select Save Answer & Review.</span>
     </div>
   </article>
 </template>
