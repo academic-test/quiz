@@ -47,3 +47,6 @@
   .stimulus-navigation-note{order:-1}
   .stimulus-grid{grid-template-columns:repeat(4,minmax(42px,1fr))}
 }
+
+.ghost-btn{border:1px solid var(--line);border-radius:12px;padding:12px 17px;background:#fff;color:var(--ink);font-weight:800;font-size:14px}
+.ghost-btn:hover:not(:disabled){border-color:#b9baf4;background:#fafaff}
