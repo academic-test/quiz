@@ -741,6 +741,21 @@ function questionType(question) {
     || String(question.section || "other") + ":other";
 }
 
+function normalizeRegionalStimulusQuestion(row) {
+  if (String(row.stimulus_group || "") !== "HUM-ALT-B-02") return row;
+  const passage = "The regional comparison visual compares six markets—China, Malaysia, Taiwan, Singapore, Indonesia and Thailand—across market size, growth, infrastructure, stability, labour cost, management cost and tax environment. Dark marks indicate relatively stronger conditions; lighter marks indicate weaker conditions. Read each mark against the country headings and the factor labels.";
+  const map = {
+    "Which district has the highest skilled-worker share?": ["Which country is associated with the dark mark on the Growth row?", ["China","Malaysia","Indonesia","Thailand"], 1],
+    "Why would a decision-maker avoid using cost alone?": ["Which country is associated with the dark mark on the Stability row?", ["China","Taiwan","Singapore","Thailand"], 2],
+    "Which district has the shortest travel time?": ["Which country is associated with the dark mark on the Labour cost row?", ["Malaysia","Taiwan","Indonesia","Thailand"], 2],
+    "Which district has the highest growth?": ["Which country is associated with the lighter mark on the Infrastructure row?", ["China","Malaysia","Taiwan","Singapore"], 0],
+    "Which district has both the lowest facility cost and highest vacancy count?": ["Which country is associated with the lighter mark on the Tax environment row?", ["China","Malaysia","Indonesia","Thailand"], 2]
+  };
+  const replacement = map[row.question_text];
+  if (!replacement) return row;
+  return { ...row, question_text: replacement[0], answer_options: replacement[1], correct_answer: replacement[2], passage };
+}
+
 function pickStimulusGroups(candidates, count, usedFingerprints) {
   const sets = new Map();
 
@@ -780,7 +795,7 @@ function pickStimulusGroups(candidates, count, usedFingerprints) {
   for (const [, rows] of chosen.groups) {
     selected.push(...rows);
   }
-  return selected.slice(0, count);
+  return selected.slice(0, count).map(normalizeRegionalStimulusQuestion);
 }
 
 function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastType = "") {
