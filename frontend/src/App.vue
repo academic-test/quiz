@@ -104,7 +104,7 @@
         :text="writingDrafts[currentWritingTask.id] || ''"
         :locked="Boolean(writingSubmitted[currentWritingTask.id])"
         :saving="savingResponse"
-        :is-last="currentStage === 2"
+         :is-last="currentStage === 3"
         @update:text="updateWriting"
         @submit="submitBlock"
       />
