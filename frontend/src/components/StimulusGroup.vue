@@ -39,7 +39,7 @@
             }"
             :disabled="Boolean(results?.[question.id]) || saving"
             type="button"
-            @click="$emit('select', { question, index })"
+            @click="selectOption(question, index)"
           >
             <span class="letter">{{ String.fromCharCode(65 + index) }}</span>
             <span>{{ option }}</span>
@@ -57,7 +57,7 @@
             class="secondary-btn"
             type="button"
             :disabled="saving || !hasSelectedAnswer(question)"
-            @click="$emit('save', question)"
+            @click="$emit('save', { question, index: selectedAnswer(question) })"
           >
             Save Answer & Review →
           </button>
@@ -116,6 +116,10 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
+
+const localSelections = ref({});
+
 const props = defineProps({
   questions: { type: Array, required: true },
   passage: { type: String, default: "" },
@@ -134,13 +138,28 @@ const props = defineProps({
   unansweredCount: { type: Number, default: 0 }
 });
 
-defineEmits(["select", "save", "skip", "previous", "next", "submit"]);
+const emit = defineEmits(["select", "save", "skip", "previous", "next", "submit"]);
 
 function selectedAnswer(question) {
   const answers = props.answers || {};
+  if (Object.prototype.hasOwnProperty.call(localSelections.value, question.id)) {
+    return localSelections.value[question.id];
+  }
   return Object.prototype.hasOwnProperty.call(answers, question.id)
     ? answers[question.id]
     : null;
+}
+
+function selectOption(question, index) {
+  localSelections.value = { ...localSelections.value, [question.id]: index };
+  // Keep the composable as the source of truth for persistence.
+  // The local value guarantees the Save button reflects the click immediately.
+  props.answers[question.id] = index;
+  props.questionStates[question.id] = "selected";
+  // Emit after updating the local/provided state so the parent can persist it.
+  // eslint-disable-next-line vue/require-explicit-emits
+  // (The component intentionally forwards the event payload.)
+  emit("select", { question, index });
 }
 
 function hasSelectedAnswer(question) {
