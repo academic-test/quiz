@@ -50,3 +50,7 @@
 
 .ghost-btn{border:1px solid var(--line);border-radius:12px;padding:12px 17px;background:#fff;color:var(--ink);font-weight:800;font-size:14px}
 .ghost-btn:hover:not(:disabled){border-color:#b9baf4;background:#fafaff}
+
+
+.stimulus-image{display:block;width:100%;max-height:430px;object-fit:contain;margin:0 auto 22px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.stimulus-panel-large .passage{font-size:17px;line-height:1.75;white-space:pre-line}
