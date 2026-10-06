@@ -741,6 +741,33 @@ function questionType(question) {
     || String(question.section || "other") + ":other";
 }
 
+function pickStimulusGroups(candidates, count, usedFingerprints, groupSize = 5) {
+  const groups = new Map();
+  for (const candidate of shuffle(candidates)) {
+    if (!validQuestionShape(candidate)) continue;
+    const fp = questionFingerprint(candidate);
+    if (usedFingerprints.has(fp)) continue;
+    const group = String(candidate.stimulus_group || "").trim();
+    if (!group) continue;
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(candidate);
+  }
+
+  const eligible = shuffle(
+    [...groups.entries()]
+      .filter(([, rows]) => rows.length === groupSize)
+  );
+
+  const neededGroups = Math.floor(count / groupSize);
+  const selected = [];
+  for (const [, rows] of eligible) {
+    if (selected.length >= neededGroups * groupSize) break;
+    selected.push(...shuffle(rows));
+  }
+
+  return selected.slice(0, count);
+}
+
 function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastType = "") {
   const buckets = new Map();
   for (const candidate of shuffle(candidates)) {
@@ -792,5 +819,6 @@ module.exports = {
   questionFingerprint,
   questionType,
   pickDiverseQuestions,
+  pickStimulusGroups,
   getWritingTasks
 };
