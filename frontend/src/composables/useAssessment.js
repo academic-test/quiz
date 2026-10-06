@@ -59,7 +59,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v9";
+const STORAGE_KEY = "acer-level2-year10-quiz-v10";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -277,7 +277,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 9,
+        version: 10,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -412,6 +412,13 @@ export function useAssessment() {
       currentStage.value = 0;
       feedback.value = null;
       previousFeedback.value = null;
+
+      // Humanities is presented as complete stimulus pages, so all 40
+      // Humanities questions must be loaded before the first page is rendered.
+      if (!(await ensureBlockQuestionsLoaded(blocks[0]))) {
+        throw new Error("Could not load the Humanities questions.");
+      }
+
       screen.value = "quiz";
       blockStartedAt.value = Date.now();
       writingOpenedAt = Date.now();
@@ -823,7 +830,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 9 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 10 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
