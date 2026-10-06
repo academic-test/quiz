@@ -9,7 +9,8 @@
     </div>
 
     <div class="stimulus-panel stimulus-panel-large">
-      <div class="passage">{{ passage }}</div>
+      <img v-if="image" class="stimulus-image" :src="image" alt="Humanities stimulus" />
+      <div v-if="passage" class="passage">{{ passage }}</div>
     </div>
 
     <div class="stimulus-questions">
@@ -123,6 +124,7 @@ const localSelections = ref({});
 const props = defineProps({
   questions: { type: Array, required: true },
   passage: { type: String, default: "" },
+  image: { type: String, default: "" },
   stimulusNumber: { type: Number, required: true },
   questionStart: { type: Number, required: true },
   questionEnd: { type: Number, required: true },
