@@ -124,7 +124,10 @@ export function useAssessment() {
     currentStimulusGroups.value[stimulusIndex.value]?.image || ""
   );
   const currentStimulusAnsweredCount = computed(() =>
-    currentStimulusQuestions.value.filter(q => Boolean(results.value[q.id])).length
+    currentStimulusQuestions.value.filter(q => {
+      const answer = answers.value[q.id];
+      return answer !== undefined && answer !== null;
+    }).length
   );
   const currentStimulusUnansweredCount = computed(() =>
     currentStimulusQuestions.value.length - currentStimulusAnsweredCount.value
@@ -175,7 +178,10 @@ export function useAssessment() {
   });
   const answeredCount = computed(() =>
     currentBlock.value.type === "mcq"
-      ? currentBlockQuestions.value.filter(q => Boolean(results.value[q.id])).length
+      ? currentBlockQuestions.value.filter(q => {
+          const answer = answers.value[q.id];
+          return answer !== undefined && answer !== null;
+        }).length
       : (currentWritingTask.value && writingSubmitted.value[currentWritingTask.value.id] ? 1 : 0)
   );
   const skippedCount = computed(() =>
@@ -667,9 +673,25 @@ export function useAssessment() {
     }
   }
 
+  async function submitHumanitiesAnswers() {
+    if (!isHumanitiesBlock.value || !sectionComplete.value || savingResponse.value) return false;
+
+    const selectedQuestions = currentBlockQuestions.value.filter(question => {
+      const answer = answers.value[question.id];
+      return answer !== undefined && answer !== null && !results.value[question.id];
+    });
+
+    for (const question of selectedQuestions) {
+      const saved = await saveQuestionResponse(question, false);
+      if (!saved) return false;
+    }
+    return true;
+  }
+
   async function submitBlock() {
     if (isHumanitiesBlock.value) {
-      if (!sectionComplete.value) return;
+      const saved = await submitHumanitiesAnswers();
+      if (!saved) return;
       await advanceStage();
       return;
     }
@@ -877,8 +899,6 @@ export function useAssessment() {
     startTest,
     selectAnswer,
     selectStimulusAnswer,
-    saveStimulusQuestion,
-    skipStimulusQuestion,
     updateWriting,
     nextQuestion,
     nextStimulus,
