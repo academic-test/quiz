@@ -741,30 +741,45 @@ function questionType(question) {
     || String(question.section || "other") + ":other";
 }
 
-function pickStimulusGroups(candidates, count, usedFingerprints, groupSize = 5) {
-  const groups = new Map();
-  for (const candidate of shuffle(candidates)) {
+function pickStimulusGroups(candidates, count, usedFingerprints) {
+  const sets = new Map();
+
+  for (const candidate of candidates) {
     if (!validQuestionShape(candidate)) continue;
     const fp = questionFingerprint(candidate);
     if (usedFingerprints.has(fp)) continue;
+
     const group = String(candidate.stimulus_group || "").trim();
     if (!group) continue;
+
+    // Bank batches use HUM-PDF-A-01 ... HUM-PDF-A-09 (and B, C, ...).
+    // Keep a complete batch together so every stimulus retains all of its
+    // questions on the same screen.
+    const parts = group.split("-");
+    const setKey = parts.length >= 3 ? parts.slice(0, 3).join("-") : group;
+    if (!sets.has(setKey)) sets.set(setKey, new Map());
+    const groups = sets.get(setKey);
     if (!groups.has(group)) groups.set(group, []);
     groups.get(group).push(candidate);
   }
 
-  const eligible = shuffle(
-    [...groups.entries()]
-      .filter(([, rows]) => rows.length === groupSize)
-  );
+  const eligibleSets = shuffle([...sets.entries()])
+    .map(([setKey, groups]) => ({
+      setKey,
+      groups: [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))
+    }))
+    .filter(({ groups }) => {
+      const total = groups.reduce((sum, [, rows]) => sum + rows.length, 0);
+      return total === count;
+    });
 
-  const neededGroups = Math.floor(count / groupSize);
+  if (!eligibleSets.length) return [];
+
+  const chosen = eligibleSets[0];
   const selected = [];
-  for (const [, rows] of eligible) {
-    if (selected.length >= neededGroups * groupSize) break;
-    selected.push(...shuffle(rows));
+  for (const [, rows] of chosen.groups) {
+    selected.push(...rows);
   }
-
   return selected.slice(0, count);
 }
 
