@@ -65,6 +65,8 @@
         :is-first="stimulusIndex === 0"
         :is-last="stimulusIndex === currentStimulusGroups.length - 1"
         :section-complete="sectionComplete"
+        :page-complete="currentStimulusComplete"
+        :results="results"
         :answered-count="currentStimulusAnsweredCount"
         :unanswered-count="currentStimulusUnansweredCount"
         @select="({ question, index }) => selectStimulusAnswer(question, index)"
@@ -105,26 +107,6 @@
         @update:text="updateWriting"
         @submit="submitBlock"
       />
-
-      <div v-if="isHumanitiesBlock" class="stimulus-grid">
-        <button
-          v-for="(group, index) in currentStimulusGroups"
-          :key="group.key"
-          type="button"
-          class="question-nav stimulus-nav"
-          :class="{
-            current: index === stimulusIndex,
-            answered: group.questions.length > 0 && group.questions.every(q => {
-              const answer = answers?.[q.id];
-              return answer !== undefined && answer !== null;
-            })
-          }"
-          :disabled="savingResponse"
-          @click="goToStimulus(index)"
-        >
-          S{{ index + 1 }}
-        </button>
-      </div>
 
       <div v-else-if="currentBlock.type === 'mcq'" class="question-grid">
         <button
