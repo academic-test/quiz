@@ -60,8 +60,6 @@
         :question-end="stimulusQuestionEnd"
         :total-questions="currentBlock.size"
         :answers="answers"
-        :question-states="questionStates"
-        :results="results"
         :saving="savingResponse"
         :is-first="stimulusIndex === 0"
         :is-last="stimulusIndex === currentStimulusGroups.length - 1"
@@ -69,8 +67,6 @@
         :answered-count="currentStimulusAnsweredCount"
         :unanswered-count="currentStimulusUnansweredCount"
         @select="({ question, index }) => selectStimulusAnswer(question, index)"
-        @save="saveStimulusQuestion"
-        @skip="skipStimulusQuestion"
         @previous="previousStimulus"
         @next="nextStimulus"
         @submit="submitBlock"
@@ -117,8 +113,10 @@
           class="question-nav stimulus-nav"
           :class="{
             current: index === stimulusIndex,
-            answered: group.questions.length > 0 && group.questions.every(q => results?.[q.id]),
-            skipped: group.questions.some(q => questionStates?.[q.id] === 'skipped' && !results?.[q.id])
+            answered: group.questions.length > 0 && group.questions.every(q => {
+              const answer = answers?.[q.id];
+              return answer !== undefined && answer !== null;
+            })
           }"
           :disabled="savingResponse"
           @click="goToStimulus(index)"
@@ -193,7 +191,7 @@ const {
   currentStimulusAnsweredCount,
   currentStimulusUnansweredCount,
   results,
-  questionStates,
+  answers,
   remaining,
   currentStage,
   currentBlock,
@@ -222,8 +220,6 @@ const {
   previousStimulus,
   goToStimulus,
   selectStimulusAnswer,
-  saveStimulusQuestion,
-  skipStimulusQuestion,
   skipQuestion,
   previousQuestion,
   goToQuestion,
