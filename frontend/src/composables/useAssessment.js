@@ -16,20 +16,9 @@ export const labels = {
 
 export const blocks = [
   {
-    key: "writing-1",
-    type: "writing",
-    label: "Test 1 · Written Expression",
-    subtitle: "25 minutes · Writing Task 1",
-    taskIndex: 0,
-    start: 0,
-    end: 0,
-    size: 1,
-    duration: 25 * 60
-  },
-  {
     key: "humanities",
     type: "mcq",
-    label: "Test 2 · Humanities",
+    label: "Test 1 · Humanities",
     subtitle: "40 minutes · 40 questions",
     start: 0,
     end: 39,
@@ -39,12 +28,23 @@ export const blocks = [
   {
     key: "mathematics-science",
     type: "mcq",
-    label: "Test 3 · Mathematics & Science",
+    label: "Test 2 · Mathematics & Science",
     subtitle: "40 minutes · 32 questions",
     start: 40,
     end: 71,
     size: 32,
     duration: 40 * 60
+  },
+  {
+    key: "writing-1",
+    type: "writing",
+    label: "Test 3 · Written Expression",
+    subtitle: "25 minutes · Writing Task 1",
+    taskIndex: 0,
+    start: 0,
+    end: 0,
+    size: 1,
+    duration: 25 * 60
   },
   {
     key: "writing-2",
@@ -59,7 +59,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v6";
+const STORAGE_KEY = "acer-level2-year10-quiz-v8";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -241,7 +241,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 7,
+        version: 8,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -770,7 +770,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 7 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 8 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
