@@ -106,7 +106,7 @@ export function useAssessment() {
       if (!question) return;
       const key = question.stimulus_group || "question:" + question.id;
       if (!byKey.has(key)) {
-        const group = { key, passage: question.passage || "", questions: [] };
+        const group = { key, passage: question.passage || "", image: question.stimulus_image || "", questions: [] };
         byKey.set(key, group);
         groups.push(group);
       }
@@ -119,6 +119,9 @@ export function useAssessment() {
   );
   const currentStimulusPassage = computed(() =>
     currentStimulusGroups.value[stimulusIndex.value]?.passage || ""
+  );
+  const currentStimulusImage = computed(() =>
+    currentStimulusGroups.value[stimulusIndex.value]?.image || ""
   );
   const currentStimulusAnsweredCount = computed(() =>
     currentStimulusQuestions.value.filter(q => Boolean(results.value[q.id])).length
@@ -841,6 +844,7 @@ export function useAssessment() {
     currentStimulusGroups,
     currentStimulusQuestions,
     currentStimulusPassage,
+    currentStimulusImage,
     stimulusQuestionStart,
     stimulusQuestionEnd,
     currentStimulusAnsweredCount,
