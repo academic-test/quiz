@@ -5,7 +5,10 @@
       <span class="difficulty">{{ question.difficulty }}</span>
     </div>
 
-    <div v-if="question.passage" class="passage">{{ question.passage }}</div>
+    <div v-if="question.passage" class="stimulus-panel">
+      <div class="stimulus-label">{{ question.stimulus_group ? `Stimulus · ${question.stimulus_group}` : "Stimulus" }}</div>
+      <div class="passage">{{ question.passage }}</div>
+    </div>
     <div class="question-text">{{ question.q }}</div>
 
     <div v-if="previousFeedback" class="feedback" :class="previousFeedback.correct ? 'good' : 'bad'">
