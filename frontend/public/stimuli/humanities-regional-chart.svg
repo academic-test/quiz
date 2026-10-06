@@ -1,1 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560"><rect width="1200" height="560" fill="white"/><text x="600" y="38" text-anchor="middle" font-family="Arial" font-size="24" font-weight="700">Regional Business Conditions</text><text x="600" y="68" text-anchor="middle" font-family="Arial" font-size="15">Relative attractiveness of selected markets</text><g font-family="Arial" font-size="15"><text x="235" y="115">China</text><text x="395" y="115">Malaysia</text><text x="555" y="115">Taiwan</text><text x="715" y="115">Singapore</text><text x="875" y="115">Indonesia</text><text x="1035" y="115">Thailand</text></g><g font-family="Arial" font-size="14"><text x="25" y="155">Market size</text><text x="25" y="205">Growth</text><text x="25" y="255">Infrastructure</text><text x="25" y="305">Stability</text><text x="25" y="355">Labour cost</text><text x="25" y="405">Management cost</text><text x="25" y="455">Tax environment</text></g><g stroke="#333" fill="none"><path d="M160 125H1100M160 175H1100M160 225H1100M160 275H1100M160 325H1100M160 375H1100M160 425H1100M160 475H1100"/><path d="M160 125V475M317 125V475M474 125V475M631 125V475M788 125V475M945 125V475M1100 125V475"/></g><g stroke="#333" stroke-width="18"><path d="M190 150H300M350 200H460M510 250H620M670 300H780M830 350H940M990 400H1080"/></g><g stroke="#888" stroke-width="18"><path d="M210 250H330M370 300H490M530 350H650M690 400H810M850 450H970"/></g><text x="600" y="520" text-anchor="middle" font-family="Arial" font-size="15">Dark marks indicate relatively stronger conditions; lighter marks indicate weaker conditions.</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650">
+<rect width="1200" height="650" fill="white"/>
+<text x="600" y="35" text-anchor="middle" font-family="Arial" font-size="24" font-weight="700">Regional Business Conditions</text>
+<text x="600" y="62" text-anchor="middle" font-family="Arial" font-size="14">Higher scores indicate stronger conditions for that factor.</text>
+<g font-family="Arial" font-size="14" text-anchor="middle">
+<text x="265" y="105">China</text><text x="405" y="105">Malaysia</text><text x="545" y="105">Taiwan</text><text x="685" y="105">Singapore</text><text x="825" y="105">Indonesia</text><text x="965" y="105">Thailand</text>
+</g>
+<g font-family="Arial" font-size="13">
+<text x="25" y="145">Market growth</text><text x="25" y="205">Infrastructure</text><text x="25" y="265">Political stability</text><text x="25" y="325">Labour conditions</text><text x="25" y="385">Operating cost</text><text x="25" y="445">Property cost</text>
+</g>
+<g stroke="#333" fill="none">
+<path d="M150 115H1050M150 175H1050M150 235H1050M150 295H1050M150 355H1050M150 415H1050M150 475H1050"/>
+<path d="M150 115V475M330 115V475M470 115V475M610 115V475M750 115V475M890 115V475M1050 115V475"/>
+</g>
+<g fill="#4d63d9" font-family="Arial" font-size="12" text-anchor="middle">
+<text x="265" y="143">4</text><text x="405" y="143">4</text><text x="545" y="143">3</text><text x="685" y="143">4</text><text x="825" y="143">5</text><text x="965" y="143">4</text>
+<text x="265" y="203">3</text><text x="405" y="203">4</text><text x="545" y="203">5</text><text x="685" y="203">5</text><text x="825" y="203">3</text><text x="965" y="203">3</text>
+<text x="265" y="263">3</text><text x="405" y="263">4</text><text x="545" y="263">5</text><text x="685" y="263">5</text><text x="825" y="263">3</text><text x="965" y="263">3</text>
+<text x="265" y="323">5</text><text x="405" y="323">4</text><text x="545" y="323">3</text><text x="685" y="323">2</text><text x="825" y="323">5</text><text x="965" y="323">4</text>
+<text x="265" y="383">3</text><text x="405" y="383">4</text><text x="545" y="383">3</text><text x="685" y="383">2</text><text x="825" y="383">4</text><text x="965" y="383">4</text>
+<text x="265" y="443">4</text><text x="405" y="443">4</text><text x="545" y="443">3</text><text x="685" y="443">1</text><text x="825" y="443">5</text><text x="965" y="443">4</text>
+</g>
+<text x="600" y="520" text-anchor="middle" font-family="Arial" font-size="13">Score 1 = weaker condition; Score 5 = stronger condition.</text>
+<text x="600" y="550" text-anchor="middle" font-family="Arial" font-size="12">For costs, a higher score means the cost is more favourable to a new facility.</text>
+</svg>
