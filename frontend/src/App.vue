@@ -80,7 +80,7 @@
         :question="currentQuestion"
         :section-label="sectionLabel"
         :selected="selected"
-        :locked="Boolean(results[currentQuestion.id])"
+        :locked="Boolean(results?.[currentQuestion.id])"
         :feedback="feedback"
         :previous-feedback="previousFeedback"
         :is-first="questionIndex === currentBlock.start"
@@ -116,8 +116,8 @@
           class="question-nav stimulus-nav"
           :class="{
             current: index === stimulusIndex,
-            answered: group.questions.length > 0 && group.questions.every(q => results[q.id]),
-            skipped: group.questions.some(q => questionStates[q.id] === 'skipped' && !results[q.id])
+            answered: group.questions.length > 0 && group.questions.every(q => results?.[q.id]),
+            skipped: group.questions.some(q => questionStates?.[q.id] === 'skipped' && !results?.[q.id])
           }"
           :disabled="savingResponse"
           @click="goToStimulus(index)"
