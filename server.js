@@ -579,9 +579,83 @@ async function generateQuestions(req, sessionId, config) {
 
   const pending = [];
   const pendingIds = new Set();
+  const claimedBankIds = new Set();
 
-  // Year 10 assessments now prefer fresh generated material so the old,
-  // narrower Year 9-style bank cannot dominate a new mock.
+  // Prefer the persistent question bank for Humanities. Bank rows are
+  // claimed by attaching them to the new session, so the same bank question
+  // cannot be served again to a later assessment.
+  for (const [section, quota] of quotas) {
+    const needed = Math.max(
+      0,
+      quota - counts[section] - pending.filter(item => item.section === section).length
+    );
+    if (!needed) continue;
+
+    const { data: bankRows, error: bankError } = await supabase
+      .from("generated_questions")
+      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,answer_options,correct_answer,explanation,reasoning_type")
+      .eq("year_level", config.yearLevel)
+      .eq("section", section)
+      .is("session_id", null)
+      .limit(5000);
+
+    if (bankError) {
+      console.error("Question bank lookup failed", bankError);
+      continue;
+    }
+
+    const selected = pickDiverseQuestions(
+      bankRows || [],
+      Math.min(needed, neededTotal - pending.length),
+      used,
+      pending.length ? questionType(pending[pending.length - 1]) : ""
+    );
+
+    if (!selected.length) continue;
+
+    const selectedIds = selected.map(source => source.id);
+    const { error: claimError } = await supabase
+      .from("generated_questions")
+      .update({ session_id: sessionId, ip_hash: ipHash(req) })
+      .in("id", selectedIds)
+      .is("session_id", null);
+
+    if (claimError) {
+      console.error("Question bank claim failed", claimError);
+      continue;
+    }
+
+    for (const source of selected) {
+      if (pending.length >= neededTotal) break;
+
+      const question = {
+        id: source.id,
+        year_level: config.yearLevel,
+        session_id: sessionId,
+        ip_hash: ipHash(req),
+        section: source.section,
+        difficulty: source.difficulty || "hard",
+        time: Number(source.time) || 60,
+        question_text: source.question_text,
+        passage: source.passage || "",
+        stimulus_group: source.stimulus_group || null,
+        answer_options: source.answer_options,
+        correct_answer: source.correct_answer,
+        explanation: source.explanation || "",
+        reasoning_type: source.reasoning_type
+      };
+
+      const fp = questionFingerprint(question);
+      if (used.has(fp) || pendingIds.has(question.id)) continue;
+
+      pending.push(question);
+      pendingIds.add(question.id);
+      claimedBankIds.add(question.id);
+      used.add(fp);
+    }
+  }
+
+  // Fill any remaining quota with generated questions.
   let attempts = 0;
   const maxAttempts = Math.max(6000, neededTotal * 500);
 
@@ -620,8 +694,8 @@ async function generateQuestions(req, sessionId, config) {
     used.add(fp);
   }
 
-  // Keep the existing bank as a fallback only when a full fresh set could
-  // not be produced. This preserves resilience without prioritising legacy material.
+  // If a section could not be filled from the bank or fresh generation,
+  // make one final bank attempt before failing.
   if (pending.length < neededTotal) {
     for (const [section, quota] of quotas) {
       if (pending.length >= neededTotal) break;
@@ -690,7 +764,9 @@ async function generateQuestions(req, sessionId, config) {
     return [];
   }
 
-  const rowsToInsert = pending.map(question => ({
+  const rowsToInsert = pending
+    .filter(question => !claimedBankIds.has(question.id))
+    .map(question => ({
     id: question.id,
     session_id: question.session_id,
     ip_hash: question.ip_hash,
