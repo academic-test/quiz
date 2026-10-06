@@ -558,7 +558,7 @@ async function generateQuestions(req, sessionId, config) {
 
   const { data: sessionRows, error: sessionError } = await supabase
     .from("generated_questions")
-    .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,answer_options,correct_answer,explanation")
+    .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation")
     .eq("session_id", sessionId)
     .eq("year_level", config.yearLevel);
 
@@ -594,7 +594,7 @@ async function generateQuestions(req, sessionId, config) {
 
     const { data: bankRows, error: bankError } = await supabase
       .from("generated_questions")
-      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,answer_options,correct_answer,explanation,reasoning_type")
+      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,reasoning_type")
       .eq("year_level", config.yearLevel)
       .eq("section", section)
       .is("session_id", null)
@@ -643,6 +643,7 @@ async function generateQuestions(req, sessionId, config) {
         question_text: source.question_text,
         passage: source.passage || "",
         stimulus_group: source.stimulus_group || null,
+        stimulus_image: source.stimulus_image || null,
         answer_options: source.answer_options,
         correct_answer: source.correct_answer,
         explanation: source.explanation || "",
@@ -712,7 +713,7 @@ async function generateQuestions(req, sessionId, config) {
 
       const { data: bankRows, error } = await supabase
         .from("generated_questions")
-        .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,answer_options,correct_answer,explanation")
+        .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation")
         .eq("year_level", config.yearLevel)
         .eq("section", section)
         .is("session_id", null)
@@ -745,6 +746,7 @@ async function generateQuestions(req, sessionId, config) {
           question_text: source.question_text,
           passage: source.passage || "",
           stimulus_group: source.stimulus_group || null,
+          stimulus_image: source.stimulus_image || null,
           answer_options: source.answer_options,
           correct_answer: source.correct_answer,
           explanation: source.explanation || "",
@@ -781,6 +783,7 @@ async function generateQuestions(req, sessionId, config) {
     question_text: question.question_text,
     passage: question.passage || null,
     stimulus_group: question.stimulus_group || null,
+    stimulus_image: question.stimulus_image || null,
     answer_options: question.answer_options,
     correct_answer: question.correct_answer,
     explanation: question.explanation || ""
@@ -878,7 +881,7 @@ app.post("/api/assessments/start", async (req,res) => {
 
     const { data: generated, error: generatedError } = await supabase
       .from("generated_questions")
-      .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group,explanation")
+      .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group,stimulus_image,explanation")
       .eq("session_id", sessionId)
       .eq("year_level", config.yearLevel)
       .order("id", { ascending:true });
@@ -926,7 +929,7 @@ app.post("/api/assessments/start", async (req,res) => {
       writing_tasks:getWritingTasks(),
       questions:generated.slice(0,10).map(q=>({
         id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60,
-        q:q.question_text,o:q.answer_options,passage:q.passage||"",stimulus_group:q.stimulus_group||null
+        q:q.question_text,o:q.answer_options,passage:q.passage||"",stimulus_group:q.stimulus_group||null,stimulus_image:q.stimulus_image||null
       }))
     });
   } catch(error) {
@@ -951,7 +954,7 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
 
     const { data: rows, error } = await supabase
       .from("generated_questions")
-      .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group")
+      .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group,stimulus_image")
       .eq("session_id", sessionId)
       .eq("year_level", config.yearLevel)
       .order("id",{ascending:true});
@@ -969,7 +972,7 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
       total:config.totalQuestionCount,offset,limit,section_counts:config.sectionCounts,manifest,
       questions:selectedRows.map(q=>({
         id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60,
-        q:q.question_text,o:q.answer_options,passage:q.passage||"",stimulus_group:q.stimulus_group||null
+        q:q.question_text,o:q.answer_options,passage:q.passage||"",stimulus_group:q.stimulus_group||null,stimulus_image:q.stimulus_image||null
       }))
     });
   } catch(error) {
