@@ -59,7 +59,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v8";
+const STORAGE_KEY = "acer-level2-year10-quiz-v9";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -100,18 +100,48 @@ export function useAssessment() {
   );
   const currentStimulusGroups = computed(() => {
     if (!isHumanitiesBlock.value) return [];
+
+    // Always group Humanities questions by their shared stimulus. This also
+    // supports older sessions created before stimulus_group was populated.
     const groups = [];
     const byKey = new Map();
-    currentBlockQuestions.value.forEach(question => {
+
+    currentBlockQuestions.value.forEach((question, index) => {
       if (!question) return;
-      const key = question.stimulus_group || "question:" + question.id;
+
+      const passageKey = String(question.passage || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+      // Prefer the explicit database group. For older sessions, fall back to
+      // the shared passage/image instead of making every question its own page.
+      const key =
+        question.stimulus_group ||
+        (question.stimulus_image ? "image:" + question.stimulus_image : "") ||
+        (passageKey ? "passage:" + passageKey : "") ||
+        "legacy-group:" + Math.floor(index / 6);
+
       if (!byKey.has(key)) {
-        const group = { key, passage: question.passage || "", image: question.stimulus_image || "", questions: [] };
+        const group = {
+          key,
+          passage: question.passage || "",
+          image: question.stimulus_image || "",
+          questions: []
+        };
         byKey.set(key, group);
         groups.push(group);
       }
-      byKey.get(key).questions.push(question);
+
+      const group = byKey.get(key);
+      group.questions.push(question);
+
+      // If an older group contains a blank passage/image on its first row,
+      // retain the first non-empty stimulus metadata found in the group.
+      if (!group.passage && question.passage) group.passage = question.passage;
+      if (!group.image && question.stimulus_image) group.image = question.stimulus_image;
     });
+
     return groups;
   });
   const currentStimulusQuestions = computed(() =>
@@ -171,8 +201,8 @@ export function useAssessment() {
   const progressPercent = computed(() => {
     const complete = currentBlock.value.type === "writing"
       ? (writingSubmitted.value[currentWritingTask.value?.id] ? 100 : 0)
-      : isHumanitiesBlock.value && currentStimulusGroups.value.length
-        ? ((stimulusIndex.value + 1) / currentStimulusGroups.value.length) * 100
+      : isHumanitiesBlock.value
+        ? (answeredCount.value / currentBlock.value.size) * 100
         : (blockQuestionNumber.value / currentBlock.value.size) * 100;
     return Math.min(100, complete);
   });
@@ -247,7 +277,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 8,
+        version: 9,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -792,7 +822,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 8 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 9 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
