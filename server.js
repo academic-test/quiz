@@ -891,6 +891,9 @@ app.post("/api/assessments/start", async (req,res) => {
     const sectionOrder = { humanities: 0, mathematics_science: 1 };
     const generated = (generatedRows || []).sort((a, b) =>
       (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
+      (a.section === "humanities"
+        ? String(a.stimulus_group || "").localeCompare(String(b.stimulus_group || ""))
+        : 0) ||
       String(a.id).localeCompare(String(b.id))
     );
 
@@ -973,6 +976,9 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
     const sectionOrder = { humanities: 0, mathematics_science: 1 };
     const orderedRows = [...rows].sort((a, b) =>
       (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
+      (a.section === "humanities"
+        ? String(a.stimulus_group || "").localeCompare(String(b.stimulus_group || ""))
+        : 0) ||
       String(a.id).localeCompare(String(b.id))
     );
     const manifest = orderedRows.slice(0,config.totalQuestionCount).map((q,index)=>({
