@@ -164,7 +164,7 @@ export function useAssessment() {
   );
   const currentStimulusComplete = computed(() =>
     currentStimulusQuestions.value.length > 0 &&
-    currentStimulusUnansweredCount.value === 0
+    currentStimulusQuestions.value.every(question => Boolean(results.value[question.id]))
   );
   const stimulusQuestionStart = computed(() => {
     const first = currentStimulusQuestions.value[0];
@@ -577,6 +577,7 @@ export function useAssessment() {
 
   async function nextStimulus() {
     if (!isHumanitiesBlock.value) return;
+    if (!currentStimulusComplete.value) return;
     if (stimulusIndex.value >= currentStimulusGroups.value.length - 1) {
       if (!sectionComplete.value) return;
       await advanceStage();
@@ -704,9 +705,9 @@ export function useAssessment() {
   }
 
   async function submitHumanitiesAnswers() {
-    if (!isHumanitiesBlock.value || !sectionComplete.value || savingResponse.value) return false;
+    if (!isHumanitiesBlock.value || savingResponse.value) return false;
 
-    const selectedQuestions = currentBlockQuestions.value.filter(question => {
+    const selectedQuestions = currentStimulusQuestions.value.filter(question => {
       const answer = answers.value[question.id];
       return answer !== undefined && answer !== null && !results.value[question.id];
     });
@@ -722,7 +723,7 @@ export function useAssessment() {
     if (isHumanitiesBlock.value) {
       const saved = await submitHumanitiesAnswers();
       if (!saved) return;
-      await advanceStage();
+      persistState();
       return;
     }
 
