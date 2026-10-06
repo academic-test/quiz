@@ -775,7 +775,7 @@ function pickStimulusGroups(candidates, count, usedFingerprints) {
 
   if (!eligibleSets.length) return [];
 
-  const chosen = eligibleSets[0];
+  const chosen = eligibleSets.sort((a, b) => String(a.setKey).localeCompare(String(b.setKey)))[0];
   const selected = [];
   for (const [, rows] of chosen.groups) {
     selected.push(...rows);
