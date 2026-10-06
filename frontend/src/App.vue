@@ -28,6 +28,10 @@
         <div>
           <span>{{ currentBlock.label }}</span>
           <strong v-if="currentBlock.type === 'writing'">{{ currentBlock.subtitle }}</strong>
+          <strong v-else-if="isHumanitiesBlock">
+            Stimulus {{ stimulusIndex + 1 }} of {{ currentStimulusGroups.length }} ·
+            Questions {{ stimulusQuestionStart }}–{{ stimulusQuestionEnd }} of {{ currentBlock.size }}
+          </strong>
           <strong v-else>Question {{ blockQuestionNumber }} of {{ currentBlock.size }}</strong>
         </div>
         <div class="assessment-actions">
@@ -46,8 +50,33 @@
         <div :style="{ width: progressPercent + '%' }"></div>
       </div>
 
+      <StimulusGroup
+        v-if="isHumanitiesBlock && currentStimulusQuestions.length"
+        :questions="currentStimulusQuestions"
+        :passage="currentStimulusPassage"
+        :stimulus-number="stimulusIndex + 1"
+        :question-start="stimulusQuestionStart"
+        :question-end="stimulusQuestionEnd"
+        :total-questions="currentBlock.size"
+        :answers="answers"
+        :question-states="questionStates"
+        :results="results"
+        :saving="savingResponse"
+        :is-first="stimulusIndex === 0"
+        :is-last="stimulusIndex === currentStimulusGroups.length - 1"
+        :section-complete="sectionComplete"
+        :answered-count="currentStimulusAnsweredCount"
+        :unanswered-count="currentStimulusUnansweredCount"
+        @select="({ question, index }) => selectStimulusAnswer(question, index)"
+        @save="saveStimulusQuestion"
+        @skip="skipStimulusQuestion"
+        @previous="previousStimulus"
+        @next="nextStimulus"
+        @submit="submitBlock"
+      />
+
       <QuestionCard
-        v-if="currentQuestion"
+        v-else-if="currentQuestion"
         :question="currentQuestion"
         :section-label="sectionLabel"
         :selected="selected"
@@ -79,7 +108,25 @@
         @submit="submitBlock"
       />
 
-      <div v-if="currentBlock.type === 'mcq'" class="question-grid">
+      <div v-if="isHumanitiesBlock" class="stimulus-grid">
+        <button
+          v-for="(group, index) in currentStimulusGroups"
+          :key="group.key"
+          type="button"
+          class="question-nav stimulus-nav"
+          :class="{
+            current: index === stimulusIndex,
+            answered: group.questions.length > 0 && group.questions.every(q => results[q.id]),
+            skipped: group.questions.some(q => questionStates[q.id] === 'skipped' && !results[q.id])
+          }"
+          :disabled="savingResponse"
+          @click="goToStimulus(index)"
+        >
+          S{{ index + 1 }}
+        </button>
+      </div>
+
+      <div v-else-if="currentBlock.type === 'mcq'" class="question-grid">
         <button
           v-for="(item, offset) in currentBlockQuestions"
           :key="item.id"
@@ -121,6 +168,7 @@
 import StartScreen from "./components/StartScreen.vue";
 import Timer from "./components/Timer.vue";
 import QuestionCard from "./components/QuestionCard.vue";
+import StimulusGroup from "./components/StimulusGroup.vue";
 import WritingCard from "./components/WritingCard.vue";
 import ResultsScreen from "./components/ResultsScreen.vue";
 import { useAssessment, totalQuestions } from "./composables/useAssessment";
@@ -133,6 +181,15 @@ const {
   savingResponse,
   questions,
   questionIndex,
+  stimulusIndex,
+  isHumanitiesBlock,
+  currentStimulusGroups,
+  currentStimulusQuestions,
+  currentStimulusPassage,
+  stimulusQuestionStart,
+  stimulusQuestionEnd,
+  currentStimulusAnsweredCount,
+  currentStimulusUnansweredCount,
   results,
   questionStates,
   remaining,
@@ -159,6 +216,12 @@ const {
   selectAnswer,
   updateWriting,
   nextQuestion,
+  nextStimulus,
+  previousStimulus,
+  goToStimulus,
+  selectStimulusAnswer,
+  saveStimulusQuestion,
+  skipStimulusQuestion,
   skipQuestion,
   previousQuestion,
   goToQuestion,
