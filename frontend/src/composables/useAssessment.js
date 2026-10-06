@@ -241,7 +241,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 6,
+        version: 7,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -770,7 +770,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 6 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 7 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
