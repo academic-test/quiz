@@ -59,7 +59,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v3";
+const STORAGE_KEY = "acer-level2-year10-quiz-v4";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -84,6 +84,8 @@ export function useAssessment() {
   const blockStartedAt = ref(0);
   const feedback = ref(null);
   const previousFeedback = ref(null);
+  const stimulusIndex = ref(0);
+  const questionOpenedAtById = ref({});
 
   let timerHandle = null;
   let questionOpenedAt = 0;
@@ -92,6 +94,49 @@ export function useAssessment() {
   const currentBlock = computed(() => blocks[currentStage.value]);
   const currentQuestion = computed(() =>
     currentBlock.value.type === "mcq" ? questions.value[questionIndex.value] || null : null
+  );
+  const isHumanitiesBlock = computed(() =>
+    currentBlock.value.type === "mcq" && currentBlock.value.key === "humanities"
+  );
+  const currentStimulusGroups = computed(() => {
+    if (!isHumanitiesBlock.value) return [];
+    const groups = [];
+    const byKey = new Map();
+    currentBlockQuestions.value.forEach(question => {
+      if (!question) return;
+      const key = question.stimulus_group || "question:" + question.id;
+      if (!byKey.has(key)) {
+        const group = { key, passage: question.passage || "", questions: [] };
+        byKey.set(key, group);
+        groups.push(group);
+      }
+      byKey.get(key).questions.push(question);
+    });
+    return groups;
+  });
+  const currentStimulusQuestions = computed(() =>
+    currentStimulusGroups.value[stimulusIndex.value]?.questions || []
+  );
+  const currentStimulusPassage = computed(() =>
+    currentStimulusGroups.value[stimulusIndex.value]?.passage || ""
+  );
+  const currentStimulusAnsweredCount = computed(() =>
+    currentStimulusQuestions.value.filter(q => Boolean(results.value[q.id])).length
+  );
+  const currentStimulusUnansweredCount = computed(() =>
+    currentStimulusQuestions.value.length - currentStimulusAnsweredCount.value
+  );
+  const currentStimulusComplete = computed(() =>
+    currentStimulusQuestions.value.length > 0 &&
+    currentStimulusUnansweredCount.value === 0
+  );
+  const stimulusQuestionStart = computed(() => {
+    const first = currentStimulusQuestions.value[0];
+    if (!first) return 1;
+    return currentBlockQuestions.value.findIndex(q => q?.id === first.id) + 1;
+  });
+  const stimulusQuestionEnd = computed(() =>
+    stimulusQuestionStart.value + Math.max(0, currentStimulusQuestions.value.length - 1)
   );
   const currentWritingTask = computed(() =>
     currentBlock.value.type === "writing"
@@ -116,7 +161,9 @@ export function useAssessment() {
   const progressPercent = computed(() => {
     const complete = currentBlock.value.type === "writing"
       ? (writingSubmitted.value[currentWritingTask.value?.id] ? 100 : 0)
-      : (blockQuestionNumber.value / currentBlock.value.size) * 100;
+      : isHumanitiesBlock.value && currentStimulusGroups.value.length
+        ? ((stimulusIndex.value + 1) / currentStimulusGroups.value.length) * 100
+        : (blockQuestionNumber.value / currentBlock.value.size) * 100;
     return Math.min(100, complete);
   });
   const answeredCount = computed(() =>
@@ -187,7 +234,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 3,
+        version: 4,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -204,7 +251,9 @@ export function useAssessment() {
         blockStartedAt: blockStartedAt.value,
         questionOpenedAt,
         writingOpenedAt,
-        previousFeedback: previousFeedback.value
+        previousFeedback: previousFeedback.value,
+        stimulusIndex: stimulusIndex.value,
+        questionOpenedAtById: questionOpenedAtById.value
       }));
     } catch (error) {
       console.warn("Could not persist quiz session", error);
@@ -243,6 +292,23 @@ export function useAssessment() {
     if (index < 0 || index >= totalQuestions) return false;
     if (questions.value[index]) return true;
     return loadQuestionBatch(index);
+  }
+
+  async function ensureBlockQuestionsLoaded(block = currentBlock.value) {
+    if (block.type !== "mcq") return true;
+    for (let index = block.start; index <= block.end; index += 10) {
+      if (!(await loadQuestionBatch(index))) return false;
+    }
+    return true;
+  }
+
+  function prepareStimulusQuestionTimers() {
+    if (!isHumanitiesBlock.value) return;
+    const next = { ...questionOpenedAtById.value };
+    currentStimulusQuestions.value.forEach(question => {
+      if (!next[question.id] && !results.value[question.id]) next[question.id] = Date.now();
+    });
+    questionOpenedAtById.value = next;
   }
 
   function startBlockTimer(startTime = Date.now()) {
@@ -297,6 +363,8 @@ export function useAssessment() {
       submittedBlocks.value = {};
       writingDrafts.value = {};
       writingSubmitted.value = {};
+      questionOpenedAtById.value = {};
+      stimulusIndex.value = 0;
       questionIndex.value = 0;
       currentStage.value = 0;
       feedback.value = null;
@@ -314,18 +382,15 @@ export function useAssessment() {
     }
   }
 
-  async function saveCurrentResponse(timedOut = false) {
-    const question = currentQuestion.value;
+  async function saveQuestionResponse(question, timedOut = false) {
     if (!question || !attemptId.value) return false;
     const answer = answers.value[question.id];
     if (answer === undefined || answer === null) return false;
-    if (results.value[question.id]) {
-      feedback.value = results.value[question.id].feedback || null;
-      return true;
-    }
+    if (results.value[question.id]) return true;
 
     savingResponse.value = true;
-    const elapsed = Math.max(0, (Date.now() - questionOpenedAt) / 1000);
+    const openedAt = Number(questionOpenedAtById.value[question.id]) || questionOpenedAt || Date.now();
+    const elapsed = Math.max(0, (Date.now() - openedAt) / 1000);
     try {
       const response = await saveResponseApi({
         attempt_id: attemptId.value,
@@ -349,7 +414,6 @@ export function useAssessment() {
         feedback: resultFeedback
       };
       questionStates.value[question.id] = "answered";
-      feedback.value = resultFeedback;
       persistState();
       return true;
     } catch (error) {
@@ -359,6 +423,18 @@ export function useAssessment() {
     } finally {
       savingResponse.value = false;
     }
+  }
+
+  async function saveCurrentResponse(timedOut = false) {
+    const question = currentQuestion.value;
+    if (!question) return false;
+    const saved = await saveQuestionResponse(question, timedOut);
+    if (saved) feedback.value = results.value[question.id]?.feedback || null;
+    return saved;
+  }
+
+  async function saveStimulusQuestion(question, timedOut = false) {
+    return saveQuestionResponse(question, timedOut);
   }
 
   async function saveCurrentWriting() {
@@ -416,11 +492,15 @@ export function useAssessment() {
 
     currentStage.value += 1;
     previousFeedback.value = null;
+    stimulusIndex.value = 0;
     if (currentBlock.value.type === "mcq") {
-      questionIndex.value = currentBlock.value.start;
-      const ready = await ensureQuestionLoaded(questionIndex.value);
+      const ready = currentBlock.value.key === "humanities"
+        ? await ensureBlockQuestionsLoaded(currentBlock.value)
+        : await ensureQuestionLoaded(currentBlock.value.start);
       if (!ready) return;
+      questionIndex.value = currentBlock.value.start;
       questionOpenedAt = Date.now();
+      if (currentBlock.value.key === "humanities") prepareStimulusQuestionTimers();
     } else {
       writingOpenedAt = Date.now();
     }
@@ -430,7 +510,66 @@ export function useAssessment() {
     startBlockTimer(blockStartedAt.value);
   }
 
+  async function nextStimulus() {
+    if (!isHumanitiesBlock.value) return;
+    if (stimulusIndex.value >= currentStimulusGroups.value.length - 1) {
+      if (!sectionComplete.value) return;
+      await advanceStage();
+      return;
+    }
+    stimulusIndex.value += 1;
+    const group = currentStimulusQuestions.value;
+    questionIndex.value = currentBlockQuestions.value.findIndex(q => q?.id === group[0]?.id) + currentBlock.value.start;
+    prepareStimulusQuestionTimers();
+    feedback.value = null;
+    previousFeedback.value = null;
+    persistState();
+  }
+
+  async function previousStimulus() {
+    if (!isHumanitiesBlock.value || stimulusIndex.value <= 0) return;
+    stimulusIndex.value -= 1;
+    const group = currentStimulusQuestions.value;
+    questionIndex.value = currentBlockQuestions.value.findIndex(q => q?.id === group[0]?.id) + currentBlock.value.start;
+    prepareStimulusQuestionTimers();
+    feedback.value = null;
+    previousFeedback.value = null;
+    persistState();
+  }
+
+  async function goToStimulus(index) {
+    if (!isHumanitiesBlock.value) return;
+    if (index < 0 || index >= currentStimulusGroups.value.length) return;
+    stimulusIndex.value = index;
+    const group = currentStimulusGroups.value[index]?.questions || [];
+    questionIndex.value = currentBlockQuestions.value.findIndex(q => q?.id === group[0]?.id) + currentBlock.value.start;
+    prepareStimulusQuestionTimers();
+    feedback.value = null;
+    previousFeedback.value = null;
+    persistState();
+  }
+
+  function selectStimulusAnswer(question, index) {
+    if (!isHumanitiesBlock.value || savingResponse.value) return;
+    if (results.value[question.id]) return;
+    answers.value[question.id] = index;
+    questionStates.value[question.id] = "selected";
+    if (!questionOpenedAtById.value[question.id]) {
+      questionOpenedAtById.value = { ...questionOpenedAtById.value, [question.id]: Date.now() };
+    }
+    persistState();
+  }
+
+  function skipStimulusQuestion(question) {
+    if (!isHumanitiesBlock.value || savingResponse.value) return;
+    if (results.value[question.id]) return;
+    if (answers.value[question.id] !== undefined && answers.value[question.id] !== null) return;
+    questionStates.value[question.id] = "skipped";
+    persistState();
+  }
+
   async function nextQuestion() {
+    if (isHumanitiesBlock.value) return nextStimulus();
     if (currentBlock.value.type !== "mcq") return advanceStage();
     const id = currentQuestion.value?.id;
     if (!id) return;
@@ -500,6 +639,12 @@ export function useAssessment() {
   }
 
   async function submitBlock() {
+    if (isHumanitiesBlock.value) {
+      if (!sectionComplete.value) return;
+      await advanceStage();
+      return;
+    }
+
     if (currentBlock.value.type === "writing") {
       const saved = await saveCurrentWriting();
       if (saved) await advanceStage();
@@ -525,7 +670,14 @@ export function useAssessment() {
 
   async function handleBlockTimeout() {
     if (submittedBlocks.value[currentStage.value]) return;
-    if (currentBlock.value.type === "mcq" && currentQuestion.value) {
+    if (isHumanitiesBlock.value) {
+      for (const question of currentBlockQuestions.value) {
+        const id = question?.id;
+        if (id && !results.value[id] && answers.value[id] !== undefined && answers.value[id] !== null) {
+          await saveQuestionResponse(question, true);
+        }
+      }
+    } else if (currentBlock.value.type === "mcq" && currentQuestion.value) {
       const id = currentQuestion.value.id;
       if (!results.value[id] && answers.value[id] !== undefined && answers.value[id] !== null) {
         await saveCurrentResponse(true);
@@ -577,6 +729,8 @@ export function useAssessment() {
     remaining.value = 0;
     feedback.value = null;
     previousFeedback.value = null;
+    stimulusIndex.value = 0;
+    questionOpenedAtById.value = {};
   }
 
   async function restoreSession() {
@@ -587,7 +741,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 3 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 4 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
@@ -609,6 +763,8 @@ export function useAssessment() {
       questionOpenedAt = Number(saved.questionOpenedAt) || Date.now();
       writingOpenedAt = Number(saved.writingOpenedAt) || Date.now();
       previousFeedback.value = saved.previousFeedback || null;
+      stimulusIndex.value = Number.isInteger(saved.stimulusIndex) ? saved.stimulusIndex : 0;
+      questionOpenedAtById.value = saved.questionOpenedAtById || {};
 
       if (saved.screen === "results") {
         screen.value = "results";
@@ -617,11 +773,24 @@ export function useAssessment() {
 
       questions.value = Array.from({ length: totalQuestions }, () => null);
       if (currentBlock.value.type === "mcq") {
-        const loaded = await loadQuestionBatch(questionIndex.value);
+        const loaded = currentBlock.value.key === "humanities"
+          ? await ensureBlockQuestionsLoaded(currentBlock.value)
+          : await loadQuestionBatch(questionIndex.value);
         if (!loaded) throw new Error("Could not restore question");
       }
       screen.value = "quiz";
-      feedback.value = results.value[questions.value[questionIndex.value]?.id]?.feedback || null;
+      if (currentBlock.value.key === "humanities") {
+        const groups = currentStimulusGroups.value;
+        if (stimulusIndex.value >= groups.length) stimulusIndex.value = 0;
+        const group = groups[stimulusIndex.value]?.questions || [];
+        if (group[0]) {
+          questionIndex.value = currentBlockQuestions.value.findIndex(q => q?.id === group[0].id) + currentBlock.value.start;
+        }
+        prepareStimulusQuestionTimers();
+        feedback.value = null;
+      } else {
+        feedback.value = results.value[questions.value[questionIndex.value]?.id]?.feedback || null;
+      }
       startBlockTimer(blockStartedAt.value);
     } catch (error) {
       console.error("Could not restore quiz session", error);
@@ -641,6 +810,16 @@ export function useAssessment() {
     savingResponse,
     questions,
     questionIndex,
+    stimulusIndex,
+    isHumanitiesBlock,
+    currentStimulusGroups,
+    currentStimulusQuestions,
+    currentStimulusPassage,
+    stimulusQuestionStart,
+    stimulusQuestionEnd,
+    currentStimulusAnsweredCount,
+    currentStimulusUnansweredCount,
+    currentStimulusComplete,
     answers,
     questionStates,
     results,
@@ -667,8 +846,14 @@ export function useAssessment() {
     resultTitle,
     startTest,
     selectAnswer,
+    selectStimulusAnswer,
+    saveStimulusQuestion,
+    skipStimulusQuestion,
     updateWriting,
     nextQuestion,
+    nextStimulus,
+    previousStimulus,
+    goToStimulus,
     skipQuestion,
     previousQuestion,
     goToQuestion,
