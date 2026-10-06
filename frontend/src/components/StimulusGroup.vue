@@ -56,15 +56,15 @@
           <button
             class="secondary-btn"
             type="button"
-            :disabled="saving || selectedAnswer(question) === null || selectedAnswer(question) === undefined"
+            :disabled="saving || !hasSelectedAnswer(question)"
             @click="$emit('save', question)"
           >
-            Save Answer
+            Save Answer & Review →
           </button>
           <button
             class="ghost-btn"
             type="button"
-            :disabled="saving || selectedAnswer(question) !== null && selectedAnswer(question) !== undefined"
+            :disabled="saving || hasSelectedAnswer(question)"
             @click="$emit('skip', question)"
           >
             Skip for now
@@ -137,7 +137,15 @@ const props = defineProps({
 defineEmits(["select", "save", "skip", "previous", "next", "submit"]);
 
 function selectedAnswer(question) {
-  return props.answers?.[question.id] ?? null;
+  const answers = props.answers || {};
+  return Object.prototype.hasOwnProperty.call(answers, question.id)
+    ? answers[question.id]
+    : null;
+}
+
+function hasSelectedAnswer(question) {
+  const answer = selectedAnswer(question);
+  return answer !== null && answer !== undefined;
 }
 
 function questionNumber(question) {
