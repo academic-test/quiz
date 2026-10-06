@@ -143,11 +143,15 @@ export function useAssessment() {
       ? writingTasks.value[currentBlock.value.taskIndex] || null
       : null
   );
-  const currentBlockQuestions = computed(() =>
-    currentBlock.value.type === "mcq"
-      ? questionManifest.value.slice(currentBlock.value.start, currentBlock.value.end + 1)
-      : []
-  );
+  const currentBlockQuestions = computed(() => {
+    if (currentBlock.value.type !== "mcq") return [];
+    if (currentBlock.value.key === "humanities") {
+      return questions.value
+        .slice(currentBlock.value.start, currentBlock.value.end + 1)
+        .filter(Boolean);
+    }
+    return questionManifest.value.slice(currentBlock.value.start, currentBlock.value.end + 1);
+  });
   const selected = computed(() => {
     if (!currentQuestion.value) return null;
     return answers.value[currentQuestion.value.id] ?? null;
