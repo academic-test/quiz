@@ -59,7 +59,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v5";
+const STORAGE_KEY = "acer-level2-year10-quiz-v6";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -241,7 +241,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 5,
+        version: 6,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -770,7 +770,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 5 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 6 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
