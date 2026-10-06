@@ -54,6 +54,7 @@
         v-if="isHumanitiesBlock && currentStimulusQuestions.length"
         :questions="currentStimulusQuestions"
         :passage="currentStimulusPassage"
+        :image="currentStimulusImage"
         :stimulus-number="stimulusIndex + 1"
         :question-start="stimulusQuestionStart"
         :question-end="stimulusQuestionEnd"
@@ -186,6 +187,7 @@ const {
   currentStimulusGroups,
   currentStimulusQuestions,
   currentStimulusPassage,
+  currentStimulusImage,
   stimulusQuestionStart,
   stimulusQuestionEnd,
   currentStimulusAnsweredCount,
