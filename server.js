@@ -594,7 +594,7 @@ async function generateQuestions(req, sessionId, config) {
 
     const { data: bankRows, error: bankError } = await supabase
       .from("generated_questions")
-      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,reasoning_type")
+      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation")
       .eq("year_level", config.yearLevel)
       .eq("section", section)
       .is("session_id", null)
