@@ -4,7 +4,7 @@
       <div>
         <div class="eyebrow">SCHOLARSHIP TEST PRACTICE</div>
         <h1>ACER Level 2 · Year 10 Entry Practice</h1>
-        <p class="subtitle">Original practice questions built around the reasoning patterns in the supplied ACER Years 9–10 practice booklet. The assessment has four timed tests: Written Expression, Humanities, Mathematics & Science, then Written Expression.</p>
+        <p class="subtitle">Original practice questions built around the reasoning patterns in the supplied ACER Years 9–10 practice booklet. The assessment runs Humanities, Mathematics & Science, then Written Expression.</p>
       </div>
     </header>
 
@@ -104,7 +104,7 @@
         :text="writingDrafts[currentWritingTask.id] || ''"
         :locked="Boolean(writingSubmitted[currentWritingTask.id])"
         :saving="savingResponse"
-        :is-last="currentStage === 3"
+        :is-last="currentStage === 2"
         @update:text="updateWriting"
         @submit="submitBlock"
       />
