@@ -437,7 +437,29 @@ export function useAssessment() {
     return saved;
   }
 
-  async function saveStimulusQuestion(question, timedOut = false) {
+  async function saveStimulusQuestion(payload, timedOut = false) {
+    const question = payload?.question || payload;
+    const selectedIndex = payload?.index;
+    if (!question) return false;
+
+    // The grouped Humanities UI keeps a local selection so the button reacts
+    // immediately. Re-apply that selection here before persisting it so the
+    // composable remains the single source of truth.
+    if (
+      selectedIndex !== undefined &&
+      selectedIndex !== null &&
+      !results.value[question.id]
+    ) {
+      answers.value[question.id] = selectedIndex;
+      questionStates.value[question.id] = "selected";
+      if (!questionOpenedAtById.value[question.id]) {
+        questionOpenedAtById.value = {
+          ...questionOpenedAtById.value,
+          [question.id]: Date.now()
+        };
+      }
+    }
+
     return saveQuestionResponse(question, timedOut);
   }
 
