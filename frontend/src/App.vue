@@ -42,7 +42,8 @@
 
       <div class="block-meta">
         <span>{{ currentBlock.subtitle }}</span>
-        <span v-if="currentBlock.type === 'mcq'">{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
+        <span v-if="currentBlock.type === 'mcq' && isHumanitiesBlock">{{ answeredCount }} of {{ currentBlock.size }} answered</span>
+        <span v-else-if="currentBlock.type === 'mcq'">{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
         <span v-else>{{ answeredCount ? 'Writing submitted' : 'Writing in progress' }}</span>
       </div>
 
@@ -100,7 +101,7 @@
         :text="writingDrafts[currentWritingTask.id] || ''"
         :locked="Boolean(writingSubmitted[currentWritingTask.id])"
         :saving="savingResponse"
-         :is-last="currentStage === 3"
+        :is-last="currentStage === 3"
         @update:text="updateWriting"
         @submit="submitBlock"
       />
