@@ -25,6 +25,13 @@
         </div>
 
         <div class="question-text">{{ question.q }}</div>
+        <div v-if="results?.[question.id]" class="stimulus-feedback" :class="{ correct: results[question.id].correct, incorrect: !results[question.id].correct }">
+          <strong>{{ results[question.id].correct ? "Correct" : "Incorrect" }}</strong>
+          <span v-if="!results[question.id].correct">
+            Correct answer: {{ String.fromCharCode(65 + Number(results[question.id].feedback?.correctAnswer ?? 0)) }}
+          </span>
+          <p v-if="results[question.id].feedback?.explanation">{{ results[question.id].feedback.explanation }}</p>
+        </div>
 
         <div class="options">
           <button
@@ -54,33 +61,32 @@
       </button>
 
       <div class="stimulus-navigation-note">
-        <strong v-if="sectionComplete">All 40 answers are selected.</strong>
-        <span v-else>{{ unansweredCount }} answer{{ unansweredCount === 1 ? "" : "s" }} still needed.</span>
+        <strong v-if="pageComplete">Page reviewed — feedback is shown below.</strong>
+        <span v-else>{{ unansweredCount }} answer{{ unansweredCount === 1 ? "" : "s" }} still needed on this page.</span>
       </div>
-
-      <button
-        v-if="!isLast"
-        class="primary-btn"
-        type="button"
-        :disabled="saving"
-        @click="$emit('next')"
-      >
-        Next Stimulus →
-      </button>
 
       <button
         class="primary-btn review-submit-btn"
         type="button"
-        :disabled="saving || !sectionComplete"
+        :disabled="saving || pageComplete || unansweredCount > 0"
         @click="$emit('submit')"
       >
-        Save Answer & Review →
+        {{ pageComplete ? "Answer Saved & Reviewed ✓" : "Save Answer & Review →" }}
+      </button>
+
+      <button
+        class="primary-btn"
+        type="button"
+        :disabled="saving || !pageComplete"
+        @click="$emit('next')"
+      >
+        {{ isLast ? "Finish Humanities →" : "Next Page →" }}
       </button>
     </div>
 
     <div class="question-state">
-      <span v-if="sectionComplete">All 40 answers are selected. You can save your answers and review the test.</span>
-      <span v-else>Choose an answer for each question. Your selections are saved automatically; Save Answer & Review becomes available after all 40 are answered.</span>
+      <span v-if="pageComplete">Your answers for this page have been saved. Feedback is shown with each question.</span>
+      <span v-else>Answer every question on this page, then select Save Answer & Review to receive feedback before moving to the next page.</span>
     </div>
   </article>
 </template>
@@ -104,7 +110,9 @@ const props = defineProps({
   isLast: { type: Boolean, default: false },
   sectionComplete: { type: Boolean, default: false },
   answeredCount: { type: Number, default: 0 },
-  unansweredCount: { type: Number, default: 0 }
+  unansweredCount: { type: Number, default: 0 },
+  pageComplete: { type: Boolean, default: false },
+  results: { type: Object, default: () => ({}) }
 });
 
 const emit = defineEmits(["select", "previous", "next", "submit"]);
