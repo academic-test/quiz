@@ -736,7 +736,9 @@ function questionFingerprint(question) {
 }
 
 function questionType(question) {
-  return question.reasoning_type || String(question.section || "other") + ":other";
+  return question.reasoning_type
+    || (question.stimulus_group ? "stimulus:" + String(question.stimulus_group) : null)
+    || String(question.section || "other") + ":other";
 }
 
 function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastType = "") {
