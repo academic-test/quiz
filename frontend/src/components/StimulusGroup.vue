@@ -152,13 +152,6 @@ function selectedAnswer(question) {
 
 function selectOption(question, index) {
   localSelections.value = { ...localSelections.value, [question.id]: index };
-  // Keep the composable as the source of truth for persistence.
-  // The local value guarantees the Save button reflects the click immediately.
-  props.answers[question.id] = index;
-  props.questionStates[question.id] = "selected";
-  // Emit after updating the local/provided state so the parent can persist it.
-  // eslint-disable-next-line vue/require-explicit-emits
-  // (The component intentionally forwards the event payload.)
   emit("select", { question, index });
 }
 
