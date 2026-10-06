@@ -17,12 +17,12 @@
         v-for="question in questions"
         :key="question.id"
         class="stimulus-question"
-        :class="{ locked: Boolean(results[question.id]) }"
+        :class="{ locked: Boolean(results?.[question.id]) }"
       >
         <div class="stimulus-question-number">
           Question {{ questionNumber(question) }}
-          <span v-if="questionStates[question.id] === 'skipped' && !results[question.id]">Skipped</span>
-          <span v-else-if="results[question.id]">Answered</span>
+          <span v-if="questionStates?.[question.id] === 'skipped' && !results?.[question.id]">Skipped</span>
+          <span v-else-if="results?.[question.id]">Answered</span>
         </div>
 
         <div class="question-text">{{ question.q }}</div>
@@ -34,10 +34,10 @@
             class="option"
             :class="{
               selected: selectedAnswer(question) === index,
-              correct: results[question.id] && index === results[question.id].feedback.correctAnswer,
-              incorrect: results[question.id] && selectedAnswer(question) === index && index !== results[question.id].feedback.correctAnswer
+              correct: results?.[question.id] && index === results?.[question.id].feedback.correctAnswer,
+              incorrect: results?.[question.id] && selectedAnswer(question) === index && index !== results?.[question.id].feedback.correctAnswer
             }"
-            :disabled="Boolean(results[question.id]) || saving"
+            :disabled="Boolean(results?.[question.id]) || saving"
             type="button"
             @click="$emit('select', { question, index })"
           >
@@ -46,10 +46,10 @@
           </button>
         </div>
 
-        <div v-if="results[question.id]" class="feedback" :class="results[question.id].correct ? 'good' : 'bad'">
-          <strong>{{ results[question.id].correct ? "Correct!" : "Answer recorded." }}</strong>
-          <span> Correct answer: {{ String.fromCharCode(65 + Number(results[question.id].feedback.correctAnswer)) }}.</span>
-          <div>{{ results[question.id].feedback.explanation }}</div>
+        <div v-if="results?.[question.id]" class="feedback" :class="results?.[question.id].correct ? 'good' : 'bad'">
+          <strong>{{ results?.[question.id].correct ? "Correct!" : "Answer recorded." }}</strong>
+          <span> Correct answer: {{ String.fromCharCode(65 + Number(results?.[question.id].feedback.correctAnswer)) }}.</span>
+          <div>{{ results?.[question.id].feedback.explanation }}</div>
         </div>
 
         <div v-else class="stimulus-question-actions">
@@ -137,7 +137,7 @@ const props = defineProps({
 defineEmits(["select", "save", "skip", "previous", "next", "submit"]);
 
 function selectedAnswer(question) {
-  return props.answers[question.id] ?? null;
+  return props.answers?.[question.id] ?? null;
 }
 
 function questionNumber(question) {
