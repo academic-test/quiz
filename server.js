@@ -879,12 +879,20 @@ app.post("/api/assessments/start", async (req,res) => {
 
     await ensureQuestionsGenerated(req, sessionId, config);
 
-    const { data: generated, error: generatedError } = await supabase
+    const { data: generatedRows, error: generatedError } = await supabase
       .from("generated_questions")
       .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group,stimulus_image,explanation")
       .eq("session_id", sessionId)
-      .eq("year_level", config.yearLevel)
-      .order("id", { ascending:true });
+      .eq("year_level", config.yearLevel);
+
+    // The frontend blocks are positional: Humanities occupies questions 1–40
+    // and Mathematics & Science occupies questions 41–72. Do not rely on
+    // question IDs because Humanities has several bank ID prefixes.
+    const sectionOrder = { humanities: 0, mathematics_science: 1 };
+    const generated = (generatedRows || []).sort((a, b) =>
+      (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
+      String(a.id).localeCompare(String(b.id))
+    );
 
     if (generatedError || !generated || generated.length < config.totalQuestionCount) {
       return res.status(503).json({ error:"Could not prepare the assessment questions" });
@@ -956,17 +964,21 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
       .from("generated_questions")
       .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group,stimulus_image")
       .eq("session_id", sessionId)
-      .eq("year_level", config.yearLevel)
-      .order("id",{ascending:true});
+      .eq("year_level", config.yearLevel);
 
     if (error || !rows || rows.length < config.totalQuestionCount) {
       return res.status(409).json({ error:"Assessment questions are not ready" });
     }
 
-    const manifest = rows.slice(0,config.totalQuestionCount).map((q,index)=>({
+    const sectionOrder = { humanities: 0, mathematics_science: 1 };
+    const orderedRows = [...rows].sort((a, b) =>
+      (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
+      String(a.id).localeCompare(String(b.id))
+    );
+    const manifest = orderedRows.slice(0,config.totalQuestionCount).map((q,index)=>({
       number:index+1,id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60
     }));
-    const selectedRows = rows.slice(offset, Math.min(offset+limit, config.totalQuestionCount));
+    const selectedRows = orderedRows.slice(offset, Math.min(offset+limit, config.totalQuestionCount));
 
     res.json({
       total:config.totalQuestionCount,offset,limit,section_counts:config.sectionCounts,manifest,
