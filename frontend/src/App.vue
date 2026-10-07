@@ -94,6 +94,7 @@
         :is-last="stimulusIndex === currentStimulusGroups.length - 1"
         :section-complete="sectionComplete"
         :page-complete="currentStimulusComplete"
+        :page-reviewed="currentStimulusReviewed"
         :results="results"
         :answered-count="currentStimulusAnsweredCount"
         :unanswered-count="currentStimulusUnansweredCount"
@@ -201,6 +202,7 @@ const {
   stimulusQuestionEnd,
   currentStimulusAnsweredCount,
   currentStimulusUnansweredCount,
+  currentStimulusReviewed,
   results,
   answers,
   remaining,
