@@ -1008,7 +1008,7 @@ function mathematicsScienceStimulusSet(sessionId = "") {
     },
     {
       key: "MATH-PAGE-02",
-      passage: "A town has recorded its population by age group in two survey years. In 1980 the numbers of residents aged 0–14, 15–34, 35–54 and 55+ were 1800, 2600, 1900 and 900. In 2020 the corresponding numbers were 1400, 3100, 2500 and 1500.",
+      passage: "A town has recorded its population by age group in two survey years. In 1980 the numbers of residents aged 0–14, 15–34, 35–54 and 55+ were 1800, 2600, 1900 and 900. In 2020 the corresponding numbers were 1400, 3100, 2400 and 1500.",
       questions: [
         ["How many residents were recorded in the 15–34 group in 2020?", 3100, [2600, 2900, 3500], "Read the 15–34 value for 2020."],
         ["By how many residents did the 55+ group increase from 1980 to 2020?", 600, [400, 700, 900], "Subtract 900 from 1500."],
@@ -1029,7 +1029,7 @@ function mathematicsScienceStimulusSet(sessionId = "") {
       passage: "A builder lays rectangular tiles in a repeating staggered pattern. Every second row begins and ends with a half-tile. A full wall is 6 tiles wide and 5 rows high. The row sequence repeats after two rows.",
       questions: [
         ["How many full-width tile positions are there across five rows if each row is 6 tile-widths long?", 30, [24, 26, 36], "There are 6 positions per row across 5 rows."],
-        ["If the two edge half-tiles together make one full tile-width in each alternating row, how many half-tiles occur in the five-row wall?", 6, [4, 5, 10], "Three of the five rows are alternating rows, each with two half-tiles."],
+        ["If the two edge half-tiles together make one full tile-width in each alternating row, how many half-tiles occur in the five-row wall?", 4, [5, 6, 10], "Every second row contains two half-tiles. Rows 2 and 4 are alternating rows, so there are 2 × 2 = 4 half-tiles."],
         ["Which feature of the pattern makes it rectangular despite the staggered rows?", "The half-tiles complete the missing edge widths.", ["Every row uses only half-tiles.","The row lengths continually decrease.","The tiles are placed randomly."], "The edge half-tiles compensate for the stagger so the outer boundary remains straight."]
       ]
     },
@@ -1137,11 +1137,15 @@ function mathematicsScienceStimulusSet(sessionId = "") {
   return varyFreshRows(rows, sessionId, notes, images);
 }
 
+function fingerprintText(value) {
+  return String(value || "").normalize("NFKC").trim().replace(/[\s\u00a0]+/g, " ");
+}
+
 function questionFingerprint(question) {
   return JSON.stringify([
     question.section,
-    String(question.question_text || "").trim().replace(/\\s+/g, " "),
-    String(question.passage || "").trim().replace(/\\s+/g, " ")
+    fingerprintText(question.question_text),
+    fingerprintText(question.passage)
   ]);
 }
 
