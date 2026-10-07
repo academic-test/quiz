@@ -785,7 +785,12 @@ function pickStimulusGroups(candidates, count, usedFingerprints) {
     }))
     .filter(({ groups }) => {
       const total = groups.reduce((sum, [, rows]) => sum + rows.length, 0);
-      return total === count;
+      // Humanities must always render as multi-question stimulus pages.
+      // Reject any set containing a one-question stimulus rather than allowing
+      // a later fallback to break the grouped-page contract.
+      const everyStimulusHasMultipleQuestions = groups.length > 0 &&
+        groups.every(([, rows]) => rows.length >= 2);
+      return total === count && everyStimulusHasMultipleQuestions;
     });
 
   if (!eligibleSets.length) return [];
