@@ -32,6 +32,10 @@
             Stimulus {{ stimulusIndex + 1 }} of {{ currentStimulusGroups.length }} ·
             Questions {{ stimulusQuestionStart }}–{{ stimulusQuestionEnd }} of {{ currentBlock.size }}
           </strong>
+          <strong v-else-if="isMathematicsScienceBlock">
+            Problem page {{ mathSciencePageIndex + 1 }} of {{ currentMathScienceGroups.length }} ·
+            Questions {{ mathScienceQuestionStart }}–{{ mathScienceQuestionEnd }} of {{ currentBlock.size }}
+          </strong>
           <strong v-else>Question {{ blockQuestionNumber }} of {{ currentBlock.size }}</strong>
         </div>
         <div class="assessment-actions">
@@ -42,7 +46,7 @@
 
       <div class="block-meta">
         <span>{{ currentBlock.subtitle }}</span>
-        <span v-if="currentBlock.type === 'mcq' && isHumanitiesBlock">{{ answeredCount }} of {{ currentBlock.size }} answered</span>
+        <span v-if="currentBlock.type === 'mcq' && (isHumanitiesBlock || isMathematicsScienceBlock)">{{ answeredCount }} of {{ currentBlock.size }} answered</span>
         <span v-else-if="currentBlock.type === 'mcq'">{{ answeredCount }} answered · {{ skippedCount }} skipped</span>
         <span v-else>{{ answeredCount ? 'Writing submitted' : 'Writing in progress' }}</span>
       </div>
@@ -78,6 +82,53 @@
           }}
         </button>
       </nav>
+
+      <nav
+        v-if="isMathematicsScienceBlock && currentMathScienceGroups.length"
+        class="stimulus-set-navigation"
+        aria-label="Mathematics and Science problem pages"
+      >
+        <span class="stimulus-set-navigation-label">Problem pages:</span>
+        <button
+          v-for="(group, index) in currentMathScienceGroups"
+          :key="group.key"
+          type="button"
+          class="stimulus-set-nav"
+          :class="{
+            current: index === mathSciencePageIndex,
+            complete: group.questions.every(question => Boolean(results?.[question.id]))
+          }"
+          :disabled="savingResponse || index > mathSciencePageIndex"
+          @click="goToMathSciencePage(index)"
+        >
+          {{ index + 1 }} · Q{{ currentBlock.start + currentMathScienceGroups
+            .slice(0, index)
+            .reduce((total, item) => total + item.questions.length, 0) + 1 }}–{{ 
+            currentBlock.start + currentMathScienceGroups
+              .slice(0, index + 1)
+              .reduce((total, item) => total + item.questions.length, 0)
+          }}
+        </button>
+      </nav>
+
+      <MathematicsScienceGroup
+        v-if="isMathematicsScienceBlock && currentMathScienceQuestions.length"
+        :questions="currentMathScienceQuestions"
+        :page-number="mathSciencePageIndex + 1"
+        :question-start="mathScienceQuestionStart"
+        :question-end="mathScienceQuestionEnd"
+        :total-questions="currentBlock.size"
+        :answers="answers"
+        :saving="savingResponse"
+        :is-last="mathSciencePageIndex === currentMathScienceGroups.length - 1"
+        :page-reviewed="currentMathScienceReviewed"
+        :results="results"
+        :answered-count="currentMathScienceAnsweredCount"
+        :unanswered-count="currentMathScienceUnansweredCount"
+        @select="({ question, index }) => selectMathScienceAnswer(question, index)"
+        @next="nextMathSciencePage"
+        @submit="submitBlock"
+      />
 
       <StimulusGroup
         v-if="isHumanitiesBlock && currentStimulusQuestions.length"
@@ -180,6 +231,7 @@ import StartScreen from "./components/StartScreen.vue";
 import Timer from "./components/Timer.vue";
 import QuestionCard from "./components/QuestionCard.vue";
 import StimulusGroup from "./components/StimulusGroup.vue";
+import MathematicsScienceGroup from "./components/MathematicsScienceGroup.vue";
 import WritingCard from "./components/WritingCard.vue";
 import ResultsScreen from "./components/ResultsScreen.vue";
 import { useAssessment, totalQuestions } from "./composables/useAssessment";
@@ -194,6 +246,15 @@ const {
   questionIndex,
   stimulusIndex,
   isHumanitiesBlock,
+  isMathematicsScienceBlock,
+  mathSciencePageIndex,
+  currentMathScienceGroups,
+  currentMathScienceQuestions,
+  mathScienceQuestionStart,
+  mathScienceQuestionEnd,
+  currentMathScienceAnsweredCount,
+  currentMathScienceUnansweredCount,
+  currentMathScienceReviewed,
   currentStimulusGroups,
   currentStimulusQuestions,
   currentStimulusPassage,
@@ -233,6 +294,10 @@ const {
   previousStimulus,
   goToStimulus,
   selectStimulusAnswer,
+  nextMathSciencePage,
+  previousMathSciencePage,
+  goToMathSciencePage,
+  selectMathScienceAnswer,
   skipQuestion,
   previousQuestion,
   goToQuestion,
