@@ -35,7 +35,7 @@ describe("StimulusGroup", () => {
     expect(review.attributes("disabled")).toBeDefined();
   });
 
-  it("shows feedback for every question after review", async () => {
+  it("shows feedback for every question after review and changes Review into Next Page", async () => {
     const results = Object.fromEntries(
       questions.map((question, index) => [
         question.id,
@@ -52,6 +52,7 @@ describe("StimulusGroup", () => {
         answeredCount: 6,
         unansweredCount: 0,
         pageComplete: true,
+        pageReviewed: true,
         results
       }
     });
@@ -64,6 +65,28 @@ describe("StimulusGroup", () => {
 
     await wrapper.find("button.review-submit-btn").trigger("click");
     expect(wrapper.emitted("next")).toHaveLength(1);
+  });
+
+
+  it("does not show Next Page just because results exist; review state controls the transition", () => {
+    const results = Object.fromEntries(
+      questions.map(question => [
+        question.id,
+        { correct: true, feedback: { correctAnswer: 0, explanation: "Reviewed explanation" } }
+      ])
+    );
+
+    const wrapper = mount(StimulusGroup, {
+      props: {
+        ...baseProps,
+        answeredCount: 6,
+        unansweredCount: 0,
+        results,
+        pageReviewed: false
+      }
+    });
+
+    expect(wrapper.find("button.review-submit-btn").text()).toContain("Save Answer & Review");
   });
 
   it("emits submit when Save Answer & Review is clicked", async () => {
