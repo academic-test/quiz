@@ -4,7 +4,8 @@ import {
   getQuestions,
   saveResponse as saveResponseApi,
   saveWritingResponse,
-  startAssessment
+  startAssessment,
+  prepareSection
 } from "../services/quizApi";
 import { buildHumanitiesStimulusGroups } from "../utils/humanitiesStimuli";
 import { buildMathScienceStimulusGroups } from "../utils/mathScienceStimuli";
@@ -61,7 +62,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v16";
+const STORAGE_KEY = "acer-level2-year10-quiz-v17";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -297,7 +298,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 16,
+        version: 17,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -343,7 +344,11 @@ export function useAssessment() {
     if (!sessionId.value) return false;
     const batchOffset = Math.max(0, Math.floor(offset / 10) * 10);
     try {
-      const response = await getQuestions(sessionId.value, batchOffset, 10);
+      const section = currentBlock.value.type === "mcq" &&
+        ["humanities","mathematics-science"].includes(currentBlock.value.key)
+        ? currentBlock.value.key
+        : "";
+      const response = await getQuestions(sessionId.value, batchOffset, 10, section);
       if (Array.isArray(response.manifest)) questionManifest.value = response.manifest;
       if (!Array.isArray(response.questions)) return false;
       response.questions.forEach((question, index) => {
@@ -498,6 +503,7 @@ export function useAssessment() {
       blockStartedAt.value = Date.now();
 
       if (block.type === "mcq") {
+        await prepareSection(sessionId.value, section);
         if (!(await ensureBlockQuestionsLoaded(block))) {
           throw new Error("Could not load the selected questions.");
         }
@@ -1055,7 +1061,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 16 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 17 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
