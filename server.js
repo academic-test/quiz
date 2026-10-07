@@ -984,9 +984,13 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
     const config = await getAssessmentConfig();
     const offset = Number.isInteger(Number(req.query.offset)) ? Number(req.query.offset) : 0;
     const limit = Number.isInteger(Number(req.query.limit)) ? Number(req.query.limit) : 10;
+    const requestedSection = String(req.query.section || "").trim();
 
     if (offset < 0 || offset >= config.totalQuestionCount || limit < 1 || limit > 10) {
       return res.status(400).json({ error:"Invalid question range" });
+    }
+    if (requestedSection && !["humanities","mathematics_science"].includes(requestedSection)) {
+      return res.status(400).json({ error:"Invalid subject" });
     }
 
     const { data: rows, error } = await supabase
@@ -995,25 +999,46 @@ app.get("/api/assessments/:sessionId/questions", async (req,res) => {
       .eq("session_id", sessionId)
       .eq("year_level", config.yearLevel);
 
-    if (error || !rows || rows.length < config.totalQuestionCount) {
+    if (error || !rows) {
       return res.status(409).json({ error:"Assessment questions are not ready" });
     }
 
     const sectionOrder = { humanities: 0, mathematics_science: 1 };
-    const orderedRows = [...rows].sort((a, b) =>
+    const allOrderedRows = [...rows].sort((a, b) =>
       (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
       (a.section === "humanities"
         ? String(a.stimulus_group || "").localeCompare(String(b.stimulus_group || ""))
-        : 0) ||
+        : String(a.id).localeCompare(String(b.id))) ||
       String(a.id).localeCompare(String(b.id))
     );
-    const manifest = orderedRows.slice(0,config.totalQuestionCount).map((q,index)=>({
-      number:index+1,id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60
+
+    const orderedRows = requestedSection
+      ? allOrderedRows.filter(row => row.section === requestedSection)
+      : allOrderedRows;
+
+    if (!requestedSection && orderedRows.length < config.totalQuestionCount) {
+      return res.status(409).json({ error:"Assessment questions are not ready" });
+    }
+
+    const sectionStart = requestedSection === "mathematics_science"
+      ? Number(config.sectionCounts.humanities) || 0
+      : 0;
+    const localOffset = requestedSection ? offset - sectionStart : offset;
+    const expected = requestedSection ? Number(config.sectionCounts[requestedSection]) || 0 : config.totalQuestionCount;
+
+    if (localOffset < 0 || localOffset >= expected || orderedRows.length < expected) {
+      return res.status(409).json({ error:"Selected subject questions are not ready" });
+    }
+
+    const manifest = orderedRows.slice(0,expected).map((q,index)=>({
+      number:sectionStart + index + 1,
+      id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60
     }));
-    const selectedRows = orderedRows.slice(offset, Math.min(offset+limit, config.totalQuestionCount));
+    const selectedRows = orderedRows.slice(localOffset, Math.min(localOffset+limit, expected));
 
     res.json({
-      total:config.totalQuestionCount,offset,limit,section_counts:config.sectionCounts,manifest,
+      total: requestedSection ? expected : config.totalQuestionCount,
+      offset,limit,section_counts:config.sectionCounts,manifest,
       questions:selectedRows.map(q=>({
         id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60,
         q:q.question_text,o:q.answer_options,passage:q.passage||"",stimulus_group:q.stimulus_group||null,stimulus_image:q.stimulus_image||null
