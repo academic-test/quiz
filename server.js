@@ -559,6 +559,9 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         ["mathematics_science", Number(config.sectionCounts.mathematics_science) || 0]
       ];
   const total = Number(config.totalQuestionCount) || 0;
+  const targetTotal = targetSection
+    ? Number(config.sectionCounts[targetSection]) || 0
+    : total;
 
   const { data: sessionRows, error: sessionError } = await supabase
     .from("generated_questions")
@@ -581,7 +584,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
   const currentTotal = targetSection
     ? counts[targetSection]
     : Object.values(counts).reduce((sum, value) => sum + value, 0);
-  const neededTotal = Math.max(0, total - currentTotal);
+  const neededTotal = Math.max(0, targetTotal - currentTotal);
   if (!neededTotal) return sessionRows || [];
 
   const pending = [];
