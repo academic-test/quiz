@@ -15,6 +15,7 @@ function openDashboard(){
   $("dashboard").classList.remove("hidden");
   loadAttempts();
   loadBankCards();
+  loadWritingTopics();
 }
 
 async function checkLogin(){try{await api("/api/admin/me");openDashboard();}catch{}}
@@ -41,6 +42,7 @@ $("refresh").onclick=async function(){
 };
 
 $("refreshBank").onclick=loadBankCards;
+$("refreshWriting").onclick=loadWritingTopics;
 $("closeDetail").onclick=function(){$("detail").classList.add("hidden");};
 
 async function loadAttempts(){
@@ -84,6 +86,113 @@ function renderAttempts(attempts){
     row.appendChild(c);
     body.appendChild(row);
   });
+}
+
+async function loadWritingTopics(){
+  try{
+    const data=await api("/api/admin/writing-topics");
+    renderWritingTopicCards(data.topics||[]);
+  }catch(err){
+    if(err.message==="Admin login required")location.reload();
+    else $("writingTopicCards").innerHTML='<div class="bank-empty">'+esc(err.message)+"</div>";
+  }
+}
+
+function renderWritingTopicCards(topics){
+  const grouped={1:[],2:[]};
+  (topics||[]).forEach(topic=>{
+    if(grouped[topic.task_slot]) grouped[topic.task_slot].push(topic);
+  });
+  $("writingTopicCards").innerHTML=[1,2].map(slot=>`
+    <article class="writing-topic-card">
+      <div class="eyebrow">WRITTEN EXPRESSION ${slot}</div>
+      <h3>Topic Pool ${slot}</h3>
+      <div class="small-note">Students receive one topic from this pool when the assessment starts.</div>
+      <div class="writing-topic-list">
+        ${grouped[slot].length?grouped[slot].map(topic=>`
+          <div class="writing-topic-item" data-topic-id="${esc(topic.id)}" data-task-slot="${slot}">
+            <div class="writing-topic-id">${esc(topic.id)}</div>
+            <textarea data-topic-field>${esc(topic.topic)}</textarea>
+            <div class="writing-topic-actions">
+              <span class="writing-status" data-topic-status></span>
+              <button type="button" class="ghost" data-writing-action="save">Save</button>
+              <button type="button" class="ghost" data-writing-action="delete">Delete</button>
+            </div>
+          </div>
+        `).join(""):'<div class="bank-empty">No topics in this pool.</div>'}
+      </div>
+      <form class="writing-add" data-writing-add-slot="${slot}">
+        <label>Add new topic</label>
+        <textarea name="topic" placeholder="Enter a new topic for Written Expression ${slot}." required></textarea>
+        <div class="bank-actions">
+          <span class="writing-status" data-add-status></span>
+          <button type="submit" class="primary">Add Topic</button>
+        </div>
+      </form>
+    </article>
+  `).join("");
+
+  $("writingTopicCards").querySelectorAll("[data-writing-action]").forEach(button=>{
+    button.onclick=()=>button.dataset.writingAction==="save"
+      ? saveWritingTopic(button)
+      : deleteWritingTopic(button);
+  });
+  $("writingTopicCards").querySelectorAll("[data-writing-add-slot]").forEach(form=>{
+    form.onsubmit=e=>addWritingTopic(e,Number(form.dataset.writingAddSlot));
+  });
+}
+
+async function saveWritingTopic(button){
+  const item=button.closest(".writing-topic-item");
+  const status=item.querySelector("[data-topic-status]");
+  const topic=item.querySelector("[data-topic-field]").value.trim();
+  status.className="writing-status";
+  status.textContent="Saving…";
+  try{
+    await api("/api/admin/writing-topics/"+encodeURIComponent(item.dataset.topicId),{
+      method:"PUT",body:JSON.stringify({topic})
+    });
+    status.className="writing-status good";
+    status.textContent="Saved.";
+  }catch(err){
+    status.className="writing-status bad";
+    status.textContent=err.message;
+  }
+}
+
+async function deleteWritingTopic(button){
+  const item=button.closest(".writing-topic-item");
+  const topic=item.querySelector("[data-topic-field]").value.trim();
+  if(!window.confirm("Delete this Written Expression topic?\\n\\n"+topic)) return;
+  const status=item.querySelector("[data-topic-status]");
+  status.className="writing-status";
+  status.textContent="Deleting…";
+  try{
+    await api("/api/admin/writing-topics/"+encodeURIComponent(item.dataset.topicId),{method:"DELETE"});
+    await loadWritingTopics();
+  }catch(err){
+    status.className="writing-status bad";
+    status.textContent=err.message;
+  }
+}
+
+async function addWritingTopic(event,slot){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const status=form.querySelector("[data-add-status]");
+  const topic=form.querySelector("textarea[name=topic]").value.trim();
+  status.className="writing-status";
+  status.textContent="Saving…";
+  try{
+    await api("/api/admin/writing-topics",{
+      method:"POST",
+      body:JSON.stringify({task_slot:slot,topic})
+    });
+    await loadWritingTopics();
+  }catch(err){
+    status.className="writing-status bad";
+    status.textContent=err.message;
+  }
 }
 
 async function loadBankCards(){
