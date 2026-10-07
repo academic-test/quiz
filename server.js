@@ -57,6 +57,41 @@ async function getAssessmentConfig() {
   return { yearLevel:"10", sectionCounts, totalQuestionCount, writingTaskCount:2 };
 }
 
+
+async function getAssessmentWritingTasks() {
+  const fallback = getWritingTasks();
+  if (!supabase) return fallback;
+
+  const { data, error } = await supabase
+    .from("writing_topics")
+    .select("id,task_slot,topic")
+    .eq("active", true)
+    .in("task_slot", [1,2])
+    .order("created_at", { ascending: true });
+
+  if (error || !data) {
+    if (error) console.error("Writing topic lookup failed", error);
+    return fallback;
+  }
+
+  const bySlot = { 1: [], 2: [] };
+  for (const row of data) {
+    if (bySlot[row.task_slot]) bySlot[row.task_slot].push(row);
+  }
+
+  if (!bySlot[1].length || !bySlot[2].length) return fallback;
+
+  return [1,2].map(slot => {
+    const chosen = pick(bySlot[slot]);
+    return {
+      id: "we-" + slot,
+      title: "Written Expression " + slot,
+      time: 25 * 60,
+      prompt: "Write a piece in response to this idea: " + chosen.topic + " You may write a story, persuasive piece, discussion or personal reflection."
+    };
+  });
+}
+
 const {
   humanitiesQuestion,
   mathematicsScienceQuestion,
@@ -1103,7 +1138,7 @@ app.post("/api/assessments/start", async (req,res) => {
       section_counts:config.sectionCounts,
       ready:true,
       manifest:[],
-      writing_tasks:getWritingTasks(),
+      writing_tasks:await getAssessmentWritingTasks(),
       questions:[]
     });
   } catch(error) {
@@ -1394,6 +1429,93 @@ app.patch("/api/attempts/:id", async (req,res) => {
   res.json({ ok:true, score, correct_count:correctCount, wrong_count:wrongCount, timeout_count:timeoutCount, average_response_seconds:averageResponseSeconds });
 });
 
+
+// Written Expression topic administration.
+app.get("/api/admin/writing-topics", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const { data, error } = await supabase
+    .from("writing_topics")
+    .select("id,task_slot,topic,active,created_at,updated_at")
+    .in("task_slot",[1,2])
+    .order("task_slot",{ascending:true})
+    .order("created_at",{ascending:true});
+
+  if (error) return res.status(400).json({ error:error.message });
+  res.json({ topics:data||[] });
+});
+
+app.post("/api/admin/writing-topics", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const taskSlot=Number(req.body?.task_slot);
+  const topic=String(req.body?.topic||"").trim();
+  if (![1,2].includes(taskSlot)) return res.status(400).json({ error:"Invalid Written Expression task" });
+  if (!topic || topic.length>2000) return res.status(400).json({ error:"Topic is required and must be 2000 characters or fewer" });
+
+  const id="WT-"+taskSlot+"-"+crypto.randomUUID();
+  const row={id,task_slot:taskSlot,topic,active:true};
+  const { error }=await supabase.from("writing_topics").insert(row);
+  if(error) return res.status(400).json({ error:error.message });
+  res.status(201).json({ ok:true,topic:row });
+});
+
+app.put("/api/admin/writing-topics/:id", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const id=String(req.params.id||"").trim();
+  const topic=String(req.body?.topic||"").trim();
+  if(!id) return res.status(400).json({ error:"Topic id is required" });
+  if(!topic || topic.length>2000) return res.status(400).json({ error:"Topic is required and must be 2000 characters or fewer" });
+
+  const { data: existing, error:lookupError }=await supabase
+    .from("writing_topics")
+    .select("id,task_slot")
+    .eq("id",id)
+    .maybeSingle();
+
+  if(lookupError) return res.status(400).json({ error:lookupError.message });
+  if(!existing) return res.status(404).json({ error:"Writing topic not found" });
+
+  const { error }=await supabase
+    .from("writing_topics")
+    .update({topic,updated_at:new Date().toISOString()})
+    .eq("id",id);
+
+  if(error) return res.status(400).json({ error:error.message });
+  res.json({ ok:true,id });
+});
+
+app.delete("/api/admin/writing-topics/:id", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const id=String(req.params.id||"").trim();
+  const { data: existing, error:lookupError }=await supabase
+    .from("writing_topics")
+    .select("id,task_slot")
+    .eq("id",id)
+    .maybeSingle();
+
+  if(lookupError) return res.status(400).json({ error:lookupError.message });
+  if(!existing) return res.status(404).json({ error:"Writing topic not found" });
+
+  const { count, error:countError }=await supabase
+    .from("writing_topics")
+    .select("id",{count:"exact",head:true})
+    .eq("task_slot",existing.task_slot)
+    .eq("active",true);
+
+  if(countError) return res.status(400).json({ error:countError.message });
+  if(Number(count)<=1) return res.status(409).json({ error:"Keep at least one active topic for this Written Expression task." });
+
+  const { error }=await supabase
+    .from("writing_topics")
+    .delete()
+    .eq("id",id);
+
+  if(error) return res.status(400).json({ error:error.message });
+  res.json({ ok:true,id });
+});
 
 // Question-bank administration.
 const ADMIN_BANK_SECTIONS = new Set(["humanities","mathematics_science"]);
