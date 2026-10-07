@@ -217,6 +217,21 @@ The supplied `Volume 1 Exam Pack Question Book.pdf` remains a secondary blueprin
 
 The supplied LANTITE numeracy practice PDF is a secondary reference for numeracy/data question formats only. It must not be treated as the scholarship-test structure and must not be copied.
 
+## Post-start subject selection contract
+
+After the student enters their name and starts an assessment, the app may present a subject-selection screen before the first question.
+
+- The student can choose **Humanities** or **Mathematics & Science**.
+- Subject selection changes only which existing assessment component is opened first; it must not alter question generation, stimulus grouping, page grouping, answer validation, review behaviour, or question data.
+- Humanities must retain its permanent stimulus-page flow exactly as defined below.
+- Mathematics & Science must retain its permanent shared-topic/page flow exactly as defined below.
+- The selected component must load its complete MCQ question range before its first page is rendered.
+- The selected component keeps its existing single overall 40-minute component timer.
+- Once a subject is selected, the student stays in that component until it is submitted or times out.
+- Subject selection must be persisted for refresh/restore. A refresh before subject selection returns to the subject-selection screen without starting a component timer.
+- Completing the selected component ends that practice attempt and shows its result; do not silently continue into another component.
+- Do not modify the underlying Humanities or Mathematics & Science grouping rules to implement subject selection.
+
 ## Permanent Mathematics & Science multi-question-page contract
 
 **NON-NEGOTIABLE:** Mathematics & Science must use the same page-level review flow as Humanities, while remaining completely separate from the Humanities implementation.
