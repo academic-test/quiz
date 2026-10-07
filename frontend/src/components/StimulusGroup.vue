@@ -64,7 +64,7 @@
 
     <div class="stimulus-navigation">
       <button
-        v-if="!pageComplete"
+        v-if="!pageReviewed"
         class="primary-btn review-submit-btn"
         type="button"
         :disabled="saving || unansweredCount > 0"
@@ -85,7 +85,7 @@
     </div>
 
     <div class="question-state">
-      <span v-if="pageComplete">Your answers for this page have been saved. Explanations are shown below each question. Click Next Page to continue.</span>
+      <span v-if="pageReviewed">Your answers for this page have been saved. Explanations are shown below each question. Click Next Page to continue.</span>
       <span v-else>Answer every question on this page, then select Save Answer & Review.</span>
     </div>
   </article>
@@ -112,6 +112,7 @@ const props = defineProps({
   answeredCount: { type: Number, default: 0 },
   unansweredCount: { type: Number, default: 0 },
   pageComplete: { type: Boolean, default: false },
+  pageReviewed: { type: Boolean, default: false },
   results: { type: Object, default: () => ({}) }
 });
 
