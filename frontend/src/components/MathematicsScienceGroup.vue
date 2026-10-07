@@ -8,6 +8,18 @@
       <span class="stimulus-status">{{ answeredCount }} / {{ questions.length }} answered</span>
     </div>
 
+    <div class="stimulus-panel stimulus-panel-large" v-if="questions[0]?.passage || questions[0]?.stimulus_image">
+      <img
+        v-if="questions[0]?.stimulus_image"
+        class="stimulus-image"
+        :src="questions[0].stimulus_image"
+        alt="Mathematics and Science stimulus"
+      />
+      <div v-if="questions[0]?.passage" class="passage math-science-passage">
+        {{ questions[0].passage }}
+      </div>
+    </div>
+
     <div class="stimulus-questions">
       <section
         v-for="question in questions"
@@ -17,10 +29,6 @@
         <div class="stimulus-question-number">
           Question {{ questionNumber(question) }}
           <span v-if="selectedAnswer(question) !== null && selectedAnswer(question) !== undefined">Answer selected</span>
-        </div>
-
-        <div v-if="question.passage" class="passage math-science-passage">
-          {{ question.passage }}
         </div>
 
         <div class="question-text">{{ question.q }}</div>
