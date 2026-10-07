@@ -866,9 +866,61 @@ app.get("/api/admin/me", requireAdmin, (req,res) => res.json({ ok:true }));
 
 app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-  const { data, error } = await supabase.from("quiz_attempts").select("*").order("started_at",{ascending:false}).limit(500);
-  if (error) return res.status(400).json({ error:error.message });
-  res.json({ attempts:data || [] });
+
+  const [{ data: attempts, error: attemptsError }, { data: responses, error: responsesError }] = await Promise.all([
+    supabase.from("quiz_attempts").select("*").order("started_at",{ascending:false}).limit(500),
+    supabase.from("quiz_responses").select("attempt_id,is_correct,timed_out,response_seconds")
+  ]);
+
+  if (attemptsError || responsesError) {
+    return res.status(400).json({ error:(attemptsError || responsesError).message });
+  }
+
+  const aggregates = new Map();
+  for (const response of responses || []) {
+    const current = aggregates.get(response.attempt_id) || {
+      answered_count: 0,
+      correct_count: 0,
+      wrong_count: 0,
+      timeout_count: 0,
+      total_response_seconds: 0
+    };
+    current.answered_count += 1;
+    if (response.timed_out) {
+      current.timeout_count += 1;
+    } else if (response.is_correct) {
+      current.correct_count += 1;
+    } else {
+      current.wrong_count += 1;
+    }
+    current.total_response_seconds += Number(response.response_seconds || 0);
+    aggregates.set(response.attempt_id, current);
+  }
+
+  const enriched = (attempts || []).map(attempt => {
+    const aggregate = aggregates.get(attempt.id);
+    if (!aggregate || aggregate.answered_count === 0) {
+      return {
+        ...attempt,
+        answered_count: 0
+      };
+    }
+
+    const score = Math.round((aggregate.correct_count / aggregate.answered_count) * 100);
+    const average = aggregate.total_response_seconds / aggregate.answered_count;
+
+    return {
+      ...attempt,
+      score,
+      correct_count: aggregate.correct_count,
+      wrong_count: aggregate.wrong_count,
+      timeout_count: aggregate.timeout_count,
+      average_response_seconds: Number(average.toFixed(3)),
+      answered_count: aggregate.answered_count
+    };
+  });
+
+  res.json({ attempts:enriched });
 });
 
 app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
