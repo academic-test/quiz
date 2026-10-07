@@ -156,7 +156,7 @@
       />
 
       <QuestionCard
-        v-else-if="currentQuestion"
+        v-else-if="!isHumanitiesBlock && !isMathematicsScienceBlock && currentQuestion"
         :question="currentQuestion"
         :section-label="sectionLabel"
         :selected="selected"
@@ -188,7 +188,7 @@
         @submit="submitBlock"
       />
 
-      <div v-else-if="currentBlock.type === 'mcq'" class="question-grid">
+      <div v-else-if="currentBlock.type === 'mcq' && !isHumanitiesBlock && !isMathematicsScienceBlock" class="question-grid">
         <button
           v-for="(item, offset) in currentBlockQuestions"
           :key="item.id"
