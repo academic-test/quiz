@@ -685,11 +685,11 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
     let question = null;
     if (section === "humanities") {
-      if (!humanitiesStimulusRows) humanitiesStimulusRows = humanitiesStimulusSet();
+      if (!humanitiesStimulusRows) humanitiesStimulusRows = humanitiesStimulusSet(sessionId);
       question = humanitiesStimulusRows.shift();
       if (!question) break;
     } else if (section === "mathematics_science") {
-      if (!mathScienceStimulusRows) mathScienceStimulusRows = mathematicsScienceStimulusSet();
+      if (!mathScienceStimulusRows) mathScienceStimulusRows = mathematicsScienceStimulusSet(sessionId);
       question = mathScienceStimulusRows.shift();
       if (!question) break;
     } else {
