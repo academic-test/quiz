@@ -867,17 +867,28 @@ app.get("/api/admin/me", requireAdmin, (req,res) => res.json({ ok:true }));
 app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
 
-  const [{ data: attempts, error: attemptsError }, { data: responses, error: responsesError }] = await Promise.all([
-    supabase.from("quiz_attempts").select("*").order("started_at",{ascending:false}).limit(500),
-    supabase.from("quiz_responses").select("attempt_id,is_correct,timed_out,response_seconds")
-  ]);
+  const { data: attempts, error: attemptsError } = await supabase
+    .from("quiz_attempts")
+    .select("*")
+    .order("started_at",{ascending:false})
+    .limit(500);
 
-  if (attemptsError || responsesError) {
-    return res.status(400).json({ error:(attemptsError || responsesError).message });
+  if (attemptsError) return res.status(400).json({ error:attemptsError.message });
+
+  const responses = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data: page, error } = await supabase
+      .from("quiz_responses")
+      .select("attempt_id,is_correct,timed_out,response_seconds")
+      .range(from, from + pageSize - 1);
+    if (error) return res.status(400).json({ error:error.message });
+    responses.push(...(page || []));
+    if (!page || page.length < pageSize) break;
   }
 
   const aggregates = new Map();
-  for (const response of responses || []) {
+  for (const response of responses) {
     const current = aggregates.get(response.attempt_id) || {
       answered_count: 0,
       correct_count: 0,
@@ -902,7 +913,10 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
     if (!aggregate || aggregate.answered_count === 0) {
       return {
         ...attempt,
-        answered_count: 0
+        answered_count: 0,
+        correct_count: 0,
+        wrong_count: 0,
+        timeout_count: 0
       };
     }
 
@@ -925,15 +939,61 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
 
 app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-  const [{ data: attempt, error: attemptError }, { data: responses, error: responseError }, { data: writingResponses, error: writingError }] = await Promise.all([
-    supabase.from("quiz_attempts").select("*").eq("id", req.params.id).maybeSingle(),
-    supabase.from("quiz_responses").select("*").eq("attempt_id", req.params.id).order("answered_at",{ascending:true}),
-    supabase.from("quiz_writing_responses").select("*").eq("attempt_id", req.params.id).order("submitted_at",{ascending:true})
-  ]);
+
+  const { data: attempt, error: attemptError } = await supabase
+    .from("quiz_attempts")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
   if (attemptError) return res.status(400).json({ error:attemptError.message });
   if (!attempt) return res.status(404).json({ error:"Attempt not found" });
-  if (responseError || writingError) return res.status(400).json({ error:(responseError || writingError).message });
-  res.json({ attempt, responses:responses || [], writing_responses:writingResponses || [] });
+
+  const [
+    { data: questions, error:questionError },
+    { data: responses, error:responseError },
+    { data: writingResponses, error:writingError }
+  ] = await Promise.all([
+    supabase
+      .from("generated_questions")
+      .select("id,section,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image")
+      .eq("session_id", attempt.session_id)
+      .eq("year_level", attempt.year_level || "10"),
+    supabase
+      .from("quiz_responses")
+      .select("*")
+      .eq("attempt_id", req.params.id)
+      .order("answered_at",{ascending:true}),
+    supabase
+      .from("quiz_writing_responses")
+      .select("*")
+      .eq("attempt_id", req.params.id)
+      .order("submitted_at",{ascending:true})
+  ]);
+
+  if (questionError || responseError || writingError) {
+    return res.status(400).json({ error:(questionError || responseError || writingError).message });
+  }
+
+  const sectionOrder = { humanities: 0, mathematics_science: 1 };
+  const orderedQuestions = [...(questions || [])].sort((a,b) =>
+    (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
+    String(a.stimulus_group || "").localeCompare(String(b.stimulus_group || "")) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+
+  const responseByQuestion = new Map((responses || []).map(response => [response.question_id, response]));
+  const detailedResponses = orderedQuestions.map(question => ({
+    ...question,
+    ...(responseByQuestion.get(question.id) || {}),
+    answered: responseByQuestion.has(question.id)
+  }));
+
+  res.json({
+    attempt,
+    responses:detailedResponses,
+    writing_responses:writingResponses || []
+  });
 });
 
 app.post("/api/assessments/start", async (req,res) => {
@@ -1164,6 +1224,9 @@ app.post("/api/responses", async (req,res) => {
 
   const { error } = await supabase.from("quiz_responses").insert(payload);
 
+  if (error?.code === "23505") {
+    return res.status(409).json({ error:"This response is already locked" });
+  }
   if (error) return res.status(400).json({ error:error.message });
   res.status(200).json({ ok:true, correct, correct_answer:question.correct_answer, explanation:question.explanation });
 });
