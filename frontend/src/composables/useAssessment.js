@@ -60,7 +60,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v11";
+const STORAGE_KEY = "acer-level2-year10-quiz-v12";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -86,6 +86,7 @@ export function useAssessment() {
   const feedback = ref(null);
   const previousFeedback = ref(null);
   const stimulusIndex = ref(0);
+  const reviewedStimuli = ref({});
   const questionOpenedAtById = ref({});
 
   let timerHandle = null;
@@ -122,10 +123,20 @@ export function useAssessment() {
   const currentStimulusUnansweredCount = computed(() =>
     currentStimulusQuestions.value.length - currentStimulusAnsweredCount.value
   );
-  const currentStimulusComplete = computed(() =>
-    currentStimulusQuestions.value.length > 0 &&
-    currentStimulusQuestions.value.every(question => Boolean(results.value[question.id]))
-  );
+  const currentStimulusComplete = computed(() => {
+    const group = currentStimulusGroups.value[stimulusIndex.value];
+    if (!group || !group.questions.length) return false;
+
+    // Explicit page review state is the source of truth for the Review -> Next
+    // transition. Results are still required so a page can never be marked
+    // reviewed before every answer has actually been saved.
+    return Boolean(reviewedStimuli.value[group.key]) &&
+      group.questions.every(question => Boolean(results.value[question.id]));
+  });
+  const currentStimulusReviewed = computed(() => {
+    const group = currentStimulusGroups.value[stimulusIndex.value];
+    return Boolean(group && reviewedStimuli.value[group.key]);
+  });
   const stimulusQuestionStart = computed(() => {
     const first = currentStimulusQuestions.value[0];
     if (!first) return 1;
@@ -256,6 +267,7 @@ export function useAssessment() {
         writingOpenedAt,
         previousFeedback: previousFeedback.value,
         stimulusIndex: stimulusIndex.value,
+        reviewedStimuli: reviewedStimuli.value,
         questionOpenedAtById: questionOpenedAtById.value
       }));
     } catch (error) {
@@ -368,6 +380,7 @@ export function useAssessment() {
       writingSubmitted.value = {};
       questionOpenedAtById.value = {};
       stimulusIndex.value = 0;
+      reviewedStimuli.value = {};
       questionIndex.value = 0;
       currentStage.value = 0;
       feedback.value = null;
@@ -673,6 +686,7 @@ export function useAssessment() {
 
   async function submitHumanitiesAnswers() {
     if (!isHumanitiesBlock.value || savingResponse.value) return false;
+    if (currentStimulusReviewed.value) return true;
 
     const selectedQuestions = currentStimulusQuestions.value.filter(question => {
       const answer = answers.value[question.id];
@@ -683,6 +697,17 @@ export function useAssessment() {
       const saved = await saveQuestionResponse(question, false);
       if (!saved) return false;
     }
+
+    const group = currentStimulusGroups.value[stimulusIndex.value];
+    if (!group || !group.questions.every(question => Boolean(results.value[question.id]))) {
+      return false;
+    }
+
+    reviewedStimuli.value = {
+      ...reviewedStimuli.value,
+      [group.key]: true
+    };
+    persistState();
     return true;
   }
 
@@ -790,7 +815,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 11 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 12 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
@@ -805,6 +830,7 @@ export function useAssessment() {
       questionStates.value = saved.questionStates || {};
       results.value = saved.results || {};
       submittedBlocks.value = saved.submittedBlocks || {};
+      reviewedStimuli.value = saved.reviewedStimuli || {};
       writingTasks.value = saved.writingTasks || [];
       writingDrafts.value = saved.writingDrafts || {};
       writingSubmitted.value = saved.writingSubmitted || {};
@@ -892,6 +918,8 @@ export function useAssessment() {
     unansweredCount,
     feedback,
     previousFeedback,
+    currentStimulusReviewed,
+    reviewedStimuli,
     resultStats,
     resultTitle,
     startTest,
