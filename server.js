@@ -659,6 +659,7 @@ async function generateQuestions(req, sessionId, config) {
   // Fill any remaining quota with generated questions.
   let attempts = 0;
   const maxAttempts = Math.max(6000, neededTotal * 500);
+  let mathScienceStimulusRows = null;
 
   while (pending.length < neededTotal && attempts < maxAttempts) {
     attempts += 1;
