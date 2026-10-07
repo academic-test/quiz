@@ -586,7 +586,7 @@ async function releaseStaleQuestionBankClaims() {
 
   const { error } = await supabase
     .from("generated_questions")
-    .update({ session_id: null, ip_hash: null })
+    .update({ session_id: null })
     .eq("year_level", "10")
     .eq("is_bank", true)
     .in("session_id", sessionIds);
@@ -690,7 +690,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       if (claimedIdSet.size) {
         await supabase
           .from("generated_questions")
-          .update({ session_id: null, ip_hash: null })
+          .update({ session_id: null })
           .eq("is_bank", true)
           .in("id", [...claimedIdSet])
           .eq("session_id", sessionId);
