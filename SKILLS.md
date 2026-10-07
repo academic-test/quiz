@@ -86,9 +86,14 @@ Do not use individual-question countdowns as a substitute for the source test co
 - Written Expression 2 is 25 minutes.
 - MCQ components use one overall component timer; there are no per-question countdowns.
 - Selecting an answer only highlights it locally. It is not saved or locked until the student commits it.
-- First click on Next Question records the selected answer, locks the response, and displays the correct answer plus explanation on the SAME question.
-- The student must click Next Question a SECOND time to move to the next MCQ question.
-- On the final MCQ of a component, the first click records the final answer and displays feedback on the same question; the second click submits the completed component when all questions are answered.
+- Non-Humanities MCQ components may use question-level Next navigation as defined by their component.
+- Humanities is a permanent exception: it NEVER uses one-question-per-page navigation.
+- Humanities always shows one complete shared stimulus page containing multiple associated questions.
+- Humanities page navigation is stimulus-set based, not question based.
+- On each Humanities page, Save Answer & Review is disabled until every question on that page has an answer.
+- Clicking Save Answer & Review saves every answer on that page and shows correctness, the correct answer when needed, and the explanation directly below each question's answer choices.
+- After successful review, the SAME button becomes Next Page → and advances to the next stimulus set.
+- A Humanities page must never regress to showing a single question with its own Next Question button.
 - After feedback is displayed, the recorded response cannot be changed.
 - Skip is available only before an answer is selected. A skipped question can be revisited within the same unsubmitted MCQ component.
 - Previous navigation is allowed within the current unsubmitted MCQ component. Recorded answers remain locked and their feedback is restored when revisited.
@@ -252,3 +257,5 @@ For every Humanities stimulus page:
 - Keep timing data for admin analysis.
 - Verify the Render deployment is Live before asking the user to test.
 - Never overwrite the working Vue app with partial snippets.
+- Before changing Humanities navigation or rendering, read and obey the Permanent Humanities stimulus-page contract above.
+- Never solve a Humanities grouping bug by reverting to individual-question paging.
