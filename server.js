@@ -606,15 +606,10 @@ async function generateQuestions(req, sessionId, config) {
       continue;
     }
 
+    if (section === "mathematics_science") continue;
+
     const bankCount = Math.min(needed, neededTotal - pending.length);
-    const selected = section === "humanities"
-      ? pickStimulusGroups(bankRows || [], bankCount, used, 5)
-      : pickDiverseQuestions(
-          bankRows || [],
-          bankCount,
-          used,
-          pending.length ? questionType(pending[pending.length - 1]) : ""
-        );
+    const selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
 
     if (!selected.length) continue;
 
