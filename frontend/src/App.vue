@@ -27,33 +27,39 @@
       <div class="hero-icon">📚</div>
       <div class="eyebrow">SELECT YOUR TEST</div>
       <h2>Which test would you like to practise?</h2>
-      <p>Choose one subject to begin. Your selected test keeps its existing page grouping, review and timing exactly as configured.</p>
+      <p>
+        Choose a subject to begin. Your selected test keeps its existing page grouping, review and timing exactly as configured.
+        You can come back here after finishing a subject to choose the other one.
+      </p>
 
       <div class="section-choice-grid">
         <button
           class="section-choice"
           type="button"
-          :disabled="starting"
+          :disabled="starting || Boolean(completedPracticeSections.humanities)"
           @click="selectPracticeSection('humanities')"
         >
           <strong>Humanities</strong>
           <span>40 questions · 40 minutes</span>
-          <small>Stimulus pages with multiple questions</small>
+          <small v-if="completedPracticeSections.humanities">Completed in this assessment</small>
+          <small v-else>Stimulus pages with multiple questions</small>
         </button>
 
         <button
           class="section-choice"
           type="button"
-          :disabled="starting"
+          :disabled="starting || Boolean(completedPracticeSections['mathematics-science'])"
           @click="selectPracticeSection('mathematics-science')"
         >
           <strong>Mathematics &amp; Science</strong>
           <span>32 questions · 40 minutes</span>
-          <small>Shared-topic pages with multiple questions</small>
+          <small v-if="completedPracticeSections['mathematics-science']">Completed in this assessment</small>
+          <small v-else>Shared-topic pages with multiple questions</small>
         </button>
       </div>
 
-      <p v-if="starting" class="timer-note">Loading your selected test…</p>
+      <p v-if="bothSubjectsComplete" class="timer-note">Both subjects are complete.</p>
+      <p v-else-if="starting" class="timer-note">Loading your selected test…</p>
       <p v-if="startError" class="start-error">{{ startError }}</p>
     </section>
 
@@ -289,6 +295,7 @@ const {
   currentMathScienceAnsweredCount,
   currentMathScienceUnansweredCount,
   currentMathScienceReviewed,
+  completedPracticeSections,
   currentStimulusGroups,
   currentStimulusQuestions,
   currentStimulusPassage,
