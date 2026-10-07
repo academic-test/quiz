@@ -642,9 +642,9 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
   const pendingIds = new Set();
   const claimedBankIds = new Set();
 
-  // Prefer the persistent question bank for Humanities. Bank rows are
-  // claimed by attaching them to the new session, so the same bank question
-  // cannot be served again to a later assessment.
+  // Prefer the persistent question bank for the grouped Year 10 MCQ sections.
+  // Bank rows are claimed by attaching them to the new session, then released
+  // after completion or expiry so the bank does not permanently deplete.
   for (const [section, quota] of quotas) {
     const needed = Math.max(
       0,
