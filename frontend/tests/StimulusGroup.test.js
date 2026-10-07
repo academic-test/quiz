@@ -29,6 +29,7 @@ describe("StimulusGroup", () => {
     expect(wrapper.findAll(".stimulus-question")).toHaveLength(6);
     expect(wrapper.text()).toContain("Question 1");
     expect(wrapper.text()).toContain("Question 6");
+    expect(wrapper.findAll(".page-question-nav")).toHaveLength(6);
 
     const review = wrapper.find("button.review-submit-btn");
     expect(review.text()).toContain("Save Answer & Review");
@@ -57,6 +58,7 @@ describe("StimulusGroup", () => {
     });
 
     expect(wrapper.findAll(".stimulus-feedback")).toHaveLength(6);
+    expect(wrapper.findAll(".stimulus-feedback-explanation")).toHaveLength(6);
     expect(wrapper.text()).toContain("Explanation for q1");
     expect(wrapper.text()).toContain("Explanation for q6");
     expect(wrapper.find("button.review-submit-btn").text()).toContain("Next Page");
