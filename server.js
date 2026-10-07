@@ -549,8 +549,59 @@ function makeQuestion(section) {
   return makeReadingQuestion();
 }
 
+async function releaseStaleQuestionBankClaims() {
+  if (!supabase) return;
+
+  const cutoff = new Date(Date.now() - assessmentTtlMs).toISOString();
+  const [
+    { data: completedAttempts, error: completedError },
+    { data: expiredAttempts, error: expiredError }
+  ] = await Promise.all([
+    supabase
+      .from("quiz_attempts")
+      .select("session_id")
+      .eq("year_level", "10")
+      .not("completed_at", "is", null)
+      .limit(1000),
+    supabase
+      .from("quiz_attempts")
+      .select("session_id")
+      .eq("year_level", "10")
+      .is("completed_at", null)
+      .lt("started_at", cutoff)
+      .limit(1000)
+  ]);
+
+  if (completedError || expiredError) {
+    console.error("Question bank cleanup lookup failed", completedError || expiredError);
+    return;
+  }
+
+  const sessionIds = [...new Set([
+    ...(completedAttempts || []).map(row => row.session_id),
+    ...(expiredAttempts || []).map(row => row.session_id)
+  ].filter(Boolean))];
+
+  if (!sessionIds.length) return;
+
+  const { error } = await supabase
+    .from("generated_questions")
+    .update({ session_id: null, ip_hash: null })
+    .eq("year_level", "10")
+    .eq("is_bank", true)
+    .in("session_id", sessionIds);
+
+  if (error) console.error("Question bank cleanup failed", error);
+}
+
 async function generateQuestions(req, sessionId, config, targetSection = null) {
   if (!supabase) return [];
+
+  try {
+    await releaseStaleQuestionBankClaims();
+  } catch (error) {
+    console.error("Question bank cleanup failed", error);
+  }
 
   const quotas = targetSection
     ? [[targetSection, Number(config.sectionCounts[targetSection]) || 0]]
@@ -603,9 +654,10 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
     const { data: bankRows, error: bankError } = await supabase
       .from("generated_questions")
-      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation")
+      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
       .eq("year_level", config.yearLevel)
       .eq("section", section)
+      .eq("is_bank", true)
       .is("session_id", null)
       .limit(5000);
 
@@ -614,22 +666,35 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       continue;
     }
 
-    if (section === "mathematics_science") continue;
-
     const bankCount = Math.min(needed, neededTotal - pending.length);
     const selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
 
     if (!selected.length) continue;
 
     const selectedIds = selected.map(source => source.id);
-    const { error: claimError } = await supabase
+    const { data: claimedRows, error: claimError } = await supabase
       .from("generated_questions")
       .update({ session_id: sessionId, ip_hash: ipHash(req) })
       .in("id", selectedIds)
-      .is("session_id", null);
+      .eq("is_bank", true)
+      .is("session_id", null)
+      .select("id");
 
     if (claimError) {
       console.error("Question bank claim failed", claimError);
+      continue;
+    }
+
+    const claimedIdSet = new Set((claimedRows || []).map(row => row.id));
+    if (claimedIdSet.size !== selectedIds.length) {
+      if (claimedIdSet.size) {
+        await supabase
+          .from("generated_questions")
+          .update({ session_id: null, ip_hash: null })
+          .eq("is_bank", true)
+          .in("id", [...claimedIdSet])
+          .eq("session_id", sessionId);
+      }
       continue;
     }
 
@@ -999,9 +1064,6 @@ app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
 app.post("/api/assessments/start", async (req,res) => {
   try {
     if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-    if (!rateLimit("assessment-start:" + clientIp(req), 5, 15 * 60 * 1000)) {
-      return res.status(429).json({ error:"Too many assessment starts. Please wait a few minutes and try again." });
-    }
 
     const { session_name, year_level } = req.body || {};
     const name = String(session_name || "").trim();
@@ -1009,6 +1071,10 @@ app.post("/api/assessments/start", async (req,res) => {
     if (name.length > 80) return res.status(400).json({ error:"Student name is too long" });
     if (String(year_level) !== "10") {
       return res.status(400).json({ error:"Only Year 10 Level 2 practice is available" });
+    }
+
+    if (!rateLimit("assessment-start:" + clientIp(req), 30, 15 * 60 * 1000)) {
+      return res.status(429).json({ error:"Too many assessment starts. Please wait a few minutes and try again." });
     }
 
     const config = await getAssessmentConfig();
@@ -1279,14 +1345,258 @@ app.patch("/api/attempts/:id", async (req,res) => {
     return res.status(429).json({ error:"Too many assessment requests. Please wait and try again." });
   }
 
-  const allowed = ["completed_at","score","correct_count","wrong_count","timeout_count","average_response_seconds"];
-  const patch = {};
-  for (const field of allowed) if (req.body[field] !== undefined) patch[field] = req.body[field];
+  const { data: attempt, error: attemptError } = await supabase
+    .from("quiz_attempts")
+    .select("id,session_id")
+    .eq("id", req.params.id)
+    .eq("session_id", session_id)
+    .maybeSingle();
 
-  const { error } = await supabase.from("quiz_attempts").update(patch).eq("id",req.params.id).eq("session_id",session_id);
+  if (attemptError) return res.status(400).json({ error:attemptError.message });
+  if (!attempt) return res.status(404).json({ error:"Attempt not found" });
+
+  const { data: responseRows, error: responseError } = await supabase
+    .from("quiz_responses")
+    .select("is_correct,timed_out,response_seconds")
+    .eq("attempt_id", req.params.id);
+
+  if (responseError) return res.status(400).json({ error:responseError.message });
+
+  let correctCount = 0;
+  let wrongCount = 0;
+  let timeoutCount = 0;
+  let totalResponseSeconds = 0;
+
+  for (const row of responseRows || []) {
+    if (row.timed_out) timeoutCount += 1;
+    else if (row.is_correct) correctCount += 1;
+    else wrongCount += 1;
+    totalResponseSeconds += Number(row.response_seconds || 0);
+  }
+
+  const answeredCount = correctCount + wrongCount + timeoutCount;
+  const score = answeredCount ? Math.round((correctCount / answeredCount) * 100) : 0;
+  const averageResponseSeconds = answeredCount
+    ? Number((totalResponseSeconds / answeredCount).toFixed(3))
+    : 0;
+
+  const patch = {
+    completed_at: new Date().toISOString(),
+    score,
+    correct_count: correctCount,
+    wrong_count: wrongCount,
+    timeout_count: timeoutCount,
+    average_response_seconds: averageResponseSeconds
+  };
+
+  const { error } = await supabase
+    .from("quiz_attempts")
+    .update(patch)
+    .eq("id", req.params.id)
+    .eq("session_id", session_id);
+
   if (error) return res.status(400).json({ error:error.message });
 
+  res.json({ ok:true, score, correct_count:correctCount, wrong_count:wrongCount, timeout_count:timeoutCount, average_response_seconds:averageResponseSeconds });
+});
+
+
+// Question-bank administration.
+const ADMIN_BANK_SECTIONS = new Set(["humanities","mathematics_science"]);
+
+function normalizeQuestionBankPayload(body, fallback = {}) {
+  const section = String(body?.section ?? fallback.section ?? "").trim();
+  const questionText = String(body?.question_text ?? fallback.question_text ?? "").trim();
+  const passage = String(body?.passage ?? fallback.passage ?? "").trim();
+  const stimulusGroup = String(body?.stimulus_group ?? fallback.stimulus_group ?? "").trim();
+  const stimulusImage = String(body?.stimulus_image ?? fallback.stimulus_image ?? "").trim();
+  const explanation = String(body?.explanation ?? fallback.explanation ?? "").trim();
+  const difficulty = String(body?.difficulty ?? fallback.difficulty ?? "medium").trim().toLowerCase();
+  const time = Number(body?.time ?? fallback.time ?? 60);
+  const options = Array.isArray(body?.answer_options)
+    ? body.answer_options.map(value => String(value ?? "").trim())
+    : Array.isArray(fallback.answer_options)
+      ? fallback.answer_options.map(value => String(value ?? "").trim())
+      : [];
+  const correctAnswer = Number(body?.correct_answer ?? fallback.correct_answer);
+
+  if (!ADMIN_BANK_SECTIONS.has(section)) throw new Error("Invalid question-bank section");
+  if (!questionText || questionText.length > 12000) throw new Error("Question text is required and must be 12000 characters or fewer");
+  if (!stimulusGroup || stimulusGroup.length > 200) throw new Error("Stimulus group is required");
+  if (options.length !== 4 || options.some(value => !value) || new Set(options.map(value => value.toLowerCase())).size !== 4) {
+    throw new Error("Exactly 4 unique answer options are required");
+  }
+  if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer > 3) {
+    throw new Error("Correct answer must be A, B, C or D");
+  }
+  if (!Number.isFinite(time) || time < 10 || time > 600) {
+    throw new Error("Time must be between 10 and 600 seconds");
+  }
+  if (!["easy","medium","hard"].includes(difficulty)) {
+    throw new Error("Difficulty must be easy, medium or hard");
+  }
+  if (passage.length > 30000 || explanation.length > 10000 || stimulusImage.length > 2000) {
+    throw new Error("Stimulus or explanation is too long");
+  }
+
+  return {
+    section,
+    question_text: questionText,
+    passage,
+    stimulus_group: stimulusGroup,
+    stimulus_image: stimulusImage || null,
+    explanation,
+    difficulty,
+    time: Math.round(time),
+    answer_options: options,
+    correct_answer: correctAnswer
+  };
+}
+
+app.get("/api/admin/question-bank", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+  const section = String(req.query.section || "").trim();
+  if (!ADMIN_BANK_SECTIONS.has(section)) return res.status(400).json({ error:"Invalid question-bank section" });
+
+  const { data, error } = await supabase
+    .from("generated_questions")
+    .select("id,year_level,section,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image,is_bank,session_id,created_at")
+    .eq("year_level","10")
+    .eq("section",section)
+    .eq("is_bank",true)
+    .order("stimulus_group",{ascending:true})
+    .order("id",{ascending:true});
+
+  if (error) return res.status(400).json({ error:error.message });
+
+  const activeCount = (data || []).filter(row => row.session_id).length;
+  res.json({ section, questions:data || [], count:(data || []).length, active_count:activeCount });
+});
+
+app.put("/api/admin/question-bank/group", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+  const section = String(req.body?.section || "").trim();
+  const stimulusGroup = String(req.body?.stimulus_group || "").trim();
+  const passage = String(req.body?.passage || "").trim();
+  const stimulusImage = String(req.body?.stimulus_image || "").trim();
+  if (!ADMIN_BANK_SECTIONS.has(section) || !stimulusGroup) return res.status(400).json({ error:"Section and stimulus group are required" });
+  if (passage.length > 30000 || stimulusImage.length > 2000) return res.status(400).json({ error:"Stimulus is too long" });
+
+  const { data: rows, error: lookupError } = await supabase
+    .from("generated_questions")
+    .select("id,session_id")
+    .eq("year_level","10")
+    .eq("section",section)
+    .eq("stimulus_group",stimulusGroup)
+    .eq("is_bank",true);
+
+  if (lookupError) return res.status(400).json({ error:lookupError.message });
+  if (!(rows || []).length) return res.status(404).json({ error:"Stimulus group not found" });
+  if ((rows || []).some(row => row.session_id)) {
+    return res.status(409).json({ error:"This stimulus is currently assigned to an active assessment. It can be edited after that assessment is released." });
+  }
+
+  const { error } = await supabase
+    .from("generated_questions")
+    .update({ passage, stimulus_image: stimulusImage || null })
+    .eq("year_level","10")
+    .eq("section",section)
+    .eq("stimulus_group",stimulusGroup)
+    .eq("is_bank",true)
+    .is("session_id",null);
+
+  if (error) return res.status(400).json({ error:error.message });
   res.json({ ok:true });
+});
+
+app.put("/api/admin/question-bank/:id", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+  const id = String(req.params.id || "").trim();
+  if (!id) return res.status(400).json({ error:"Question id is required" });
+
+  const { data: existing, error: lookupError } = await supabase
+    .from("generated_questions")
+    .select("*")
+    .eq("id",id)
+    .eq("year_level","10")
+    .eq("is_bank",true)
+    .maybeSingle();
+
+  if (lookupError) return res.status(400).json({ error:lookupError.message });
+  if (!existing) return res.status(404).json({ error:"Question not found in the question bank" });
+  if (existing.session_id) return res.status(409).json({ error:"This question is currently assigned to an active assessment. It can be edited after that assessment is released." });
+
+  let payload;
+  try {
+    payload = normalizeQuestionBankPayload(req.body, existing);
+  } catch (error) {
+    return res.status(400).json({ error:error.message });
+  }
+
+  const { error } = await supabase
+    .from("generated_questions")
+    .update(payload)
+    .eq("id",id)
+    .eq("year_level","10")
+    .eq("is_bank",true)
+    .is("session_id",null);
+
+  if (error) return res.status(400).json({ error:error.message });
+  res.json({ ok:true, id });
+});
+
+app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  let payload;
+  try {
+    payload = normalizeQuestionBankPayload(req.body);
+  } catch (error) {
+    return res.status(400).json({ error:error.message });
+  }
+
+  let passage = payload.passage;
+  let stimulusImage = payload.stimulus_image;
+  if (!passage || !stimulusImage) {
+    const { data: sibling, error: siblingError } = await supabase
+      .from("generated_questions")
+      .select("passage,stimulus_image")
+      .eq("year_level","10")
+      .eq("section",payload.section)
+      .eq("stimulus_group",payload.stimulus_group)
+      .eq("is_bank",true)
+      .order("id",{ascending:true})
+      .limit(1)
+      .maybeSingle();
+    if (siblingError) return res.status(400).json({ error:siblingError.message });
+    if (sibling) {
+      if (!passage) passage = sibling.passage || "";
+      if (!stimulusImage) stimulusImage = sibling.stimulus_image || "";
+    }
+  }
+
+  const id = "QB-" + (payload.section === "humanities" ? "HUM" : "MS") + "-" + crypto.randomUUID();
+  const row = {
+    id,
+    session_id:null,
+    ip_hash:crypto.createHash("sha256").update("admin-question-bank|" + id).digest("hex"),
+    year_level:"10",
+    section:payload.section,
+    difficulty:payload.difficulty,
+    time:payload.time,
+    question_text:payload.question_text,
+    answer_options:payload.answer_options,
+    correct_answer:payload.correct_answer,
+    explanation:payload.explanation,
+    passage,
+    stimulus_group:payload.stimulus_group,
+    stimulus_image:stimulusImage || null,
+    is_bank:true
+  };
+
+  const { error } = await supabase.from("generated_questions").insert(row);
+  if (error) return res.status(400).json({ error:error.message });
+  res.status(201).json({ ok:true, question:row });
 });
 
 app.get("/admin", (req,res) => res.sendFile(path.join(publicDir,"admin.html")));
