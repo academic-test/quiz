@@ -7,6 +7,7 @@ import {
   startAssessment
 } from "../services/quizApi";
 import { buildHumanitiesStimulusGroups } from "../utils/humanitiesStimuli";
+import { buildMathScienceStimulusGroups } from "../utils/mathScienceStimuli";
 
 export const totalQuestions = 72;
 
@@ -105,21 +106,11 @@ export function useAssessment() {
   const isMathematicsScienceBlock = computed(() =>
     currentBlock.value.type === "mcq" && currentBlock.value.key === "mathematics-science"
   );
-  const currentMathScienceGroups = computed(() => {
-    if (!isMathematicsScienceBlock.value) return [];
-    const groups = [];
-    const pageSize = 4;
-    const questionsForBlock = questions.value
-      .slice(currentBlock.value.start, currentBlock.value.end + 1)
-      .filter(Boolean);
-    for (let offset = 0; offset < questionsForBlock.length; offset += pageSize) {
-      groups.push({
-        key: "MATH-SCI-PAGE-" + (Math.floor(offset / pageSize) + 1),
-        questions: questionsForBlock.slice(offset, offset + pageSize)
-      });
-    }
-    return groups;
-  });
+  const currentMathScienceGroups = computed(() =>
+    isMathematicsScienceBlock.value
+      ? buildMathScienceStimulusGroups(currentBlockQuestions.value)
+      : []
+  );
   const currentMathScienceQuestions = computed(() =>
     currentMathScienceGroups.value[mathSciencePageIndex.value]?.questions || []
   );
