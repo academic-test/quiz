@@ -679,7 +679,14 @@ async function generateQuestions(req, sessionId, config) {
     // rather than regressing to one-question-per-page.
     if (section === "humanities") break;
 
-    const question = mathematicsScienceQuestion();
+    let question = null;
+    if (section === "mathematics_science") {
+      if (!mathScienceStimulusRows) mathScienceStimulusRows = mathematicsScienceStimulusSet();
+      question = mathScienceStimulusRows.shift();
+      if (!question) break;
+    } else {
+      question = mathematicsScienceQuestion();
+    }
 
     question.year_level = config.yearLevel;
     question.session_id = sessionId;
