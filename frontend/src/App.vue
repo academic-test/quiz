@@ -296,6 +296,7 @@ const {
   currentMathScienceUnansweredCount,
   currentMathScienceReviewed,
   completedPracticeSections,
+  bothSubjectsComplete,
   currentStimulusGroups,
   currentStimulusQuestions,
   currentStimulusPassage,
