@@ -805,7 +805,7 @@ function varyQuestionText(text, variant) {
   return value;
 }
 
-function varyFreshRows(rows, sessionId, notes) {
+function varyFreshRows(rows, sessionId, notes, images = {}) {
   return rows.map((row, index) => {
     const variant = variantIndex(sessionId, row.stimulus_group || row.section, 4);
     const noteSet = notes[row.stimulus_group] || [
@@ -817,7 +817,8 @@ function varyFreshRows(rows, sessionId, notes) {
     return {
       ...row,
       question_text: varyQuestionText(row.question_text, variant + index),
-      passage: String(row.passage || "") + " " + noteSet[variant % noteSet.length]
+      passage: String(row.passage || "") + " " + noteSet[variant % noteSet.length],
+      stimulus_image: row.stimulus_image || images[row.stimulus_group] || null
     };
   });
 }
@@ -983,7 +984,15 @@ function humanitiesStimulusSet(sessionId = "") {
       "The message invites viewers to investigate unfamiliar subjects more closely."
     ]
   };
-  return varyFreshRows(rows, sessionId, notes);
+  const images = {
+    "HUM-FRESH-02": "/stimuli/humanities-regional-chart.svg",
+    "HUM-FRESH-03": "/stimuli/humanities-cartoon.svg",
+    "HUM-FRESH-04": "/stimuli/humanities-fashion-scale.svg",
+    "HUM-FRESH-05": "/stimuli/humanities-flight-experiments.svg",
+    "HUM-FRESH-07": "/stimuli/humanities-migration.svg",
+    "HUM-FRESH-08": "/stimuli/humanities-ad.svg"
+  };
+  return varyFreshRows(rows, sessionId, notes, images);
 }
 
 function mathematicsScienceStimulusSet(sessionId = "") {
@@ -1113,7 +1122,19 @@ function mathematicsScienceStimulusSet(sessionId = "") {
     "MATH-PAGE-09": ["Surface area is used as a practical capacity measure in the guide.", "Aeration changes the amount of fish length the tank can support.", "The calculations use combined body length rather than fish count alone.", "The guide applies the same capacity rule consistently across the questions."],
     "MATH-PAGE-10": ["The code system has two possible symbols at each position.", "The questions treat different orders as different sequences.", "The number of positions determines how many codes can be formed.", "The code tree illustrates how choices multiply as another position is added."]
   };
-  return varyFreshRows(rows, sessionId, notes);
+  const images = {
+    "MATH-PAGE-01": "/stimuli/math-landmass.svg",
+    "MATH-PAGE-02": "/stimuli/math-population.svg",
+    "MATH-PAGE-03": "/stimuli/math-air-quality.svg",
+    "MATH-PAGE-04": "/stimuli/math-tiles.svg",
+    "MATH-PAGE-05": "/stimuli/math-food-web.svg",
+    "MATH-PAGE-06": "/stimuli/math-blood-flow.svg",
+    "MATH-PAGE-07": "/stimuli/math-moving-average.svg",
+    "MATH-PAGE-08": "/stimuli/math-forgetting.svg",
+    "MATH-PAGE-09": "/stimuli/math-aquarium.svg",
+    "MATH-PAGE-10": "/stimuli/math-morse.svg"
+  };
+  return varyFreshRows(rows, sessionId, notes, images);
 }
 
 function questionFingerprint(question) {
