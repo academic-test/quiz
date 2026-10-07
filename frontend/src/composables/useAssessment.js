@@ -109,7 +109,9 @@ export function useAssessment() {
     if (!isMathematicsScienceBlock.value) return [];
     const groups = [];
     const pageSize = 4;
-    const questionsForBlock = currentBlockQuestions.value;
+    const questionsForBlock = questions.value
+      .slice(currentBlock.value.start, currentBlock.value.end + 1)
+      .filter(Boolean);
     for (let offset = 0; offset < questionsForBlock.length; offset += pageSize) {
       groups.push({
         key: "MATH-SCI-PAGE-" + (Math.floor(offset / pageSize) + 1),
