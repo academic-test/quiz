@@ -3,7 +3,7 @@ export function buildHumanitiesStimulusGroups(questions = []) {
   const byKey = new Map();
 
   const imageByGroup = {
-    "HUM-FRESH-02": "/stimuli/humanities-regional-chart.svg",
+    "HUM-FRESH-02": "/stimuli/humanities-business-comparison.svg",
     "HUM-FRESH-03": "/stimuli/humanities-cartoon.svg",
     "HUM-FRESH-04": "/stimuli/humanities-fashion-scale.svg",
     "HUM-FRESH-05": "/stimuli/humanities-flight-experiments.svg",
