@@ -13,10 +13,24 @@
       <div v-if="passage" class="passage">{{ passage }}</div>
     </div>
 
+    <nav class="page-question-navigation" aria-label="Questions on this page">
+      <span class="page-question-navigation-label">Jump to question:</span>
+      <button
+        v-for="question in questions"
+        :key="'nav-' + question.id"
+        type="button"
+        class="page-question-nav"
+        @click="scrollToQuestion(question)"
+      >
+        {{ questionNumber(question) }}
+      </button>
+    </nav>
+
     <div class="stimulus-questions">
       <section
         v-for="question in questions"
         :key="question.id"
+        :id="'stimulus-question-' + questionNumber(question)"
         class="stimulus-question"
       >
         <div class="stimulus-question-number">
@@ -32,7 +46,7 @@
             :key="index"
             class="option"
             :class="{ selected: selectedAnswer(question) === index }"
-            :disabled="saving"
+            :disabled="saving || Boolean(results?.[question.id])"
             type="button"
             @click="selectOption(question, index)"
           >
@@ -46,13 +60,17 @@
           class="stimulus-feedback"
           :class="{ correct: results[question.id].correct, incorrect: !results[question.id].correct }"
         >
-          <strong>{{ results[question.id].correct ? "Correct" : "Incorrect" }}</strong>
-          <span v-if="!results[question.id].correct">
-            Correct answer: {{ String.fromCharCode(65 + Number(results[question.id].feedback?.correctAnswer ?? 0)) }}
-          </span>
-          <p v-if="results[question.id].feedback?.explanation">
-            {{ results[question.id].feedback.explanation }}
-          </p>
+          <div class="stimulus-feedback-title">
+            {{ results[question.id].correct ? "✓ Correct" : "✕ Incorrect" }}
+          </div>
+          <div v-if="!results[question.id].correct" class="stimulus-feedback-answer">
+            Correct answer:
+            <strong>{{ String.fromCharCode(65 + Number(results[question.id].feedback?.correctAnswer ?? 0)) }}</strong>
+          </div>
+          <div v-if="results[question.id].feedback?.explanation" class="stimulus-feedback-explanation">
+            <strong>Explanation:</strong>
+            <span>{{ results[question.id].feedback.explanation }}</span>
+          </div>
         </div>
       </section>
     </div>
@@ -129,5 +147,13 @@ function selectOption(question, index) {
 
 function questionNumber(question) {
   return props.questionStart + props.questions.findIndex(item => item.id === question.id);
+}
+
+function scrollToQuestion(question) {
+  const number = questionNumber(question);
+  document.getElementById("stimulus-question-" + number)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
 </script>
