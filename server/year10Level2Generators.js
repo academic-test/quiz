@@ -849,7 +849,7 @@ function humanitiesStimulusSet(sessionId = "") {
     },
     {
       key: "HUM-FRESH-03",
-      passage: "A public-information cartoon shows a councillor standing beside a large box labelled QUESTIONS. Above the scene is a banner reading “WE LISTEN”. The councillor smiles at the audience but says, “That is enough for today.” The cartoon uses a simple visual contradiction to question whether the public claim is matched by the speaker's behaviour.",
+      passage: "A public-information cartoon shows a councillor standing beside a large box labelled QUESTIONS. Above the scene is a banner reading “LISTENING TO THE PEOPLE”. The councillor smiles at the audience but says, “That is enough for today.” The cartoon uses a simple visual contradiction to question whether the public claim is matched by the speaker's behaviour.",
       questions: [
         ["What is the main irony in the cartoon?", "The speaker claims to listen but signals that questions should stop.", ["The box is larger than the speaker.","The banner uses capital letters.","The speaker is standing outdoors."], "The contradiction between the public claim and the speaker's words creates the irony."],
         ["Why is the box labelled QUESTIONS important?", "It makes the refusal to continue listening more obvious.", ["It gives the councillor a place to sit.","It shows the councillor has answered every question.","It explains the councillor's job title."], "The box visually represents public questions, which conflicts with the speaker's desire to stop hearing them."],
@@ -985,7 +985,7 @@ function humanitiesStimulusSet(sessionId = "") {
     ]
   };
   const images = {
-    "HUM-FRESH-02": "/stimuli/humanities-regional-chart.svg",
+    "HUM-FRESH-02": "/stimuli/humanities-business-comparison.svg",
     "HUM-FRESH-03": "/stimuli/humanities-cartoon.svg",
     "HUM-FRESH-04": "/stimuli/humanities-fashion-scale.svg",
     "HUM-FRESH-05": "/stimuli/humanities-flight-experiments.svg",
