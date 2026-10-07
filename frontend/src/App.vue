@@ -101,10 +101,10 @@
           :disabled="savingResponse || index > mathSciencePageIndex"
           @click="goToMathSciencePage(index)"
         >
-          {{ index + 1 }} · Q{{ currentBlock.start + currentMathScienceGroups
+          {{ index + 1 }} · Q{{ currentMathScienceGroups
             .slice(0, index)
             .reduce((total, item) => total + item.questions.length, 0) + 1 }}–{{ 
-            currentBlock.start + currentMathScienceGroups
+            currentMathScienceGroups
               .slice(0, index + 1)
               .reduce((total, item) => total + item.questions.length, 0)
           }}
