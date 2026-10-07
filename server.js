@@ -958,48 +958,94 @@ app.post("/api/admin/logout", (req,res) => {
 
 app.get("/api/admin/me", requireAdmin, (req,res) => res.json({ ok:true }));
 
-app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
+app.get("/api/admin/attempts/summary", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
 
-  const { data: attempts, error: attemptsError } = await supabase
+  const { count: totalAttempts, error: attemptCountError } = await supabase
     .from("quiz_attempts")
-    .select("*")
-    .order("started_at",{ascending:false})
-    .limit(500);
+    .select("id", { count:"exact", head:true });
 
-  if (attemptsError) return res.status(400).json({ error:attemptsError.message });
+  const { count: totalResponses, error: responseCountError } = await supabase
+    .from("quiz_responses")
+    .select("id", { count:"exact", head:true });
 
-  const responses = [];
+  if (attemptCountError || responseCountError) {
+    return res.status(400).json({ error:(attemptCountError || responseCountError).message });
+  }
+
+  const scores = [];
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
     const { data: page, error } = await supabase
-      .from("quiz_responses")
-      .select("attempt_id,is_correct,timed_out,response_seconds")
+      .from("quiz_attempts")
+      .select("score")
+      .not("score","is",null)
       .range(from, from + pageSize - 1);
     if (error) return res.status(400).json({ error:error.message });
-    responses.push(...(page || []));
+    scores.push(...(page || []).map(row => Number(row.score)).filter(Number.isFinite));
     if (!page || page.length < pageSize) break;
   }
 
+  res.json({
+    total_attempts:Number(totalAttempts || 0),
+    total_responses:Number(totalResponses || 0),
+    average_score:scores.length
+      ? Math.round(scores.reduce((sum,score) => sum + score, 0) / scores.length)
+      : 0,
+    best_score:scores.length ? Math.max(...scores) : 0
+  });
+});
+
+app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const pageSize = Math.min(50, Math.max(10, Number.parseInt(req.query.page_size, 10) || 25));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data: attempts, error: attemptsError, count: total } = await supabase
+    .from("quiz_attempts")
+    .select("*", { count:"exact" })
+    .order("started_at",{ascending:false})
+    .order("id",{ascending:false})
+    .range(from, to);
+
+  if (attemptsError) return res.status(400).json({ error:attemptsError.message });
+
+  const attemptIds = (attempts || []).map(attempt => attempt.id);
   const aggregates = new Map();
-  for (const response of responses) {
-    const current = aggregates.get(response.attempt_id) || {
-      answered_count: 0,
-      correct_count: 0,
-      wrong_count: 0,
-      timeout_count: 0,
-      total_response_seconds: 0
-    };
-    current.answered_count += 1;
-    if (response.timed_out) {
-      current.timeout_count += 1;
-    } else if (response.is_correct) {
-      current.correct_count += 1;
-    } else {
-      current.wrong_count += 1;
+
+  if (attemptIds.length) {
+    const responsePageSize = 1000;
+    for (let responseFrom = 0; ; responseFrom += responsePageSize) {
+      const { data: responsePage, error: responseError } = await supabase
+        .from("quiz_responses")
+        .select("attempt_id,is_correct,timed_out,response_seconds")
+        .in("attempt_id", attemptIds)
+        .range(responseFrom, responseFrom + responsePageSize - 1);
+
+      if (responseError) return res.status(400).json({ error:responseError.message });
+
+      for (const response of responsePage || []) {
+        const current = aggregates.get(response.attempt_id) || {
+          answered_count:0,
+          correct_count:0,
+          wrong_count:0,
+          timeout_count:0,
+          total_response_seconds:0
+        };
+
+        current.answered_count += 1;
+        if (response.timed_out) current.timeout_count += 1;
+        else if (response.is_correct) current.correct_count += 1;
+        else current.wrong_count += 1;
+        current.total_response_seconds += Number(response.response_seconds || 0);
+        aggregates.set(response.attempt_id, current);
+      }
+
+      if (!responsePage || responsePage.length < responsePageSize) break;
     }
-    current.total_response_seconds += Number(response.response_seconds || 0);
-    aggregates.set(response.attempt_id, current);
   }
 
   const enriched = (attempts || []).map(attempt => {
@@ -1007,10 +1053,10 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
     if (!aggregate || aggregate.answered_count === 0) {
       return {
         ...attempt,
-        answered_count: 0,
-        correct_count: 0,
-        wrong_count: 0,
-        timeout_count: 0
+        answered_count:0,
+        correct_count:0,
+        wrong_count:0,
+        timeout_count:0
       };
     }
 
@@ -1020,15 +1066,37 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
     return {
       ...attempt,
       score,
-      correct_count: aggregate.correct_count,
-      wrong_count: aggregate.wrong_count,
-      timeout_count: aggregate.timeout_count,
-      average_response_seconds: Number(average.toFixed(3)),
-      answered_count: aggregate.answered_count
+      correct_count:aggregate.correct_count,
+      wrong_count:aggregate.wrong_count,
+      timeout_count:aggregate.timeout_count,
+      average_response_seconds:Number(average.toFixed(3)),
+      answered_count:aggregate.answered_count
     };
   });
 
-  res.json({ attempts:enriched });
+  res.json({
+    attempts:enriched,
+    page,
+    page_size:pageSize,
+    total:Number(total || 0),
+    has_more:to + 1 < Number(total || 0)
+  });
+});
+
+app.delete("/api/admin/attempts/:id", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const id=String(req.params.id || "").trim();
+  if (!validUuid(id)) return res.status(400).json({ error:"Invalid attempt id" });
+
+  const { data, error } = await supabase.rpc("admin_delete_quiz_attempt", {
+    p_attempt_id:id
+  });
+
+  if (error) return res.status(400).json({ error:error.message });
+  if (!data?.deleted) return res.status(404).json({ error:"Assessment not found" });
+
+  res.json({ ok:true, deleted_id:id });
 });
 
 app.get("/api/admin/attempts/:id/responses", requireAdmin, async (req,res) => {
