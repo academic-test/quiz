@@ -2,6 +2,15 @@ export function buildHumanitiesStimulusGroups(questions = []) {
   const groups = [];
   const byKey = new Map();
 
+  const imageByGroup = {
+    "HUM-FRESH-02": "/stimuli/humanities-regional-chart.svg",
+    "HUM-FRESH-03": "/stimuli/humanities-cartoon.svg",
+    "HUM-FRESH-04": "/stimuli/humanities-fashion-scale.svg",
+    "HUM-FRESH-05": "/stimuli/humanities-flight-experiments.svg",
+    "HUM-FRESH-07": "/stimuli/humanities-migration.svg",
+    "HUM-FRESH-08": "/stimuli/humanities-ad.svg"
+  };
+
   questions.forEach((question, index) => {
     if (!question) return;
 
@@ -20,7 +29,7 @@ export function buildHumanitiesStimulusGroups(questions = []) {
       const group = {
         key,
         passage: question.passage || "",
-        image: question.stimulus_image || "",
+        image: question.stimulus_image || imageByGroup[question.stimulus_group] || "",
         questions: []
       };
       byKey.set(key, group);
@@ -31,7 +40,9 @@ export function buildHumanitiesStimulusGroups(questions = []) {
     group.questions.push(question);
 
     if (!group.passage && question.passage) group.passage = question.passage;
-    if (!group.image && question.stimulus_image) group.image = question.stimulus_image;
+    if (!group.image && (question.stimulus_image || imageByGroup[question.stimulus_group])) {
+      group.image = question.stimulus_image || imageByGroup[question.stimulus_group];
+    }
   });
 
   return groups;
