@@ -13,19 +13,6 @@
       <div v-if="passage" class="passage">{{ passage }}</div>
     </div>
 
-    <nav class="page-question-navigation" aria-label="Questions on this page">
-      <span class="page-question-navigation-label">Jump to question:</span>
-      <button
-        v-for="question in questions"
-        :key="'nav-' + question.id"
-        type="button"
-        class="page-question-nav"
-        @click="scrollToQuestion(question)"
-      >
-        {{ questionNumber(question) }}
-      </button>
-    </nav>
-
     <div class="stimulus-questions">
       <section
         v-for="question in questions"
@@ -149,11 +136,4 @@ function questionNumber(question) {
   return props.questionStart + props.questions.findIndex(item => item.id === question.id);
 }
 
-function scrollToQuestion(question) {
-  const number = questionNumber(question);
-  document.getElementById("stimulus-question-" + number)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-}
 </script>
