@@ -824,21 +824,22 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
   return pending;
 }
 
-async function ensureQuestionsGenerated(req, sessionId, config) {
-  const existing = generationLocks.get(sessionId);
+async function ensureQuestionsGenerated(req, sessionId, config, targetSection = null) {
+  const lockKey = targetSection ? sessionId + ":" + targetSection : sessionId;
+  const existing = generationLocks.get(lockKey);
   if (existing) {
     await existing;
     return;
   }
 
-  const promise = generateQuestions(req, sessionId, config)
+  const promise = generateQuestions(req, sessionId, config, targetSection)
     .catch(error => {
       console.error("Question generation failed", error);
       return [];
     })
-    .finally(() => generationLocks.delete(sessionId));
+    .finally(() => generationLocks.delete(lockKey));
 
-  generationLocks.set(sessionId, promise);
+  generationLocks.set(lockKey, promise);
   await promise;
 }
 
@@ -899,30 +900,6 @@ app.post("/api/assessments/start", async (req,res) => {
     const sessionId = crypto.randomUUID();
     const expiresAt = Date.now() + assessmentTtlMs;
 
-    await ensureQuestionsGenerated(req, sessionId, config);
-
-    const { data: generatedRows, error: generatedError } = await supabase
-      .from("generated_questions")
-      .select("id,section,difficulty,time,question_text,answer_options,passage,stimulus_group,stimulus_image,explanation")
-      .eq("session_id", sessionId)
-      .eq("year_level", config.yearLevel);
-
-    // The frontend blocks are positional: Humanities occupies questions 1–40
-    // and Mathematics & Science occupies questions 41–72. Do not rely on
-    // question IDs because Humanities has several bank ID prefixes.
-    const sectionOrder = { humanities: 0, mathematics_science: 1 };
-    const generated = (generatedRows || []).sort((a, b) =>
-      (sectionOrder[a.section] ?? 99) - (sectionOrder[b.section] ?? 99) ||
-      (a.section === "humanities"
-        ? String(a.stimulus_group || "").localeCompare(String(b.stimulus_group || ""))
-        : 0) ||
-      String(a.id).localeCompare(String(b.id))
-    );
-
-    if (generatedError || !generated || generated.length < config.totalQuestionCount) {
-      return res.status(503).json({ error:"Could not prepare the assessment questions" });
-    }
-
     const { data: attempt, error: attemptError } = await supabase
       .from("quiz_attempts")
       .insert({
@@ -944,26 +921,15 @@ app.post("/api/assessments/start", async (req,res) => {
 
     setAssessmentCookie(req, res, signAssessmentToken(sessionId, expiresAt), Math.floor(assessmentTtlMs / 1000));
 
-    const manifest = generated.map((q,index) => ({
-      number:index+1,
-      id:q.id,
-      section:q.section,
-      difficulty:q.difficulty,
-      time:q.time || 60
-    }));
-
     res.json({
       session_id:sessionId,
       attempt_id:attempt.id,
       total:config.totalQuestionCount,
       section_counts:config.sectionCounts,
       ready:true,
-      manifest,
+      manifest:[],
       writing_tasks:getWritingTasks(),
-      questions:generated.slice(0,10).map(q=>({
-        id:q.id,section:q.section,difficulty:q.difficulty,time:q.time||60,
-        q:q.question_text,o:q.answer_options,passage:q.passage||"",stimulus_group:q.stimulus_group||null,stimulus_image:q.stimulus_image||null
-      }))
+      questions:[]
     });
   } catch(error) {
     console.error(error);
