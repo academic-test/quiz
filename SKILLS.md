@@ -212,6 +212,24 @@ The supplied `Volume 1 Exam Pack Question Book.pdf` remains a secondary blueprin
 
 The supplied LANTITE numeracy practice PDF is a secondary reference for numeracy/data question formats only. It must not be treated as the scholarship-test structure and must not be copied.
 
+## Permanent Humanities stimulus-page contract
+
+**NON-NEGOTIABLE:** Humanities is always presented as stimulus pages, never as one-question-per-page.
+
+For every Humanities stimulus page:
+- A shared stimulus (long passage, chart, diagram, cartoon, scale, migration visual, advertisement, etc.) is displayed once at the top.
+- Multiple associated questions are displayed together underneath that same stimulus. The UI must not fall back to individual-question paging.
+- Page 1 must preserve the long shared passage with its multiple questions (currently Questions 1–6 in the primary grouped set).
+- Navigation buttons represent **stimulus pages/sets**, not individual questions. Example: one button for Stimulus 1 / Q1–6, one for Stimulus 2 / Q7–16, etc.
+- Before review, the page shows **Save Answer & Review**. It is disabled until every question on the current page has an answer.
+- Clicking **Save Answer & Review** saves all answers on that page and displays the correctness, correct answer (when needed), and explanation directly below each question's answer options.
+- After a successful page review, the **same button becomes Next Page →**. There is no second/duplicate Next Page control for the same page.
+- Clicking Next Page advances to the next stimulus set, which again contains multiple questions and starts with Save Answer & Review.
+- Do not remove or bypass this grouped flow while fixing unrelated navigation, persistence, or styling issues.
+- A page is considered reviewed only after every question on that page has a saved backend result. Track an explicit page-reviewed state as a UI invariant so the Next Page control cannot disappear merely because a reactive result calculation changes.
+- Any question-bank fallback for Humanities must preserve complete stimulus groups. Never use the normal individual-question diversity fallback for Humanities.
+- Maintain these rules across future refactors; regression tests must assert grouped rendering, page-level navigation, page review, feedback placement, and the review-to-next-button transition.
+
 ## Rules for future changes
 - Do not reintroduce Learning unless explicitly requested.
 - Keep the four source-supported test components in order: Written Expression 1, Humanities, Mathematics & Science, Written Expression 2.
