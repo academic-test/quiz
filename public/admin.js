@@ -329,8 +329,6 @@ async function createBankQuestion(event,section){
 async function saveStimulusGroup(button){
   const group=button.closest(".bank-group");
   const section=currentBankSection;
-  const stimulusGroup=group.querySelector("[data-group-root]").dataset.groupRoot||group.dataset.groupRoot;
-  // The data-group-root attribute is also exposed on the article for reliable lookup.
   const actualGroup=group.getAttribute("data-group-root");
   const passage=group.querySelector('[data-group-field="passage"]').value;
   const stimulusImage=group.querySelector('[data-group-field="stimulus_image"]').value.trim();
