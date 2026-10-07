@@ -60,6 +60,7 @@ async function getAssessmentConfig() {
 const {
   humanitiesQuestion,
   mathematicsScienceQuestion,
+  mathematicsScienceStimulusSet,
   questionFingerprint,
   questionType,
   pickDiverseQuestions,
