@@ -3,7 +3,7 @@
     <div class="hero-icon">🎯</div>
     <div class="eyebrow">ACER LEVEL 2</div>
     <h2>Year 10 Entry Practice</h2>
-    <p>Enter the student's name. This original practice assessment follows the structure of the supplied ACER Years 9–10 booklet: two Written Expression tasks, Humanities, and Mathematics & Science.</p>
+    <p>Enter the student's name to start. You can then choose either Humanities or Mathematics & Science to practise.</p>
 
     <label class="name-field">
       Student name
@@ -18,13 +18,13 @@
     </label>
 
     <div class="year-badge">YEAR 10 ENTRY · LEVEL 2</div>
-    <p class="assessment-note">Original ACER-style practice · Humanities + Mathematics & Science + Written Expression</p>
+    <p class="assessment-note">Original ACER-style practice · Choose Humanities or Mathematics & Science after starting</p>
     <button class="primary-btn" type="button" :disabled="loading" @click="$emit('start')">
       {{ loading ? "Generating assessment…" : "Start Assessment" }}
     </button>
 
     <p v-if="error" class="start-error">{{ error }}</p>
-    <div class="timer-note">⏱ Test 1: 25 min · Test 2: 40 min · Test 3: 40 min · Test 4: 25 min</div>
+    <div class="timer-note">⏱ Humanities: 40 min · Mathematics & Science: 40 min</div>
   </section>
 </template>
 
