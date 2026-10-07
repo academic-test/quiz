@@ -221,15 +221,17 @@ The supplied LANTITE numeracy practice PDF is a secondary reference for numeracy
 
 After the student enters their name and starts an assessment, the app may present a subject-selection screen before the first question.
 
-- The student can choose **Humanities** or **Mathematics & Science**.
+- The student can choose **Written Expression 1**, **Humanities**, **Mathematics & Science**, or **Written Expression 2**.
 - Subject selection changes only which existing assessment component is opened first; it must not alter question generation, stimulus grouping, page grouping, answer validation, review behaviour, or question data.
+- Written Expression choices must explain that the response should be original and directly connected to the supplied topic/stimulus; acceptable forms include a story, persuasive piece, discussion or personal reflection.
+- Written Expression expectations must state that students are assessed on quality of thoughts/content, structure/organisation, and clear, effective and appropriate language, and that a rehearsed response not developed from the stimulus may be penalised.
 - Humanities must retain its permanent stimulus-page flow exactly as defined below.
 - Mathematics & Science must retain its permanent shared-topic/page flow exactly as defined below.
 - The selected component must load its complete MCQ question range before its first page is rendered.
 - The selected component keeps its existing single overall 40-minute component timer.
 - Once a subject is selected, the student stays in that component until it is submitted or times out.
 - Subject selection must be persisted for refresh/restore. A refresh before subject selection returns to the subject-selection screen without starting a component timer.
-- Completing the selected component ends that practice attempt and shows its result; do not silently continue into another component.
+- Completing the selected component returns the student to the test-selection screen until all four available components have been completed; only then is the practice attempt finalised and results shown.
 - Do not modify the underlying Humanities or Mathematics & Science grouping rules to implement subject selection.
 
 ## Permanent Mathematics & Science multi-question-page contract
