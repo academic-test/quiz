@@ -728,7 +728,101 @@ function mathematicsScienceQuestion() {
 }
 
 
-function humanitiesStimulusSet() {
+
+function variantIndex(sessionId, key, count = 4) {
+  const text = String(sessionId || "") + "|" + String(key || "");
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) % 2147483647;
+  }
+  return hash % count;
+}
+
+function varyQuestionText(text, variant) {
+  const value = String(text || "");
+  const variants = {
+    "What is the main idea of the passage?": [
+      value,
+      "Which statement best captures the central idea of the passage?",
+      "Which conclusion most directly expresses the passage's main point?",
+      "What is the passage chiefly trying to show?"
+    ],
+    "What overall conclusion does the comparison support?": [
+      value,
+      "Which conclusion is best supported by the comparison?",
+      "What broader point is demonstrated by the comparison?",
+      "Which statement best summarises what the comparison shows?"
+    ],
+    "What is the main irony in the cartoon?": [
+      value,
+      "Which contradiction creates the cartoon's main irony?",
+      "What is the central ironic feature of the cartoon?",
+      "Which part of the cartoon most clearly creates the irony?"
+    ],
+    "What does the sequence mainly demonstrate?": [
+      value,
+      "Which idea is illustrated most clearly by the sequence?",
+      "What broader pattern does the sequence demonstrate?",
+      "Which conclusion best describes the changing judgements in the sequence?"
+    ],
+    "What best describes the overall pattern?": [
+      value,
+      "Which statement best describes the pattern shown?",
+      "What is the clearest description of the trend?",
+      "Which conclusion best captures the pattern of results?"
+    ]
+  };
+  if (variants[value]) return variants[value][variant % variants[value].length];
+
+  if (value.startsWith("Why does ")) {
+    const rest = value.slice(9);
+    return [
+      value,
+      "What is the best reason " + rest.charAt(0).toLowerCase() + rest.slice(1),
+      "Why is it useful that " + rest.charAt(0).toLowerCase() + rest.slice(1),
+      "Which explanation best accounts for why " + rest.charAt(0).toLowerCase() + rest.slice(1)
+    ][variant % 4];
+  }
+
+  if (value.startsWith("Which statement")) {
+    return [
+      value,
+      value.replace(/^Which statement/, "Which claim"),
+      value.replace(/^Which statement/, "Which conclusion"),
+      value.replace(/^Which statement/, "What conclusion")
+    ][variant % 4];
+  }
+
+  if (value.startsWith("How many ")) {
+    return [
+      value,
+      value.replace(/^How many /, "Calculate how many "),
+      value.replace(/^How many /, "Determine the number of "),
+      value.replace(/^How many /, "What is the total number of ")
+    ][variant % 4];
+  }
+
+  return value;
+}
+
+function varyFreshRows(rows, sessionId, notes) {
+  return rows.map((row, index) => {
+    const variant = variantIndex(sessionId, row.stimulus_group || row.section, 4);
+    const noteSet = notes[row.stimulus_group] || [
+      "The evidence is presented as a separate practice version.",
+      "The same stimulus was collected in a different observation period.",
+      "A further observation was added to this version.",
+      "The case was reviewed again using the same underlying information."
+    ];
+    return {
+      ...row,
+      question_text: varyQuestionText(row.question_text, variant + index),
+      passage: String(row.passage || "") + " " + noteSet[variant % noteSet.length]
+    };
+  });
+}
+
+function humanitiesStimulusSet(sessionId = "") {
   const groups = [
     {
       key: "HUM-FRESH-01",
@@ -839,10 +933,60 @@ function humanitiesStimulusSet() {
       });
     });
   });
-  return rows;
+  const notes = {
+    "HUM-FRESH-01": [
+      "The follow-up recordings include a school event where younger and older speakers use different expressions.",
+      "The historian also compared formal and informal conversations from the same community.",
+      "A second round of interviews examined how expressions change when speakers move away and return.",
+      "The study included recordings from both family and workplace settings."
+    ],
+    "HUM-FRESH-02": [
+      "The comparison was prepared for a company considering expansion across several markets.",
+      "Managers are reminded that a strong score on one indicator does not guarantee strength on another.",
+      "The visual is designed for decisions where priorities can be weighted differently.",
+      "The comparison is intended to support trade-offs rather than produce a single ranking."
+    ],
+    "HUM-FRESH-03": [
+      "The audience has just submitted questions during a public meeting.",
+      "The banner is displayed above the councillor throughout the meeting.",
+      "Several people in the audience are waiting to ask follow-up questions.",
+      "The visual deliberately places the public message beside the speaker's response."
+    ],
+    "HUM-FRESH-04": [
+      "The critic says similar changes in judgement have occurred with other styles.",
+      "The scale is presented as a social history of taste rather than a measure of garment quality.",
+      "The same style can move through several labels as generations change.",
+      "The labels describe how people judge a style, not how the material itself changes."
+    ],
+    "HUM-FRESH-05": [
+      "The inventors kept records of unsuccessful trials as well as successful ones.",
+      "Later prototypes incorporated changes to more than one component at a time.",
+      "The experiment log includes setbacks between the longer flights.",
+      "The notes emphasise that testing provided information for later redesigns."
+    ],
+    "HUM-FRESH-06": [
+      "The narrator gives readers several details that the shopkeeper overlooks.",
+      "The animal repeatedly moves toward food smells before wandering elsewhere.",
+      "The shopkeeper's strongest evidence consists of coincidences rather than direct evidence.",
+      "The reader can compare the character's theory with the animal's ordinary behaviour."
+    ],
+    "HUM-FRESH-07": [
+      "The diagram was created to prevent small flows from disappearing inside a combined total.",
+      "The settlement categories are separated so contrasting directions can be compared.",
+      "The data include both large and small movements between settlement types.",
+      "The purpose of the diagram is descriptive: it shows patterns rather than motives."
+    ],
+    "HUM-FRESH-08": [
+      "The advertisement uses exploration and learning as its main emotional appeal.",
+      "No particular discount is given prominence in the advertisement.",
+      "The images are chosen to suggest ideas, places and cultural discovery.",
+      "The message invites viewers to investigate unfamiliar subjects more closely."
+    ]
+  };
+  return varyFreshRows(rows, sessionId, notes);
 }
 
-function mathematicsScienceStimulusSet() {
+function mathematicsScienceStimulusSet(sessionId = "") {
   const groups = [
     {
       key: "MATH-PAGE-01",
@@ -957,7 +1101,19 @@ function mathematicsScienceStimulusSet() {
       });
     });
   });
-  return rows;
+  const notes = {
+    "MATH-PAGE-01": ["The timeline represents several distinct geological events.", "The model is read from left to right as time progresses.", "Each marked date represents a separate event in the record.", "The model is simplified so that the intervals can be compared directly."],
+    "MATH-PAGE-02": ["The two surveys use the same four age categories.", "The values are recorded as resident counts, not percentages.", "The comparison focuses on changes between the two survey years.", "The age groups are kept consistent so the two years can be compared."],
+    "MATH-PAGE-03": ["The investigation is designed to compare conditions while changing traffic patterns.", "Researchers use contrasts between working and non-working days to interpret the data.", "The study treats the observed peaks as evidence rather than proof of a single cause.", "Several environmental factors are considered when interpreting the measurements."],
+    "MATH-PAGE-04": ["The alternating rows preserve the outer rectangular boundary.", "The pattern repeats after every two rows.", "Edge pieces are included as part of the complete wall design.", "The diagram shows a repeating construction pattern rather than random placement."],
+    "MATH-PAGE-05": ["The food web is used to reason about consequences of predator changes.", "The arrows represent feeding relationships in the simplified coastal web.", "The questions focus on likely population effects rather than exact measurements.", "Changes in one population can alter the balance of other populations in the web."],
+    "MATH-PAGE-06": ["The flow values are compared between rest and vigorous exercise.", "The table records average flow rates for each body region.", "The exercise condition redistributes flow among the regions.", "The largest numerical change is visually prominent in the exercise data."],
+    "MATH-PAGE-07": ["The moving average uses several recent daily values.", "A single daily change has a smaller effect on the smoothed series.", "The two series are intended to be compared for responsiveness and variation.", "The average line illustrates the effect of smoothing fluctuations."],
+    "MATH-PAGE-08": ["Both students begin with the same recall before the repeated tests.", "The two patterns differ in whether the loss is proportional or fixed.", "The graph is used to compare two different mathematical models of forgetting.", "Recall changes after each equal time interval in both models."],
+    "MATH-PAGE-09": ["Surface area is used as a practical capacity measure in the guide.", "Aeration changes the amount of fish length the tank can support.", "The calculations use combined body length rather than fish count alone.", "The guide applies the same capacity rule consistently across the questions."],
+    "MATH-PAGE-10": ["The code system has two possible symbols at each position.", "The questions treat different orders as different sequences.", "The number of positions determines how many codes can be formed.", "The code tree illustrates how choices multiply as another position is added."]
+  };
+  return varyFreshRows(rows, sessionId, notes);
 }
 
 function questionFingerprint(question) {
