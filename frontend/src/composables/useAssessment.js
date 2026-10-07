@@ -92,6 +92,7 @@ export function useAssessment() {
   const reviewedMathSciencePages = ref({});
   const practiceSection = ref("");
   const singleSectionMode = ref(false);
+  const completedPracticeSections = ref({});
   const questionOpenedAtById = ref({});
 
   let timerHandle = null;
@@ -316,6 +317,7 @@ export function useAssessment() {
         reviewedMathSciencePages: reviewedMathSciencePages.value,
         practiceSection: practiceSection.value,
         singleSectionMode: singleSectionMode.value,
+        completedPracticeSections: completedPracticeSections.value,
         questionOpenedAtById: questionOpenedAtById.value
       }));
     } catch (error) {
@@ -442,6 +444,7 @@ export function useAssessment() {
       reviewedMathSciencePages.value = {};
       practiceSection.value = "";
       singleSectionMode.value = false;
+      completedPracticeSections.value = {};
       questionIndex.value = 0;
       currentStage.value = 0;
       feedback.value = null;
@@ -465,6 +468,7 @@ export function useAssessment() {
   async function selectPracticeSection(section) {
     if (starting.value || !sessionId.value || !attemptId.value) return;
     if (section !== "humanities" && section !== "mathematics-science") return;
+    if (completedPracticeSections.value[section]) return;
 
     startError.value = "";
     starting.value = true;
@@ -631,8 +635,23 @@ export function useAssessment() {
     submittedBlocks.value[currentStage.value] = true;
 
     if (singleSectionMode.value) {
-      await finishAttempt();
-      screen.value = "results";
+      const completedKey = currentBlock.value.key;
+      completedPracticeSections.value = {
+        ...completedPracticeSections.value,
+        [completedKey]: true
+      };
+
+      const bothSubjectsComplete =
+        Boolean(completedPracticeSections.value.humanities) &&
+        Boolean(completedPracticeSections.value["mathematics-science"]);
+
+      if (bothSubjectsComplete) {
+        await finishAttempt();
+        screen.value = "results";
+      } else {
+        clearTimer();
+        screen.value = "section-select";
+      }
       persistState();
       return;
     }
@@ -1010,6 +1029,7 @@ export function useAssessment() {
     reviewedMathSciencePages.value = {};
     practiceSection.value = "";
     singleSectionMode.value = false;
+    completedPracticeSections.value = {};
     questionOpenedAtById.value = {};
   }
 
@@ -1049,6 +1069,7 @@ export function useAssessment() {
       reviewedMathSciencePages.value = saved.reviewedMathSciencePages || {};
       practiceSection.value = saved.practiceSection || "";
       singleSectionMode.value = Boolean(saved.singleSectionMode);
+      completedPracticeSections.value = saved.completedPracticeSections || {};
       questionOpenedAtById.value = saved.questionOpenedAtById || {};
 
       if (saved.screen === "results") {
