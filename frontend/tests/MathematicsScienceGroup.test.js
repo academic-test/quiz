@@ -12,8 +12,8 @@ const questions = [
 const baseProps = {
   questions,
   pageNumber: 1,
-  questionStart: 41,
-  questionEnd: 44,
+  questionStart: 1,
+  questionEnd: 4,
   totalQuestions: 32,
   answers: {},
   answeredCount: 0,
@@ -26,7 +26,7 @@ describe("MathematicsScienceGroup", () => {
 
     expect(wrapper.findAll(".stimulus-question")).toHaveLength(4);
     expect(wrapper.text()).toContain("Problem page · 1");
-    expect(wrapper.text()).toContain("Questions 41–44 of 32");
+    expect(wrapper.text()).toContain("Questions 1–4 of 32");
 
     const review = wrapper.find("button.review-submit-btn");
     expect(review.text()).toContain("Save Answer & Review");
