@@ -24,14 +24,28 @@ export function startAssessment(payload) {
   });
 }
 
-export function getQuestions(sessionId, offset = 0, limit = 10) {
+export function getQuestions(sessionId, offset = 0, limit = 10, section = "") {
+  const sectionQuery = section ? "&section=" + encodeURIComponent(section) : "";
   return request(
     "/api/assessments/" +
       encodeURIComponent(sessionId) +
       "/questions?offset=" +
       encodeURIComponent(offset) +
       "&limit=" +
-      encodeURIComponent(limit)
+      encodeURIComponent(limit) +
+      sectionQuery
+  );
+}
+
+export function prepareSection(sessionId, section) {
+  return request(
+    "/api/assessments/" +
+      encodeURIComponent(sessionId) +
+      "/prepare-section",
+    {
+      method: "POST",
+      body: JSON.stringify({ section })
+    }
   );
 }
 
