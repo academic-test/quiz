@@ -61,6 +61,7 @@ const {
   humanitiesQuestion,
   mathematicsScienceQuestion,
   mathematicsScienceStimulusSet,
+  humanitiesStimulusSet,
   questionFingerprint,
   questionType,
   pickDiverseQuestions,
@@ -548,13 +549,15 @@ function makeQuestion(section) {
   return makeReadingQuestion();
 }
 
-async function generateQuestions(req, sessionId, config) {
+async function generateQuestions(req, sessionId, config, targetSection = null) {
   if (!supabase) return [];
 
-  const quotas = [
-    ["humanities", Number(config.sectionCounts.humanities) || 0],
-    ["mathematics_science", Number(config.sectionCounts.mathematics_science) || 0]
-  ];
+  const quotas = targetSection
+    ? [[targetSection, Number(config.sectionCounts[targetSection]) || 0]]
+    : [
+        ["humanities", Number(config.sectionCounts.humanities) || 0],
+        ["mathematics_science", Number(config.sectionCounts.mathematics_science) || 0]
+      ];
   const total = Number(config.totalQuestionCount) || 0;
 
   const { data: sessionRows, error: sessionError } = await supabase
@@ -575,7 +578,9 @@ async function generateQuestions(req, sessionId, config) {
     used.add(questionFingerprint(row));
   }
 
-  const currentTotal = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  const currentTotal = targetSection
+    ? counts[targetSection]
+    : Object.values(counts).reduce((sum, value) => sum + value, 0);
   const neededTotal = Math.max(0, total - currentTotal);
   if (!neededTotal) return sessionRows || [];
 
@@ -660,6 +665,7 @@ async function generateQuestions(req, sessionId, config) {
   let attempts = 0;
   const maxAttempts = Math.max(6000, neededTotal * 500);
   let mathScienceStimulusRows = null;
+  let humanitiesStimulusRows = null;
 
   while (pending.length < neededTotal && attempts < maxAttempts) {
     attempts += 1;
@@ -674,13 +680,12 @@ async function generateQuestions(req, sessionId, config) {
     }
     if (!section) break;
 
-    // Never synthesize single Humanities questions. If no complete grouped
-    // Humanities bank set is available, let the assessment fail cleanly
-    // rather than regressing to one-question-per-page.
-    if (section === "humanities") break;
-
     let question = null;
-    if (section === "mathematics_science") {
+    if (section === "humanities") {
+      if (!humanitiesStimulusRows) humanitiesStimulusRows = humanitiesStimulusSet();
+      question = humanitiesStimulusRows.shift();
+      if (!question) break;
+    } else if (section === "mathematics_science") {
       if (!mathScienceStimulusRows) mathScienceStimulusRows = mathematicsScienceStimulusSet();
       question = mathScienceStimulusRows.shift();
       if (!question) break;
@@ -695,10 +700,10 @@ async function generateQuestions(req, sessionId, config) {
 
     const fp = questionFingerprint(question);
     const previousType = pending.length ? questionType(pending[pending.length - 1]) : "";
-    const sameGroupedMathPage =
-      section === "mathematics_science" &&
-      questionType(question) === "math-science:stimulus-page";
-    if (used.has(fp) || (previousType && questionType(question) === previousType && !sameGroupedMathPage)) continue;
+    const sameGroupedPage =
+      (section === "humanities" || section === "mathematics_science") &&
+      String(question.reasoning_type || "").includes("stimulus-page");
+    if (used.has(fp) || (previousType && questionType(question) === previousType && !sameGroupedPage)) continue;
 
     const number = currentTotal + pending.length + 1;
     question.id = String(number).padStart(3, "0") + "-" + crypto.randomUUID();
