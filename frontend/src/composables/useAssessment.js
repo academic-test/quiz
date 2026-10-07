@@ -61,7 +61,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v15";
+const STORAGE_KEY = "acer-level2-year10-quiz-v16";
 
 export function useAssessment() {
   const screen = ref("start");
@@ -298,7 +298,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 15,
+        version: 16,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -472,14 +472,20 @@ export function useAssessment() {
 
   async function selectPracticeSection(section) {
     if (starting.value || !sessionId.value || !attemptId.value) return;
-    if (section !== "humanities" && section !== "mathematics-science") return;
+    if (!["humanities", "mathematics-science", "writing-1", "writing-2"].includes(section)) return;
     if (completedPracticeSections.value[section]) return;
 
     startError.value = "";
     starting.value = true;
     clearTimer();
     try {
-      const stageIndex = section === "humanities" ? 0 : 1;
+      const stageMap = {
+        humanities: 0,
+        "mathematics-science": 1,
+        "writing-1": 2,
+        "writing-2": 3
+      };
+      const stageIndex = stageMap[section];
       const block = blocks[stageIndex];
 
       practiceSection.value = section;
@@ -492,14 +498,18 @@ export function useAssessment() {
       previousFeedback.value = null;
       blockStartedAt.value = Date.now();
 
-      if (!(await ensureBlockQuestionsLoaded(block))) {
-        throw new Error("Could not load the selected questions.");
+      if (block.type === "mcq") {
+        if (!(await ensureBlockQuestionsLoaded(block))) {
+          throw new Error("Could not load the selected questions.");
+        }
+      } else {
+        writingOpenedAt = Date.now();
       }
 
       screen.value = "quiz";
       if (section === "humanities") {
         prepareStimulusQuestionTimers();
-      } else {
+      } else if (section === "mathematics-science") {
         prepareMathSciencePageTimers();
       }
       persistState();
@@ -646,11 +656,11 @@ export function useAssessment() {
         [completedKey]: true
       };
 
-      const bothSubjectsComplete =
-        Boolean(completedPracticeSections.value.humanities) &&
-        Boolean(completedPracticeSections.value["mathematics-science"]);
+      const allPracticeSectionsComplete = blocks.every(block =>
+        Boolean(completedPracticeSections.value[block.key])
+      );
 
-      if (bothSubjectsComplete) {
+      if (allPracticeSectionsComplete) {
         await finishAttempt();
         screen.value = "results";
       } else {
@@ -1046,7 +1056,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 15 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 16 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
