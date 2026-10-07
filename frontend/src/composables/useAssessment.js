@@ -99,6 +99,11 @@ export function useAssessment() {
   let questionOpenedAt = 0;
   let writingOpenedAt = 0;
 
+  const bothSubjectsComplete = computed(() =>
+    Boolean(completedPracticeSections.value.humanities) &&
+    Boolean(completedPracticeSections.value["mathematics-science"])
+  );
+
   const currentBlock = computed(() => blocks[currentStage.value]);
   const currentQuestion = computed(() =>
     currentBlock.value.type === "mcq" ? questions.value[questionIndex.value] || null : null
@@ -1176,6 +1181,7 @@ export function useAssessment() {
     currentStimulusReviewed,
     reviewedStimuli,
     completedPracticeSections,
+    bothSubjectsComplete,
     resultStats,
     resultTitle,
     startTest,
