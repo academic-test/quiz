@@ -937,6 +937,44 @@ app.post("/api/assessments/start", async (req,res) => {
   }
 });
 
+app.post("/api/assessments/:sessionId/prepare-section", async (req,res) => {
+  const sessionId = String(req.params.sessionId || "");
+  if (!requireAssessmentAccess(req, res, sessionId, "assessment-prepare:" + sessionId)) return;
+
+  try {
+    if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+    if (!rateLimit("assessment-prepare:" + sessionId, 10, 60 * 60 * 1000)) {
+      return res.status(429).json({ error:"Too many section requests. Please wait and try again." });
+    }
+
+    const section = String(req.body?.section || "");
+    if (!["humanities","mathematics_science"].includes(section)) {
+      return res.status(400).json({ error:"Invalid subject selection" });
+    }
+
+    const config = await getAssessmentConfig();
+    await ensureQuestionsGenerated(req, sessionId, config, section);
+
+    const expected = Number(config.sectionCounts[section]) || 0;
+    const { count, error } = await supabase
+      .from("generated_questions")
+      .select("id", { count: "exact", head: true })
+      .eq("session_id", sessionId)
+      .eq("year_level", config.yearLevel)
+      .eq("section", section);
+
+    if (error || Number(count) < expected) {
+      console.error("Selected section is not ready", { section, count, expected, error });
+      return res.status(503).json({ error:"Could not prepare the selected test" });
+    }
+
+    res.json({ ok:true, section, count:Number(count) });
+  } catch (error) {
+    console.error("Section preparation failed", error);
+    res.status(500).json({ error:"Could not prepare the selected test" });
+  }
+});
+
 app.get("/api/assessments/:sessionId/questions", async (req,res) => {
   const sessionId = String(req.params.sessionId || "");
   if (!requireAssessmentAccess(req, res, sessionId, "assessment-questions:" + sessionId)) return;
