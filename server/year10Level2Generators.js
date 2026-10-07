@@ -728,6 +728,120 @@ function mathematicsScienceQuestion() {
 }
 
 
+function humanitiesStimulusSet() {
+  const groups = [
+    {
+      key: "HUM-FRESH-01",
+      passage: "A community historian studies an island dialect that is becoming less common as younger residents leave for school and employment. Instead of collecting unusual words in isolation, the historian records family conversations, local stories and workplace talk. Older speakers explain that some expressions only make sense when listeners know the history of a place, occupation or custom. The historian concludes that language preservation is strongest when words remain connected to the people and situations that give them meaning.",
+      questions: [
+        ["What is the main idea of the passage?", "Language is closely connected with community life and shared knowledge.", ["Only rare words are worth preserving.","Young people are unable to learn dialects.","Written dictionaries are better than recordings."], "The historian links language with people, practices, history and context."],
+        ["Why does the historian record conversations rather than only unusual words?", "Context helps reveal how expressions are used and understood.", ["Unusual words have no meaning.","Family members refuse to define words.","Workplaces use no language."], "The passage says meaning can depend on situation, relationships and shared history."],
+        ["What can be inferred about some local expressions?", "Their meaning may depend on cultural knowledge.", ["They have exactly the same meaning everywhere.","They are used only by tourists.","They have no connection with history."], "Older speakers explain that some expressions require knowledge of place, occupation or custom."],
+        ["What does the historian's conclusion suggest about preservation?", "Documentation and continued community use are both valuable.", ["Preservation requires stopping all language change.","Only outsiders can preserve a language.","Recording words makes speakers unnecessary."], "The study values recording but emphasises the social setting in which language remains alive."],
+        ["Which change in the community is most relevant to the decline of the dialect?", "Younger residents increasingly leave for school and employment.", ["Older residents have stopped telling stories.","The island has gained a larger library.","Local families have more conversations."], "The passage directly connects reduced use with younger residents leaving the community."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-02",
+      passage: "The regional business comparison below uses five indicators: market size, growth, infrastructure, stability and labour cost. In the comparison, Aralia scores strongest for market size, Belora for growth, Caster for infrastructure, Doria for stability and Estara for labour cost. A weaker mark appears for infrastructure in Aralia and for stability in Belora. The visual is intended to help a company compare priorities rather than identify one universal winner.",
+      questions: [
+        ["Which market is strongest for growth?", "Belora", ["Aralia","Doria","Estara"], "Belora has the strongest growth indicator in the comparison."],
+        ["A company prioritises infrastructure. Which market is the best direct match?", "Caster", ["Aralia","Belora","Doria"], "Caster has the strongest infrastructure indicator."],
+        ["Which market is strongest for stability?", "Doria", ["Belora","Aralia","Estara"], "Doria is shown with the strongest stability indicator."],
+        ["What overall conclusion does the comparison support?", "Different markets may be attractive for different business priorities.", ["One market is strongest on every factor.","Labour cost determines every other factor.","The comparison has no practical use."], "The strongest indicators are distributed across different markets."],
+        ["A company values infrastructure first and stability second. Which choice best follows the visual?", "Caster for infrastructure and Doria for stability", ["Aralia for both","Belora for both","Estara for infrastructure and Aralia for stability"], "The two priorities point to different strongest markets."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-03",
+      passage: "A public-information cartoon shows a councillor standing beside a large box labelled QUESTIONS. Above the scene is a banner reading “WE LISTEN”. The councillor smiles at the audience but says, “That is enough for today.” The cartoon uses a simple visual contradiction to question whether the public claim is matched by the speaker's behaviour.",
+      questions: [
+        ["What is the main irony in the cartoon?", "The speaker claims to listen but signals that questions should stop.", ["The box is larger than the speaker.","The banner uses capital letters.","The speaker is standing outdoors."], "The contradiction between the public claim and the speaker's words creates the irony."],
+        ["Why is the box labelled QUESTIONS important?", "It makes the refusal to continue listening more obvious.", ["It gives the councillor a place to sit.","It shows the councillor has answered every question.","It explains the councillor's job title."], "The box visually represents public questions, which conflicts with the speaker's desire to stop hearing them."],
+        ["What criticism is the cartoon most likely making?", "A public commitment can be undermined by behaviour.", ["Public questions are always unnecessary.","Councillors should never speak.","Large signs are difficult to read."], "The cartoon challenges the sincerity of the stated commitment to listening."],
+        ["How does the short speech increase the humour?", "It makes the contradiction immediate and easy to recognise.", ["It provides a detailed explanation of policy.","It introduces a second unrelated issue.","It makes the banner more formal."], "The brief statement directly clashes with the banner."],
+        ["Which feature should a reader focus on first?", "The relationship between the banner and the speech.", ["The size of the box only.","The background scenery.","The councillor's clothing."], "The meaning depends primarily on the contradiction between words and behaviour."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-04",
+      passage: "A fashion critic explains that a style can be judged differently at different times. A new style may be called daring before it becomes common, then smart while it is accepted, and later dowdy or ridiculous after it has passed out of fashion. Decades later, the same style may be described as quaint, charming or beautiful. The sequence describes changing social judgement rather than a physical change in the clothing.",
+      questions: [
+        ["What does the sequence mainly demonstrate?", "Social judgements about a style can change over time.", ["Clothing changes its material every decade.","Fashion has one permanent standard.","Older clothing always becomes ugly."], "The critic's point is that the same style can receive different judgements at different times."],
+        ["Why might a once-unfashionable style become attractive again?", "People may reinterpret it as distinctive, charming or nostalgic.", ["Its original fabric changes automatically.","The style becomes physically newer.","Fashion critics stop making judgements."], "Later distance from a period can lead to new interpretations."],
+        ["What does calling a style “smart” imply in this scale?", "It is being judged as acceptably fashionable at that time.", ["It is always considered daring.","It has become completely unacceptable.","It is being judged only by its price."], "“Smart” sits near the socially accepted point on the scale."],
+        ["Which factor is least relevant to the critic's scale?", "The manufacturing cost of the clothing.", ["The time of the judgement.","Social expectations.","Distance from the period when the style was common."], "The scale concerns social judgement, not production cost."],
+        ["What broader idea about fashion is supported?", "Fashion is partly a social judgement rather than a fixed property.", ["Fashion can be measured only in dollars.","Every culture shares exactly the same tastes.","Styles never return."], "The scale shows that judgements depend on time and social context."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-05",
+      passage: "A diagram records a series of early flight experiments. Early attempts range from almost no movement to short flights. Later trials reach substantially greater distances, but the increases are uneven. The accompanying notes explain that inventors had to improve several features, including lift, balance, steering and engine performance. The pattern therefore represents experimentation in which setbacks contributed information for later designs.",
+      questions: [
+        ["What best describes the overall pattern?", "Uneven progress through experimentation and revision.", ["Immediate success in every trial.","A completely random sequence with no improvement.","Steady growth at exactly the same rate."], "The passage describes setbacks and later improvements rather than a smooth increase."],
+        ["Why can a failed experiment still be useful?", "It can reveal a problem that a later design needs to solve.", ["It guarantees the next experiment will succeed.","It proves further research is unnecessary.","It removes the need for testing."], "Failure provides information about weaknesses in a design."],
+        ["Why are later longer flights important?", "They show that several technical improvements were combining.", ["They prove earlier flights did not occur.","They show that engines alone determine success.","They eliminate the need for steering."], "The passage links better performance with several improvements working together."],
+        ["What does the sequence suggest about technological progress?", "Important advances may appear after a long period of trial and refinement.", ["Progress is always linear.","Only successful tests matter.","Technology improves without experimentation."], "The passage presents development as cumulative and uneven."],
+        ["Which statement is best supported by the passage?", "Different technical problems can require different improvements.", ["One adjustment always solves every problem.","Lift and steering are unrelated.","Engine performance is irrelevant."], "Lift, balance, steering and engine performance are named as separate aspects of development."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-06",
+      passage: "A literary narrator describes a large animal wandering through a busy town while a nervous shopkeeper becomes convinced that the animal is deliberately following him. The narrator also gives readers clues that the animal is actually interested in food smells and quiet places. The shopkeeper repeatedly treats coincidence as proof of intention. The humour comes from the reader seeing a simpler explanation than the one accepted by the frightened character.",
+      questions: [
+        ["What creates the central irony?", "The character's confident interpretation conflicts with the evidence the reader sees.", ["The animal speaks directly to the character.","The town is completely empty.","The narrator agrees with every assumption."], "The reader has access to evidence that weakens the character's theory."],
+        ["Why does the shopkeeper's explanation become less convincing?", "He treats guesses as facts and ignores alternative clues.", ["He carefully tests every explanation.","The animal confirms his theory.","The narrator hides all evidence."], "His certainty is not supported by the wider details presented."],
+        ["What role does the narrator's wider perspective play?", "It lets the reader notice information the character overlooks.", ["It removes the setting from the story.","It makes the reader unable to judge the character.","It proves the shopkeeper is correct."], "The broader perspective is what creates the contrast in understanding."],
+        ["What tone is most strongly created?", "Playful and ironic.", ["Official and bureaucratic.","Scientific and technical.","Deeply tragic."], "The mismatch between the character's fear and the ordinary explanation is comic."],
+        ["What broader lesson is illustrated?", "People can interpret events differently when fear shapes what they notice.", ["Fear always improves judgement.","Evidence has no effect on interpretation.","Coincidence always proves intention."], "The character's fear leads him to select evidence that supports his theory."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-07",
+      passage: "A migration diagram groups movement between urban, urbanised-rural and rural settlements. It also separates people moving alone from those moving as families. The purpose is not to claim that one kind of settlement is always better. Instead, the separate flows make it possible to see differences in direction and size that might disappear inside a single total.",
+      questions: [
+        ["Why are single and family migrants separated?", "The distinction can reveal patterns that a combined total could hide.", ["Single migrants are not part of the population.","Families cannot move between settlements.","The categories make the diagram decorative only."], "Separating categories makes smaller or contrasting patterns visible."],
+        ["What do the arrows show most directly?", "The direction and relationship of migration flows.", ["The motives of every migrant.","The quality of housing in each settlement.","The age of every migrant."], "Arrows provide evidence about movement, not its causes."],
+        ["Why can a large total be misleading?", "It can conceal a smaller but important movement in the opposite direction.", ["Large totals always reverse the arrows.","Totals make migration impossible to measure.","A large total proves every motive is the same."], "The diagram is structured to prevent important smaller flows being hidden."],
+        ["Which conclusion should not be drawn from the diagram alone?", "One settlement type is permanently more attractive than the others.", ["Different flows can have different sizes.","Movement can occur in more than one direction.","Single and family flows can differ."], "The diagram shows patterns but does not establish a permanent preference."],
+        ["What additional evidence would help explain why a flow occurred?", "Information about employment, housing, family circumstances or other motivations.", ["Only the colour of the arrows.","Only the diagram title.","The number of settlement names."], "The diagram shows what moved and where, not all the reasons why."]
+      ]
+    },
+    {
+      key: "HUM-FRESH-08",
+      passage: "An advertisement uses the headline “LOOK CLOSER. GO FURTHER.” above images of books, streets, buildings and a map. A smaller line promises ideas and stories from around the world. The advertisement does not focus on a discount or a specific product feature. Instead, it presents learning and discovery as rewarding experiences and invites the audience to explore subjects more deeply.",
+      questions: [
+        ["What is the main persuasive appeal?", "Curiosity, discovery and broader cultural understanding.", ["Saving money.","Avoiding unfamiliar ideas.","Winning a competition."], "The imagery and wording invite exploration and learning."],
+        ["How does the headline contribute to the message?", "It suggests that closer attention can lead to deeper exploration.", ["It gives a price.","It warns viewers not to look closely.","It promises that every viewer will travel overseas."], "“Look closer” and “go further” work as an invitation to engage more deeply."],
+        ["Why are books and maps effective images for the advertisement?", "They reinforce ideas of knowledge, places and discovery.", ["They prove the product is inexpensive.","They show that the service is only about sport.","They identify a particular hotel."], "The visual elements support the wider cultural and learning appeal."],
+        ["What kind of audience is the advertisement most likely targeting?", "Viewers interested in learning about ideas and places.", ["People who want to avoid new information.","People seeking only the cheapest option.","People buying construction equipment."], "The language appeals to curiosity and cultural interest."],
+        ["What is the advertisement selling most strongly?", "An attitude of exploration rather than one single programme or feature.", ["A guarantee of free travel.","A specific physical object.","A financial investment."], "The central promise is the experience of looking, learning and discovering."]
+      ]
+    }
+  ];
+
+  const rows = [];
+  groups.forEach(group => {
+    group.questions.forEach((item, index) => {
+      const r = four(item[1], item[2]);
+      rows.push({
+        section: "humanities",
+        difficulty: index === 0 ? "medium" : "hard",
+        time: index === 0 ? 55 : 60,
+        question_text: item[0],
+        answer_options: r.options,
+        correct_answer: r.index,
+        explanation: item[3],
+        passage: group.passage,
+        stimulus_group: group.key,
+        stimulus_image: null,
+        reasoning_type: "humanities:stimulus-page"
+      });
+    });
+  });
+  return rows;
+}
+
 function mathematicsScienceStimulusSet() {
   const groups = [
     {
@@ -975,5 +1089,6 @@ module.exports = {
   pickDiverseQuestions,
   pickStimulusGroups,
   mathematicsScienceStimulusSet,
+  humanitiesStimulusSet,
   getWritingTasks
 };
