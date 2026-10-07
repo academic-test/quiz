@@ -23,6 +23,40 @@
       @start="startTest"
     />
 
+    <section v-else-if="screen === 'section-select'" class="card start-card section-select-card">
+      <div class="hero-icon">📚</div>
+      <div class="eyebrow">SELECT YOUR TEST</div>
+      <h2>Which test would you like to practise?</h2>
+      <p>Choose one subject to begin. Your selected test keeps its existing page grouping, review and timing exactly as configured.</p>
+
+      <div class="section-choice-grid">
+        <button
+          class="section-choice"
+          type="button"
+          :disabled="starting"
+          @click="selectPracticeSection('humanities')"
+        >
+          <strong>Humanities</strong>
+          <span>40 questions · 40 minutes</span>
+          <small>Stimulus pages with multiple questions</small>
+        </button>
+
+        <button
+          class="section-choice"
+          type="button"
+          :disabled="starting"
+          @click="selectPracticeSection('mathematics-science')"
+        >
+          <strong>Mathematics &amp; Science</strong>
+          <span>32 questions · 40 minutes</span>
+          <small>Shared-topic pages with multiple questions</small>
+        </button>
+      </div>
+
+      <p v-if="starting" class="timer-note">Loading your selected test…</p>
+      <p v-if="startError" class="start-error">{{ startError }}</p>
+    </section>
+
     <section v-else-if="screen === 'quiz'" class="quiz-screen">
       <div class="quiz-meta">
         <div>
@@ -287,6 +321,7 @@ const {
   resultStats,
   resultTitle,
   startTest,
+  selectPracticeSection,
   selectAnswer,
   updateWriting,
   nextQuestion,
