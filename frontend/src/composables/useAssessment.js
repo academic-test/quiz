@@ -90,6 +90,8 @@ export function useAssessment() {
   const reviewedStimuli = ref({});
   const mathSciencePageIndex = ref(0);
   const reviewedMathSciencePages = ref({});
+  const practiceSection = ref("");
+  const singleSectionMode = ref(false);
   const questionOpenedAtById = ref({});
 
   let timerHandle = null;
@@ -312,6 +314,8 @@ export function useAssessment() {
         reviewedStimuli: reviewedStimuli.value,
         mathSciencePageIndex: mathSciencePageIndex.value,
         reviewedMathSciencePages: reviewedMathSciencePages.value,
+        practiceSection: practiceSection.value,
+        singleSectionMode: singleSectionMode.value,
         questionOpenedAtById: questionOpenedAtById.value
       }));
     } catch (error) {
@@ -436,25 +440,68 @@ export function useAssessment() {
       reviewedStimuli.value = {};
       mathSciencePageIndex.value = 0;
       reviewedMathSciencePages.value = {};
+      practiceSection.value = "";
+      singleSectionMode.value = false;
       questionIndex.value = 0;
       currentStage.value = 0;
       feedback.value = null;
       previousFeedback.value = null;
+      clearTimer();
+      blockStartedAt.value = 0;
 
-      // Humanities is presented as complete stimulus pages, so all 40
-      // Humanities questions must be loaded before the first page is rendered.
-      if (!(await ensureBlockQuestionsLoaded(blocks[0]))) {
-        throw new Error("Could not load the Humanities questions.");
+      // The assessment/session is created first. The student then chooses
+      // which existing MCQ component to practise; no question data or
+      // grouping is changed by this choice.
+      screen.value = "section-select";
+      persistState();
+    } catch (error) {
+      console.error(error);
+      startError.value = "The test could not start. Please try again.";
+    } finally {
+      starting.value = false;
+    }
+  }
+
+  async function selectPracticeSection(section) {
+    if (starting.value || !sessionId.value || !attemptId.value) return;
+    if (section !== "humanities" && section !== "mathematics-science") return;
+
+    startError.value = "";
+    starting.value = true;
+    clearTimer();
+    try {
+      const stageIndex = section === "humanities" ? 0 : 1;
+      const block = blocks[stageIndex];
+
+      practiceSection.value = section;
+      singleSectionMode.value = true;
+      currentStage.value = stageIndex;
+      questionIndex.value = block.start;
+      stimulusIndex.value = 0;
+      mathSciencePageIndex.value = 0;
+      feedback.value = null;
+      previousFeedback.value = null;
+      blockStartedAt.value = Date.now();
+
+      if (!(await ensureBlockQuestionsLoaded(block))) {
+        throw new Error("Could not load the selected questions.");
       }
 
       screen.value = "quiz";
-      blockStartedAt.value = Date.now();
-      writingOpenedAt = Date.now();
+      if (section === "humanities") {
+        prepareStimulusQuestionTimers();
+      } else {
+        prepareMathSciencePageTimers();
+      }
       persistState();
       startBlockTimer(blockStartedAt.value);
     } catch (error) {
       console.error(error);
-      startError.value = "The test could not start. Please try again.";
+      startError.value = "The selected test could not be loaded. Please try again.";
+      screen.value = "section-select";
+      practiceSection.value = "";
+      singleSectionMode.value = false;
+      currentStage.value = 0;
     } finally {
       starting.value = false;
     }
@@ -582,6 +629,13 @@ export function useAssessment() {
   async function advanceStage() {
     clearTimer();
     submittedBlocks.value[currentStage.value] = true;
+
+    if (singleSectionMode.value) {
+      await finishAttempt();
+      screen.value = "results";
+      persistState();
+      return;
+    }
 
     if (currentStage.value >= blocks.length - 1) {
       await finishAttempt();
@@ -954,6 +1008,8 @@ export function useAssessment() {
     reviewedStimuli.value = {};
     mathSciencePageIndex.value = 0;
     reviewedMathSciencePages.value = {};
+    practiceSection.value = "";
+    singleSectionMode.value = false;
     questionOpenedAtById.value = {};
   }
 
@@ -991,10 +1047,17 @@ export function useAssessment() {
       stimulusIndex.value = Number.isInteger(saved.stimulusIndex) ? saved.stimulusIndex : 0;
       mathSciencePageIndex.value = Number.isInteger(saved.mathSciencePageIndex) ? saved.mathSciencePageIndex : 0;
       reviewedMathSciencePages.value = saved.reviewedMathSciencePages || {};
+      practiceSection.value = saved.practiceSection || "";
+      singleSectionMode.value = Boolean(saved.singleSectionMode);
       questionOpenedAtById.value = saved.questionOpenedAtById || {};
 
       if (saved.screen === "results") {
         screen.value = "results";
+        return;
+      }
+      if (saved.screen === "section-select") {
+        clearTimer();
+        screen.value = "section-select";
         return;
       }
 
@@ -1094,6 +1157,7 @@ export function useAssessment() {
     resultStats,
     resultTitle,
     startTest,
+    selectPracticeSection,
     selectAnswer,
     selectStimulusAnswer,
     selectMathScienceAnswer,
