@@ -51,6 +51,34 @@
         <div :style="{ width: progressPercent + '%' }"></div>
       </div>
 
+      <nav
+        v-if="isHumanitiesBlock && currentStimulusGroups.length"
+        class="stimulus-set-navigation"
+        aria-label="Humanities stimulus pages"
+      >
+        <span class="stimulus-set-navigation-label">Stimulus pages:</span>
+        <button
+          v-for="(group, index) in currentStimulusGroups"
+          :key="group.key"
+          type="button"
+          class="stimulus-set-nav"
+          :class="{
+            current: index === stimulusIndex,
+            complete: group.questions.every(question => Boolean(results?.[question.id]))
+          }"
+          :disabled="savingResponse || index > stimulusIndex"
+          @click="goToStimulus(index)"
+        >
+          {{ index + 1 }} · Q{{ currentBlock.start + currentStimulusGroups
+            .slice(0, index)
+            .reduce((total, item) => total + item.questions.length, 0) + 1 }}–{{
+            currentBlock.start + currentStimulusGroups
+              .slice(0, index + 1)
+              .reduce((total, item) => total + item.questions.length, 0)
+          }}
+        </button>
+      </nav>
+
       <StimulusGroup
         v-if="isHumanitiesBlock && currentStimulusQuestions.length"
         :questions="currentStimulusQuestions"
