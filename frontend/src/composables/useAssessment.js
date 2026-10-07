@@ -144,9 +144,9 @@ export function useAssessment() {
   });
   const mathScienceQuestionStart = computed(() => {
     const first = currentMathScienceQuestions.value[0];
-    if (!first) return currentBlock.value.start + 1;
+    if (!first) return 1;
     const index = currentBlockQuestions.value.findIndex(question => question?.id === first.id);
-    return currentBlock.value.start + index + 1;
+    return index + 1;
   });
   const mathScienceQuestionEnd = computed(() =>
     mathScienceQuestionStart.value + Math.max(0, currentMathScienceQuestions.value.length - 1)
