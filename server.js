@@ -677,9 +677,12 @@ async function generateQuestions(req, sessionId, config) {
     }
     if (!section) break;
 
-    const question = section === "humanities"
-      ? humanitiesQuestion()
-      : mathematicsScienceQuestion();
+    // Never synthesize single Humanities questions. If no complete grouped
+    // Humanities bank set is available, let the assessment fail cleanly
+    // rather than regressing to one-question-per-page.
+    if (section === "humanities") break;
+
+    const question = mathematicsScienceQuestion();
 
     question.year_level = config.yearLevel;
     question.session_id = sessionId;
