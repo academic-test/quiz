@@ -24,8 +24,13 @@ export function startAssessment(payload) {
   });
 }
 
+function apiSection(section) {
+  return section === "mathematics-science" ? "mathematics_science" : section;
+}
+
 export function getQuestions(sessionId, offset = 0, limit = 10, section = "") {
-  const sectionQuery = section ? "&section=" + encodeURIComponent(section) : "";
+  const normalizedSection = apiSection(section);
+  const sectionQuery = normalizedSection ? "&section=" + encodeURIComponent(normalizedSection) : "";
   return request(
     "/api/assessments/" +
       encodeURIComponent(sessionId) +
@@ -38,13 +43,14 @@ export function getQuestions(sessionId, offset = 0, limit = 10, section = "") {
 }
 
 export function prepareSection(sessionId, section) {
+  const normalizedSection = apiSection(section);
   return request(
     "/api/assessments/" +
       encodeURIComponent(sessionId) +
       "/prepare-section",
     {
       method: "POST",
-      body: JSON.stringify({ section })
+      body: JSON.stringify({ section: normalizedSection })
     }
   );
 }
