@@ -203,7 +203,7 @@ export function useAssessment() {
   );
   const currentBlockQuestions = computed(() => {
     if (currentBlock.value.type !== "mcq") return [];
-    if (currentBlock.value.key === "humanities") {
+    if (currentBlock.value.key === "humanities" || currentBlock.value.key === "mathematics-science") {
       return questions.value
         .slice(currentBlock.value.start, currentBlock.value.end + 1)
         .filter(Boolean);
