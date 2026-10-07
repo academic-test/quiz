@@ -727,6 +727,125 @@ function mathematicsScienceQuestion() {
   return {section:"mathematics_science",difficulty:"hard",time:60,passage:"Repeated measurements: "+values.join(", "),question_text:"Which observation should prompt a student to check the measurement for a possible anomaly?",answer_options:r.options,correct_answer:r.index,reasoning_type:"science:anomaly"};
 }
 
+
+function mathematicsScienceStimulusSet() {
+  const groups = [
+    {
+      key: "MATH-PAGE-01",
+      passage: "A research team models how a large ancient landmass separated over time. The record uses a horizontal time scale in millions of years. At 145 million years ago, Landmass R split into two regions. One branch later separated at 118 million years ago, while another remained joined until 92 million years ago.",
+      questions: [
+        ["How many millions of years passed between the split of Landmass R and the later split at 118 million years ago?", 27, [21, 31, 37], "Subtract 118 from 145."],
+        ["How many millions of years passed from the original split at 145 million years ago to the later event at 92 million years ago?", 53, [43, 57, 63], "Subtract 92 from 145."],
+        ["Which statement is best supported by the time model?", "The landmass changed through more than one separation event.", ["All separation happened at the same time.","No separation happened after the first event.","The model proves the exact cause of every split."], "The timeline represents a sequence of separate events rather than one single split."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-02",
+      passage: "A town has recorded its population by age group in two survey years. In 1980 the numbers of residents aged 0–14, 15–34, 35–54 and 55+ were 1800, 2600, 1900 and 900. In 2020 the corresponding numbers were 1400, 3100, 2500 and 1500.",
+      questions: [
+        ["How many residents were recorded in the 15–34 group in 2020?", 3100, [2600, 2900, 3500], "Read the 15–34 value for 2020."],
+        ["By how many residents did the 55+ group increase from 1980 to 2020?", 600, [400, 700, 900], "Subtract 900 from 1500."],
+        ["Which age group had the largest increase between the two years?", "55+", ["15–34", "35–54", "0–14"], "The changes are +500, +500, −400 and +600 respectively."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-03",
+      passage: "A winter air-quality study measures light scattering in a city. Higher scattering means more particles are present. Traffic is busiest during the morning and afternoon commuter periods, while some homes use wood heaters overnight. Three additional conditions are measured: a warm working day, a cold non-working day and a warm non-working day.",
+      questions: [
+        ["Which comparison would best help separate the effect of traffic from the effect of wood heaters?", "Compare a cold working day with a cold non-working day.", ["Compare two warm working days only.","Compare two identical cold working days.","Compare a warm working day with another warm working day."], "Keeping temperature similar while changing whether people commute helps isolate the traffic effect."],
+        ["Why is a non-working day useful in this investigation?", "Traffic patterns are different while many other conditions can be similar.", ["Wood fires cannot operate on non-working days.","It guarantees there will be no particles in the air.","It makes temperature irrelevant."], "A non-working day changes a key traffic-related factor without automatically changing every other variable."],
+        ["A sharp evening peak appears on working days but not on cold non-working days. Which explanation is most consistent with this evidence?", "Traffic is a plausible contributor to the peak.", ["The peak must be caused entirely by rainfall.","The evidence proves wood smoke never contributes.","The instruments must be broken."], "The difference between working and non-working conditions is consistent with a traffic contribution, though it does not prove traffic is the only cause."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-04",
+      passage: "A builder lays rectangular tiles in a repeating staggered pattern. Every second row begins and ends with a half-tile. A full wall is 6 tiles wide and 5 rows high. The row sequence repeats after two rows.",
+      questions: [
+        ["How many full-width tile positions are there across five rows if each row is 6 tile-widths long?", 30, [24, 26, 36], "There are 6 positions per row across 5 rows."],
+        ["If the two edge half-tiles together make one full tile-width in each alternating row, how many half-tiles occur in the five-row wall?", 6, [4, 5, 10], "Three of the five rows are alternating rows, each with two half-tiles."],
+        ["Which feature of the pattern makes it rectangular despite the staggered rows?", "The half-tiles complete the missing edge widths.", ["Every row uses only half-tiles.","The row lengths continually decrease.","The tiles are placed randomly."], "The edge half-tiles compensate for the stagger so the outer boundary remains straight."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-05",
+      passage: "A coastal food web contains kelp, sea snails, sea urchins, small fish and sea otters. Snails and urchins graze on kelp. Otters feed on sea urchins. A sudden decline in otters changes the balance of the web.",
+      questions: [
+        ["What is the most likely immediate consequence of a large decline in sea otters?", "The sea-urchin population is likely to increase.", ["Kelp must immediately increase.","Sea urchins stop feeding.","Sea snails disappear immediately."], "With fewer predators, sea urchins are likely to face less predation."],
+        ["If sea urchin numbers rise substantially, what is the most likely effect on kelp?", "Kelp is likely to decline because grazing pressure increases.", ["Kelp must double immediately.","Kelp becomes a predator.","Sea urchins stop eating kelp."], "More urchins feeding on kelp increases grazing pressure."],
+        ["Which intervention would most directly reduce grazing on kelp without removing kelp itself?", "Reduce the number of major kelp grazers.", ["Increase the number of grazers.","Remove all rocks from the sea floor.","Increase sunlight at night."], "Reducing grazing pressure directly addresses the cause of excessive kelp consumption."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-06",
+      passage: "A laboratory study records average blood flow in millilitres per minute to four body regions at rest and during vigorous exercise. Brain: 760 to 760. Heart: 210 to 780. Kidneys: 1080 to 620. Skeletal muscles: 720 to 11,900.",
+      questions: [
+        ["What percentage of total rest flow of 5000 mL/min would be directed to the brain?", "15.2%", ["7.6%","12.0%","20.0%"], "Divide 760 by 5000 and multiply by 100."],
+        ["By how much does blood flow to the heart increase during exercise?", "570 mL/min", ["470 mL/min","990 mL/min","1030 mL/min"], "Subtract 210 from 780."],
+        ["Which body region shows the largest increase in blood flow?", "Skeletal muscles", ["Brain","Heart","Kidneys"], "Skeletal-muscle flow rises from 720 to 11,900 mL/min."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-07",
+      passage: "A market analyst tracks a commodity's daily price and also calculates a 10-day moving average. The daily price can change sharply from one day to the next, while the moving average combines recent values and therefore changes more gradually.",
+      questions: [
+        ["Why does a moving average usually have a smaller range than the daily prices?", "High and low daily values are smoothed by averaging.", ["It ignores recent prices.","It always equals the highest price.","It is calculated from only one day."], "Averaging reduces the effect of individual extremes."],
+        ["Compared with a sudden rise in the daily price, when would a moving average usually respond?", "More gradually, after several daily values contribute to the average.", ["Instantly by exactly the same amount.","Before the daily rise occurs.","It would never change."], "The average includes multiple observations, so a single day's change has a smaller immediate effect."],
+        ["A daily price is 84 and the nine previous daily prices average 60. What is the new 10-day moving average?", 62.4, [61.6, 64.0, 68.4], "The new average is (9×60 + 84) ÷ 10 = 62.4."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-08",
+      passage: "Two students memorise 120 symbols. Immediately after learning, both recall 120. Student A recalls 60% as many symbols at each 20-minute test. Student B recalls 18 fewer symbols at each test.",
+      questions: [
+        ["How many symbols does Student A recall after 40 minutes?", 43.2, [48, 36, 61.2], "After two intervals: 120 × 0.6 × 0.6 = 43.2."],
+        ["How many symbols does Student B recall after 60 minutes?", 66, [84, 72, 54], "There are three 20-minute intervals, so 120 − 3×18 = 66."],
+        ["Which statement best compares the two forgetting patterns?", "Student A follows a proportional pattern, while Student B loses a fixed amount each interval.", ["Both students lose the same number each interval.","Both students lose the same percentage each interval.","Neither student's recall changes over time."], "A percentage-based decrease and a fixed numerical decrease produce different patterns."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-09",
+      passage: "An aquarium guide estimates carrying capacity from water-surface area. Without aeration, each square metre can support fish with a combined body length of 24 cm. Aeration increases that capacity by 25%. A new tank is planned for fish that are each 4 cm long.",
+      questions: [
+        ["Without aeration, how many 4 cm fish can 1.0 m² support?", 6, [4, 5, 8], "Divide the 24 cm total capacity by 4 cm per fish."],
+        ["What total fish length can an aerated 1.0 m² tank support?", "30 cm", ["25 cm","28 cm","36 cm"], "Increase 24 cm by 25%: 24 × 1.25 = 30 cm."],
+        ["What is the minimum surface area needed for 100 fish that are each 4 cm long in an aerated tank?", "13.33 m²", ["10 m²","12 m²","16 m²"], "The required total length is 400 cm; 400 ÷ 30 = 13.33 m²."],
+        ["Why is surface area used in this guide rather than simply the volume of the tank?", "Gas exchange at the water surface is important for supporting the fish.", ["Fish only live at the surface.","Tank volume has no effect on anything.","Surface area determines fish colour."], "The guide uses surface area as a practical indicator related to oxygen exchange."]
+      ]
+    },
+    {
+      key: "MATH-PAGE-10",
+      passage: "A communication system uses two symbols, a dot and a dash. A code may contain one, two or three symbols, and order matters. For example, dot-dash is different from dash-dot.",
+      questions: [
+        ["How many different codes of exactly two symbols are possible?", 4, [2, 6, 8], "Each position has 2 choices, so 2×2 = 4."],
+        ["How many different codes of exactly three symbols are possible?", 8, [6, 9, 12], "There are 2 choices for each of 3 positions: 2³ = 8."],
+        ["How many different codes are possible using exactly one, two or three symbols?", 14, [10, 12, 16], "There are 2 + 4 + 8 = 14 possible codes."],
+        ["Why do dot-dash and dash-dot count as different codes?", "The order of the symbols is part of the code.", ["Only the number of symbols matters.","Dots and dashes have identical meanings.","The codes are always read backwards."], "Changing the order changes the sequence and therefore creates a different code."]
+      ]
+    }
+  ];
+
+  const rows = [];
+  groups.forEach(group => {
+    group.questions.forEach((item, index) => {
+      const r = four(item[1], item[2]);
+      rows.push({
+        section: "mathematics_science",
+        difficulty: index === 0 ? "medium" : "hard",
+        time: index === 0 ? 55 : 60,
+        question_text: item[0],
+        answer_options: r.options,
+        correct_answer: r.index,
+        explanation: item[3],
+        passage: group.passage,
+        stimulus_group: group.key,
+        stimulus_image: null,
+        reasoning_type: "math-science:stimulus-page"
+      });
+    });
+  });
+  return rows;
+}
+
 function questionFingerprint(question) {
   return JSON.stringify([
     question.section,
@@ -855,5 +974,6 @@ module.exports = {
   questionType,
   pickDiverseQuestions,
   pickStimulusGroups,
+  mathematicsScienceStimulusSet,
   getWritingTasks
 };
