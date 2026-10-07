@@ -946,10 +946,6 @@ app.post("/api/assessments/:sessionId/prepare-section", async (req,res) => {
 
   try {
     if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
-    if (!rateLimit("assessment-prepare:" + sessionId, 10, 60 * 60 * 1000)) {
-      return res.status(429).json({ error:"Too many section requests. Please wait and try again." });
-    }
-
     const section = String(req.body?.section || "");
     if (!["humanities","mathematics_science"].includes(section)) {
       return res.status(400).json({ error:"Invalid subject selection" });
