@@ -724,12 +724,19 @@ async function generateQuestions(req, sessionId, config) {
         continue;
       }
 
-      const selected = pickDiverseQuestions(
-        bankRows || [],
-        Math.min(needed, neededTotal - pending.length),
-        used,
-        pending.length ? questionType(pending[pending.length - 1]) : ""
-      );
+      const selected = section === "humanities"
+        ? pickStimulusGroups(
+            bankRows || [],
+            Math.min(needed, neededTotal - pending.length),
+            used,
+            5
+          )
+        : pickDiverseQuestions(
+            bankRows || [],
+            Math.min(needed, neededTotal - pending.length),
+            used,
+            pending.length ? questionType(pending[pending.length - 1]) : ""
+          );
 
       for (const source of selected) {
         if (pending.length >= neededTotal) break;
