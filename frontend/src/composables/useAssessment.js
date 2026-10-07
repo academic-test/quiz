@@ -6,6 +6,7 @@ import {
   saveWritingResponse,
   startAssessment
 } from "../services/quizApi";
+import { buildHumanitiesStimulusGroups } from "../utils/humanitiesStimuli";
 
 export const totalQuestions = 72;
 
@@ -98,52 +99,11 @@ export function useAssessment() {
   const isHumanitiesBlock = computed(() =>
     currentBlock.value.type === "mcq" && currentBlock.value.key === "humanities"
   );
-  const currentStimulusGroups = computed(() => {
-    if (!isHumanitiesBlock.value) return [];
-
-    // Always group Humanities questions by their shared stimulus. This also
-    // supports older sessions created before stimulus_group was populated.
-    const groups = [];
-    const byKey = new Map();
-
-    currentBlockQuestions.value.forEach((question, index) => {
-      if (!question) return;
-
-      const passageKey = String(question.passage || "")
-        .trim()
-        .replace(/\s+/g, " ")
-        .toLowerCase();
-
-      // Prefer the explicit database group. For older sessions, fall back to
-      // the shared passage/image instead of making every question its own page.
-      const key =
-        question.stimulus_group ||
-        (question.stimulus_image ? "image:" + question.stimulus_image : "") ||
-        (passageKey ? "passage:" + passageKey : "") ||
-        "legacy-group:" + Math.floor(index / 6);
-
-      if (!byKey.has(key)) {
-        const group = {
-          key,
-          passage: question.passage || "",
-          image: question.stimulus_image || "",
-          questions: []
-        };
-        byKey.set(key, group);
-        groups.push(group);
-      }
-
-      const group = byKey.get(key);
-      group.questions.push(question);
-
-      // If an older group contains a blank passage/image on its first row,
-      // retain the first non-empty stimulus metadata found in the group.
-      if (!group.passage && question.passage) group.passage = question.passage;
-      if (!group.image && question.stimulus_image) group.image = question.stimulus_image;
-    });
-
-    return groups;
-  });
+  const currentStimulusGroups = computed(() =>
+    isHumanitiesBlock.value
+      ? buildHumanitiesStimulusGroups(currentBlockQuestions.value)
+      : []
+  );
   const currentStimulusQuestions = computed(() =>
     currentStimulusGroups.value[stimulusIndex.value]?.questions || []
   );
