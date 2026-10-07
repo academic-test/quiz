@@ -796,9 +796,10 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
       const { data: bankRows, error } = await supabase
         .from("generated_questions")
-        .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation")
+        .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
         .eq("year_level", config.yearLevel)
         .eq("section", section)
+        .eq("is_bank", true)
         .is("session_id", null)
         .limit(5000);
 
@@ -807,19 +808,12 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         continue;
       }
 
-      const selected = section === "humanities"
-        ? pickStimulusGroups(
-            bankRows || [],
-            Math.min(needed, neededTotal - pending.length),
-            used,
-            5
-          )
-        : pickDiverseQuestions(
-            bankRows || [],
-            Math.min(needed, neededTotal - pending.length),
-            used,
-            pending.length ? questionType(pending[pending.length - 1]) : ""
-          );
+      const selected = pickStimulusGroups(
+        bankRows || [],
+        Math.min(needed, neededTotal - pending.length),
+        used,
+        5
+      );
 
       for (const source of selected) {
         if (pending.length >= neededTotal) break;
