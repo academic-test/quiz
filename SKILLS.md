@@ -217,6 +217,24 @@ The supplied `Volume 1 Exam Pack Question Book.pdf` remains a secondary blueprin
 
 The supplied LANTITE numeracy practice PDF is a secondary reference for numeracy/data question formats only. It must not be treated as the scholarship-test structure and must not be copied.
 
+## Permanent Mathematics & Science multi-question-page contract
+
+**NON-NEGOTIABLE:** Mathematics & Science must use the same page-level review flow as Humanities, while remaining completely separate from the Humanities implementation.
+
+For every Mathematics & Science problem page:
+- Multiple related MCQs are displayed together on the same page; never revert this section to one-question-per-page.
+- Page navigation represents problem pages/sets, not individual questions.
+- The page shows all of its questions together before review.
+- **Save Answer & Review** is disabled until every question on the current page has an answer.
+- Clicking **Save Answer & Review** saves all answered questions on that page and displays correctness, the correct answer when needed, and the explanation directly below each question's answer choices.
+- After successful review, the **same button becomes Next Page →**. There is no duplicate Next Page control for the same page.
+- Clicking Next Page advances to the next Mathematics & Science problem page.
+- On the final page, the same post-review button advances to the next assessment component after the Mathematics & Science component is complete.
+- Do not use individual-question Next Question navigation for Mathematics & Science.
+- Keep the Humanities page grouping and behaviour unchanged when implementing this flow.
+- Page-level reviewed state must be explicit and must require saved results for every question on the page before Next Page becomes available.
+- Timer behaviour remains one overall 40-minute Mathematics & Science component timer; do not introduce per-question timers.
+
 ## Permanent Humanities stimulus-page contract
 
 **NON-NEGOTIABLE:** Humanities is always presented as stimulus pages, never as one-question-per-page.
