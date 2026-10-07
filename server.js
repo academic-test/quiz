@@ -695,7 +695,10 @@ async function generateQuestions(req, sessionId, config) {
 
     const fp = questionFingerprint(question);
     const previousType = pending.length ? questionType(pending[pending.length - 1]) : "";
-    if (used.has(fp) || (previousType && questionType(question) === previousType)) continue;
+    const sameGroupedMathPage =
+      section === "mathematics_science" &&
+      questionType(question) === "math-science:stimulus-page";
+    if (used.has(fp) || (previousType && questionType(question) === previousType && !sameGroupedMathPage)) continue;
 
     const number = currentTotal + pending.length + 1;
     question.id = String(number).padStart(3, "0") + "-" + crypto.randomUUID();
