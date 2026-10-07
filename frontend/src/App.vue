@@ -28,11 +28,23 @@
       <div class="eyebrow">SELECT YOUR TEST</div>
       <h2>Which test would you like to practise?</h2>
       <p>
-        Choose a subject to begin. Your selected test keeps its existing page grouping, review and timing exactly as configured.
-        You can come back here after finishing a subject to choose the other one.
+        Choose a test to begin. You can return here after completing any test and choose another one.
+        Your existing question grouping, page flow, review behaviour and timing remain unchanged.
       </p>
 
-      <div class="section-choice-grid">
+      <div class="section-choice-grid four-test-grid">
+        <button
+          class="section-choice"
+          type="button"
+          :disabled="starting || Boolean(completedPracticeSections['writing-1'])"
+          @click="selectPracticeSection('writing-1')"
+        >
+          <strong>Written Expression 1</strong>
+          <span>25 minutes</span>
+          <small v-if="completedPracticeSections['writing-1']">Completed in this assessment</small>
+          <small v-else>Write an original response to the topic. You may use a story, persuasive piece, discussion or personal reflection.</small>
+        </button>
+
         <button
           class="section-choice"
           type="button"
@@ -42,7 +54,7 @@
           <strong>Humanities</strong>
           <span>40 questions · 40 minutes</span>
           <small v-if="completedPracticeSections.humanities">Completed in this assessment</small>
-          <small v-else>Stimulus pages with multiple questions</small>
+          <small v-else>Stimulus pages with multiple questions.</small>
         </button>
 
         <button
@@ -54,11 +66,29 @@
           <strong>Mathematics &amp; Science</strong>
           <span>32 questions · 40 minutes</span>
           <small v-if="completedPracticeSections['mathematics-science']">Completed in this assessment</small>
-          <small v-else>Shared-topic pages with multiple questions</small>
+          <small v-else>Shared-topic pages with multiple questions.</small>
+        </button>
+
+        <button
+          class="section-choice"
+          type="button"
+          :disabled="starting || Boolean(completedPracticeSections['writing-2'])"
+          @click="selectPracticeSection('writing-2')"
+        >
+          <strong>Written Expression 2</strong>
+          <span>25 minutes</span>
+          <small v-if="completedPracticeSections['writing-2']">Completed in this assessment</small>
+          <small v-else>Respond to the topic with your own ideas, clear organisation and effective language.</small>
         </button>
       </div>
 
-      <p v-if="bothSubjectsComplete" class="timer-note">Both subjects are complete.</p>
+      <div class="writing-expectations">
+        <h3>What is expected in Written Expression?</h3>
+        <p>Your response should be <strong>original and directly connected to the stimulus/topic</strong>. You can choose the form that best fits your ideas, such as a story, persuasive piece, discussion or personal reflection.</p>
+        <p>You are assessed on <strong>the quality of your thoughts and content</strong>, <strong>how well you organise and structure your response</strong>, and <strong>how clearly, effectively and appropriately you use language</strong>. A rehearsed response that does not develop from the given stimulus can be penalised.</p>
+      </div>
+
+      <p v-if="allPracticeSectionsComplete" class="timer-note">All four tests are complete.</p>
       <p v-else-if="starting" class="timer-note">Loading your selected test…</p>
       <p v-if="startError" class="start-error">{{ startError }}</p>
     </section>
@@ -296,7 +326,7 @@ const {
   currentMathScienceUnansweredCount,
   currentMathScienceReviewed,
   completedPracticeSections,
-  bothSubjectsComplete,
+  allPracticeSectionsComplete,
   currentStimulusGroups,
   currentStimulusQuestions,
   currentStimulusPassage,
