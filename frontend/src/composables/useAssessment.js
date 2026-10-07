@@ -87,6 +87,8 @@ export function useAssessment() {
   const previousFeedback = ref(null);
   const stimulusIndex = ref(0);
   const reviewedStimuli = ref({});
+  const mathSciencePageIndex = ref(0);
+  const reviewedMathSciencePages = ref({});
   const questionOpenedAtById = ref({});
 
   let timerHandle = null;
@@ -99,6 +101,53 @@ export function useAssessment() {
   );
   const isHumanitiesBlock = computed(() =>
     currentBlock.value.type === "mcq" && currentBlock.value.key === "humanities"
+  );
+  const isMathematicsScienceBlock = computed(() =>
+    currentBlock.value.type === "mcq" && currentBlock.value.key === "mathematics-science"
+  );
+  const currentMathScienceGroups = computed(() => {
+    if (!isMathematicsScienceBlock.value) return [];
+    const groups = [];
+    const pageSize = 4;
+    const questionsForBlock = currentBlockQuestions.value;
+    for (let offset = 0; offset < questionsForBlock.length; offset += pageSize) {
+      groups.push({
+        key: "MATH-SCI-PAGE-" + (Math.floor(offset / pageSize) + 1),
+        questions: questionsForBlock.slice(offset, offset + pageSize)
+      });
+    }
+    return groups;
+  });
+  const currentMathScienceQuestions = computed(() =>
+    currentMathScienceGroups.value[mathSciencePageIndex.value]?.questions || []
+  );
+  const currentMathScienceAnsweredCount = computed(() =>
+    currentMathScienceQuestions.value.filter(question => {
+      const answer = answers.value[question.id];
+      return answer !== undefined && answer !== null;
+    }).length
+  );
+  const currentMathScienceUnansweredCount = computed(() =>
+    currentMathScienceQuestions.value.length - currentMathScienceAnsweredCount.value
+  );
+  const currentMathScienceReviewed = computed(() => {
+    const group = currentMathScienceGroups.value[mathSciencePageIndex.value];
+    return Boolean(group && reviewedMathSciencePages.value[group.key]);
+  });
+  const currentMathScienceComplete = computed(() => {
+    const group = currentMathScienceGroups.value[mathSciencePageIndex.value];
+    if (!group || !group.questions.length) return false;
+    return Boolean(reviewedMathSciencePages.value[group.key]) &&
+      group.questions.every(question => Boolean(results.value[question.id]));
+  });
+  const mathScienceQuestionStart = computed(() => {
+    const first = currentMathScienceQuestions.value[0];
+    if (!first) return currentBlock.value.start + 1;
+    const index = currentBlockQuestions.value.findIndex(question => question?.id === first.id);
+    return currentBlock.value.start + index + 1;
+  });
+  const mathScienceQuestionEnd = computed(() =>
+    mathScienceQuestionStart.value + Math.max(0, currentMathScienceQuestions.value.length - 1)
   );
   const currentStimulusGroups = computed(() =>
     isHumanitiesBlock.value
@@ -172,7 +221,7 @@ export function useAssessment() {
   const progressPercent = computed(() => {
     const complete = currentBlock.value.type === "writing"
       ? (writingSubmitted.value[currentWritingTask.value?.id] ? 100 : 0)
-      : isHumanitiesBlock.value
+      : (isHumanitiesBlock.value || isMathematicsScienceBlock.value)
         ? (answeredCount.value / currentBlock.value.size) * 100
         : (blockQuestionNumber.value / currentBlock.value.size) * 100;
     return Math.min(100, complete);
@@ -248,7 +297,7 @@ export function useAssessment() {
     if (!sessionId.value || !attemptId.value) return;
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 11,
+        version: 13,
         screen: screen.value,
         studentName: studentName.value,
         sessionId: sessionId.value,
@@ -268,6 +317,8 @@ export function useAssessment() {
         previousFeedback: previousFeedback.value,
         stimulusIndex: stimulusIndex.value,
         reviewedStimuli: reviewedStimuli.value,
+        mathSciencePageIndex: mathSciencePageIndex.value,
+        reviewedMathSciencePages: reviewedMathSciencePages.value,
         questionOpenedAtById: questionOpenedAtById.value
       }));
     } catch (error) {
@@ -321,6 +372,15 @@ export function useAssessment() {
     if (!isHumanitiesBlock.value) return;
     const next = { ...questionOpenedAtById.value };
     currentStimulusQuestions.value.forEach(question => {
+      if (!next[question.id] && !results.value[question.id]) next[question.id] = Date.now();
+    });
+    questionOpenedAtById.value = next;
+  }
+
+  function prepareMathSciencePageTimers() {
+    if (!isMathematicsScienceBlock.value) return;
+    const next = { ...questionOpenedAtById.value };
+    currentMathScienceQuestions.value.forEach(question => {
       if (!next[question.id] && !results.value[question.id]) next[question.id] = Date.now();
     });
     questionOpenedAtById.value = next;
@@ -381,6 +441,8 @@ export function useAssessment() {
       questionOpenedAtById.value = {};
       stimulusIndex.value = 0;
       reviewedStimuli.value = {};
+      mathSciencePageIndex.value = 0;
+      reviewedMathSciencePages.value = {};
       questionIndex.value = 0;
       currentStage.value = 0;
       feedback.value = null;
@@ -539,13 +601,17 @@ export function useAssessment() {
     previousFeedback.value = null;
     stimulusIndex.value = 0;
     if (currentBlock.value.type === "mcq") {
-      const ready = currentBlock.value.key === "humanities"
+      const ready = (currentBlock.value.key === "humanities" || currentBlock.value.key === "mathematics-science")
         ? await ensureBlockQuestionsLoaded(currentBlock.value)
         : await ensureQuestionLoaded(currentBlock.value.start);
       if (!ready) return;
       questionIndex.value = currentBlock.value.start;
       questionOpenedAt = Date.now();
-      if (currentBlock.value.key === "humanities") prepareStimulusQuestionTimers();
+      if (currentBlock.value.key === "humanities") {
+        prepareStimulusQuestionTimers();
+      } else if (currentBlock.value.key === "mathematics-science") {
+        prepareMathSciencePageTimers();
+      }
     } else {
       writingOpenedAt = Date.now();
     }
@@ -592,6 +658,60 @@ export function useAssessment() {
     prepareStimulusQuestionTimers();
     feedback.value = null;
     previousFeedback.value = null;
+    persistState();
+  }
+
+  async function nextMathSciencePage() {
+    if (!isMathematicsScienceBlock.value) return;
+    if (!currentMathScienceComplete.value) return;
+    if (mathSciencePageIndex.value >= currentMathScienceGroups.value.length - 1) {
+      if (!sectionComplete.value) return;
+      await advanceStage();
+      return;
+    }
+    mathSciencePageIndex.value += 1;
+    const group = currentMathScienceQuestions.value;
+    questionIndex.value = currentBlockQuestions.value.findIndex(question => question?.id === group[0]?.id) + currentBlock.value.start;
+    prepareMathSciencePageTimers();
+    feedback.value = null;
+    previousFeedback.value = null;
+    persistState();
+  }
+
+  async function previousMathSciencePage() {
+    if (!isMathematicsScienceBlock.value || mathSciencePageIndex.value <= 0) return;
+    mathSciencePageIndex.value -= 1;
+    const group = currentMathScienceQuestions.value;
+    questionIndex.value = currentBlockQuestions.value.findIndex(question => question?.id === group[0]?.id) + currentBlock.value.start;
+    prepareMathSciencePageTimers();
+    feedback.value = null;
+    previousFeedback.value = null;
+    persistState();
+  }
+
+  async function goToMathSciencePage(index) {
+    if (!isMathematicsScienceBlock.value) return;
+    if (index < 0 || index >= currentMathScienceGroups.value.length || index > mathSciencePageIndex.value) return;
+    mathSciencePageIndex.value = index;
+    const group = currentMathScienceGroups.value[index]?.questions || [];
+    questionIndex.value = currentBlockQuestions.value.findIndex(question => question?.id === group[0]?.id) + currentBlock.value.start;
+    prepareMathSciencePageTimers();
+    feedback.value = null;
+    previousFeedback.value = null;
+    persistState();
+  }
+
+  function selectMathScienceAnswer(question, index) {
+    if (!isMathematicsScienceBlock.value || savingResponse.value) return;
+    if (results.value[question.id]) return;
+    answers.value[question.id] = index;
+    questionStates.value[question.id] = "selected";
+    if (!questionOpenedAtById.value[question.id]) {
+      questionOpenedAtById.value = {
+        ...questionOpenedAtById.value,
+        [question.id]: Date.now()
+      };
+    }
     persistState();
   }
 
@@ -711,9 +831,43 @@ export function useAssessment() {
     return true;
   }
 
+  async function submitMathSciencePage() {
+    if (!isMathematicsScienceBlock.value || savingResponse.value) return false;
+    if (currentMathScienceReviewed.value) return true;
+
+    const selectedQuestions = currentMathScienceQuestions.value.filter(question => {
+      const answer = answers.value[question.id];
+      return answer !== undefined && answer !== null && !results.value[question.id];
+    });
+
+    for (const question of selectedQuestions) {
+      const saved = await saveQuestionResponse(question, false);
+      if (!saved) return false;
+    }
+
+    const group = currentMathScienceGroups.value[mathSciencePageIndex.value];
+    if (!group || !group.questions.every(question => Boolean(results.value[question.id]))) {
+      return false;
+    }
+
+    reviewedMathSciencePages.value = {
+      ...reviewedMathSciencePages.value,
+      [group.key]: true
+    };
+    persistState();
+    return true;
+  }
+
   async function submitBlock() {
     if (isHumanitiesBlock.value) {
       const saved = await submitHumanitiesAnswers();
+      if (!saved) return;
+      persistState();
+      return;
+    }
+
+    if (isMathematicsScienceBlock.value) {
+      const saved = await submitMathSciencePage();
       if (!saved) return;
       persistState();
       return;
@@ -744,7 +898,7 @@ export function useAssessment() {
 
   async function handleBlockTimeout() {
     if (submittedBlocks.value[currentStage.value]) return;
-    if (isHumanitiesBlock.value) {
+    if (isHumanitiesBlock.value || isMathematicsScienceBlock.value) {
       for (const question of currentBlockQuestions.value) {
         const id = question?.id;
         if (id && !results.value[id] && answers.value[id] !== undefined && answers.value[id] !== null) {
@@ -804,6 +958,9 @@ export function useAssessment() {
     feedback.value = null;
     previousFeedback.value = null;
     stimulusIndex.value = 0;
+    reviewedStimuli.value = {};
+    mathSciencePageIndex.value = 0;
+    reviewedMathSciencePages.value = {};
     questionOpenedAtById.value = {};
   }
 
@@ -815,7 +972,7 @@ export function useAssessment() {
 
     try {
       const saved = JSON.parse(raw);
-      if (saved?.version !== 12 || !saved.sessionId || !saved.attemptId) {
+      if (saved?.version !== 13 || !saved.sessionId || !saved.attemptId) {
         clearPersistedState();
         return;
       }
@@ -839,6 +996,8 @@ export function useAssessment() {
       writingOpenedAt = Number(saved.writingOpenedAt) || Date.now();
       previousFeedback.value = saved.previousFeedback || null;
       stimulusIndex.value = Number.isInteger(saved.stimulusIndex) ? saved.stimulusIndex : 0;
+      mathSciencePageIndex.value = Number.isInteger(saved.mathSciencePageIndex) ? saved.mathSciencePageIndex : 0;
+      reviewedMathSciencePages.value = saved.reviewedMathSciencePages || {};
       questionOpenedAtById.value = saved.questionOpenedAtById || {};
 
       if (saved.screen === "results") {
@@ -848,7 +1007,7 @@ export function useAssessment() {
 
       questions.value = Array.from({ length: totalQuestions }, () => null);
       if (currentBlock.value.type === "mcq") {
-        const loaded = currentBlock.value.key === "humanities"
+        const loaded = (currentBlock.value.key === "humanities" || currentBlock.value.key === "mathematics-science")
           ? await ensureBlockQuestionsLoaded(currentBlock.value)
           : await loadQuestionBatch(questionIndex.value);
         if (!loaded) throw new Error("Could not restore question");
@@ -862,6 +1021,15 @@ export function useAssessment() {
           questionIndex.value = currentBlockQuestions.value.findIndex(q => q?.id === group[0].id) + currentBlock.value.start;
         }
         prepareStimulusQuestionTimers();
+        feedback.value = null;
+      } else if (currentBlock.value.key === "mathematics-science") {
+        const groups = currentMathScienceGroups.value;
+        if (mathSciencePageIndex.value >= groups.length) mathSciencePageIndex.value = 0;
+        const group = groups[mathSciencePageIndex.value]?.questions || [];
+        if (group[0]) {
+          questionIndex.value = currentBlockQuestions.value.findIndex(question => question?.id === group[0].id) + currentBlock.value.start;
+        }
+        prepareMathSciencePageTimers();
         feedback.value = null;
       } else {
         feedback.value = results.value[questions.value[questionIndex.value]?.id]?.feedback || null;
@@ -887,6 +1055,16 @@ export function useAssessment() {
     questionIndex,
     stimulusIndex,
     isHumanitiesBlock,
+    isMathematicsScienceBlock,
+    currentMathScienceGroups,
+    currentMathScienceQuestions,
+    mathScienceQuestionStart,
+    mathScienceQuestionEnd,
+    currentMathScienceAnsweredCount,
+    currentMathScienceUnansweredCount,
+    currentMathScienceComplete,
+    currentMathScienceReviewed,
+    mathSciencePageIndex,
     currentStimulusGroups,
     currentStimulusQuestions,
     currentStimulusPassage,
@@ -925,11 +1103,15 @@ export function useAssessment() {
     startTest,
     selectAnswer,
     selectStimulusAnswer,
+    selectMathScienceAnswer,
     updateWriting,
     nextQuestion,
     nextStimulus,
     previousStimulus,
     goToStimulus,
+    nextMathSciencePage,
+    previousMathSciencePage,
+    goToMathSciencePage,
     skipQuestion,
     previousQuestion,
     goToQuestion,
