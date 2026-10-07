@@ -93,6 +93,7 @@
 import { ref } from "vue";
 
 const localSelections = ref({});
+const emit = defineEmits(["select", "next", "submit"]);
 
 const props = defineProps({
   questions: { type: Array, required: true },
@@ -108,8 +109,6 @@ const props = defineProps({
   pageReviewed: { type: Boolean, default: false },
   results: { type: Object, default: () => ({}) }
 });
-
-defineEmits(["select", "next", "submit"]);
 
 function selectedAnswer(question) {
   const answers = props.answers || {};
