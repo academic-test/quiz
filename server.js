@@ -683,14 +683,20 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     );
     if (!needed) continue;
 
-    const { data: bankRows, error: bankError } = await supabase
+    const { data: rawBankRows, error: bankError } = await supabase
       .from("generated_questions")
-      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
+      .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
       .eq("year_level", config.yearLevel)
       .eq("section", section)
       .eq("is_bank", true)
       .is("session_id", null)
       .limit(5000);
+
+    const bankRows = (rawBankRows || []).filter(row =>
+      section === "mathematics_science"
+        ? row.section === "mathematics_science" || ["mathematics", "science"].includes(row.subject)
+        : row.section === section || row.subject === section
+    );
 
     if (bankError) {
       console.error("Question bank lookup failed", bankError);
@@ -720,7 +726,11 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     const selectedIds = selected.map(source => source.id);
     const { data: claimedRows, error: claimError } = await supabase
       .from("generated_questions")
-      .update({ session_id: sessionId, ip_hash: ipHash(req) })
+      .update({
+        session_id: sessionId,
+        ip_hash: ipHash(req),
+        section: section === "mathematics_science" ? "mathematics_science" : section
+      })
       .in("id", selectedIds)
       .eq("is_bank", true)
       .is("session_id", null)
@@ -752,7 +762,8 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         year_level: config.yearLevel,
         session_id: sessionId,
         ip_hash: ipHash(req),
-        section: source.section,
+        section: section === "mathematics_science" ? "mathematics_science" : source.section,
+        subject: source.subject || (source.section === "mathematics_science" ? "mathematics_science" : source.section),
         difficulty: source.difficulty || "hard",
         time: Number(source.time) || 60,
         question_text: source.question_text,
@@ -788,7 +799,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       );
       if (!needed) continue;
 
-      const { data: bankRows, error } = await supabase
+      const { data: rawBankRows, error } = await supabase
         .from("generated_questions")
         .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
         .eq("year_level", config.yearLevel)
@@ -796,6 +807,12 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         .eq("is_bank", true)
         .is("session_id", null)
         .limit(5000);
+
+      const bankRows = (rawBankRows || []).filter(row =>
+        section === "mathematics_science"
+          ? row.section === "mathematics_science" || ["mathematics", "science"].includes(row.subject)
+          : row.section === section || row.subject === section
+      );
 
       if (error) {
         console.error("Question bank lookup failed", error);
@@ -1575,6 +1592,7 @@ const ADMIN_BANK_SECTIONS = new Set(["humanities","mathematics_science"]);
 
 function normalizeQuestionBankPayload(body, fallback = {}) {
   const section = String(body?.section ?? fallback.section ?? "").trim();
+  const subject = String(body?.subject ?? fallback.subject ?? (section === "humanities" ? "humanities" : section)).trim();
   const questionText = String(body?.question_text ?? fallback.question_text ?? "").trim();
   const passage = String(body?.passage ?? fallback.passage ?? "").trim();
   const stimulusGroup = String(body?.stimulus_group ?? fallback.stimulus_group ?? "").trim();
@@ -1590,6 +1608,9 @@ function normalizeQuestionBankPayload(body, fallback = {}) {
   const correctAnswer = Number(body?.correct_answer ?? fallback.correct_answer);
 
   if (!ADMIN_BANK_SECTIONS.has(section)) throw new Error("Invalid question-bank section");
+  if (!["humanities","mathematics_science","mathematics","science"].includes(subject)) {
+    throw new Error("Invalid question subject");
+  }
   if (!questionText || questionText.length > 12000) throw new Error("Question text is required and must be 12000 characters or fewer");
   if (!stimulusGroup || stimulusGroup.length > 200) throw new Error("Stimulus group is required");
   if (options.length !== 4 || options.some(value => !value) || new Set(options.map(value => value.toLowerCase())).size !== 4) {
@@ -1610,6 +1631,7 @@ function normalizeQuestionBankPayload(body, fallback = {}) {
 
   return {
     section,
+    subject,
     question_text: questionText,
     passage,
     stimulus_group: stimulusGroup,
@@ -1629,7 +1651,7 @@ app.get("/api/admin/question-bank", requireAdmin, async (req,res) => {
 
   const { data, error } = await supabase
     .from("generated_questions")
-    .select("id,year_level,section,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image,is_bank,session_id,created_at")
+    .select("id,year_level,section,subject,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image,is_bank,session_id,created_at")
     .eq("year_level","10")
     .eq("section",section)
     .eq("is_bank",true)
@@ -1751,6 +1773,7 @@ app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
     ip_hash:crypto.createHash("sha256").update("admin-question-bank|" + id).digest("hex"),
     year_level:"10",
     section:payload.section,
+    subject:payload.subject,
     difficulty:payload.difficulty,
     time:payload.time,
     question_text:payload.question_text,
