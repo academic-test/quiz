@@ -800,9 +800,8 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
       const { data: rawBankRows, error } = await supabase
         .from("generated_questions")
-        .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
+        .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
         .eq("year_level", config.yearLevel)
-        .eq("section", section)
         .eq("is_bank", true)
         .is("session_id", null)
         .limit(5000);
@@ -826,7 +825,11 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       const selectedIds = selected.map(source => source.id);
       const { data: claimedRows, error: claimError } = await supabase
         .from("generated_questions")
-        .update({ session_id: sessionId, ip_hash: ipHash(req) })
+        .update({
+          session_id: sessionId,
+          ip_hash: ipHash(req),
+          section: section === "mathematics_science" ? "mathematics_science" : section
+        })
         .in("id", selectedIds)
         .eq("is_bank", true)
         .is("session_id", null)
