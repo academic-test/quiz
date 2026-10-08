@@ -63,7 +63,7 @@ export const blocks = [
   }
 ];
 
-const STORAGE_KEY = "acer-level2-year10-quiz-v17";
+const STORAGE_KEY = "level2-year10-quiz-v17";
 
 export function useAssessment() {
   const screen = ref("start");
