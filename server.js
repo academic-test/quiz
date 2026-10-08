@@ -687,7 +687,6 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       .from("generated_questions")
       .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
       .eq("year_level", config.yearLevel)
-      .eq("section", section)
       .eq("is_bank", true)
       .is("session_id", null)
       .limit(5000);
