@@ -94,12 +94,7 @@ async function getAssessmentWritingTasks() {
 }
 
 const {
-  humanitiesQuestion,
-  mathematicsScienceQuestion,
-  mathematicsScienceStimulusSet,
-  humanitiesStimulusSet,
   questionFingerprint,
-  questionType,
   pickDiverseQuestions,
   pickStimulusGroups,
   getWritingTasks
@@ -688,14 +683,19 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     );
     if (!needed) continue;
 
-    const { data: bankRows, error: bankError } = await supabase
+    const { data: rawBankRows, error: bankError } = await supabase
       .from("generated_questions")
-      .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
+      .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
       .eq("year_level", config.yearLevel)
-      .eq("section", section)
       .eq("is_bank", true)
       .is("session_id", null)
       .limit(5000);
+
+    const bankRows = (rawBankRows || []).filter(row =>
+      section === "mathematics_science"
+        ? row.section === "mathematics_science" || ["mathematics", "science"].includes(row.subject)
+        : row.section === section || row.subject === section
+    );
 
     if (bankError) {
       console.error("Question bank lookup failed", bankError);
@@ -703,14 +703,33 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     }
 
     const bankCount = Math.min(needed, neededTotal - pending.length);
-    const selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
+    let selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
+
+    // Dynamically generated questions are individual bank rows rather than
+    // multi-question stimulus pages. Select those directly when grouped
+    // pages cannot fill the remaining quota.
+    if (selected.length < bankCount) {
+      const selectedIds = new Set(selected.map(row => row.id));
+      const individualRows = (bankRows || []).filter(row => !selectedIds.has(row.id));
+      selected = selected.concat(
+        pickDiverseQuestions(
+          individualRows,
+          bankCount - selected.length,
+          used
+        )
+      );
+    }
 
     if (!selected.length) continue;
 
     const selectedIds = selected.map(source => source.id);
     const { data: claimedRows, error: claimError } = await supabase
       .from("generated_questions")
-      .update({ session_id: sessionId, ip_hash: ipHash(req) })
+      .update({
+        session_id: sessionId,
+        ip_hash: ipHash(req),
+        section: section === "mathematics_science" ? "mathematics_science" : section
+      })
       .in("id", selectedIds)
       .eq("is_bank", true)
       .is("session_id", null)
@@ -742,7 +761,8 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         year_level: config.yearLevel,
         session_id: sessionId,
         ip_hash: ipHash(req),
-        section: source.section,
+        section: section === "mathematics_science" ? "mathematics_science" : source.section,
+        subject: source.subject || (source.section === "mathematics_science" ? "mathematics_science" : source.section),
         difficulty: source.difficulty || "hard",
         time: Number(source.time) || 60,
         question_text: source.question_text,
@@ -765,61 +785,9 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     }
   }
 
-  // Fill any remaining quota with generated questions.
-  let attempts = 0;
-  const maxAttempts = Math.max(6000, neededTotal * 500);
-  let mathScienceStimulusRows = null;
-  let humanitiesStimulusRows = null;
-
-  while (pending.length < neededTotal && attempts < maxAttempts) {
-    attempts += 1;
-
-    let section = null;
-    for (const [candidate, quota] of quotas) {
-      const planned = counts[candidate] + pending.filter(item => item.section === candidate).length;
-      if (planned < quota) {
-        section = candidate;
-        break;
-      }
-    }
-    if (!section) break;
-
-    let question = null;
-    if (section === "humanities") {
-      if (!humanitiesStimulusRows) humanitiesStimulusRows = humanitiesStimulusSet(sessionId);
-      question = humanitiesStimulusRows.shift();
-      if (!question) break;
-    } else if (section === "mathematics_science") {
-      if (!mathScienceStimulusRows) mathScienceStimulusRows = mathematicsScienceStimulusSet(sessionId);
-      question = mathScienceStimulusRows.shift();
-      if (!question) break;
-    } else {
-      question = mathematicsScienceQuestion();
-    }
-
-    question.year_level = config.yearLevel;
-    question.session_id = sessionId;
-    question.ip_hash = ipHash(req);
-    question.time = Number(question.time) || 60;
-
-    const fp = questionFingerprint(question);
-    const previousType = pending.length ? questionType(pending[pending.length - 1]) : "";
-    const sameGroupedPage =
-      (section === "humanities" || section === "mathematics_science") &&
-      String(question.reasoning_type || "").includes("stimulus-page");
-    if (used.has(fp) || (previousType && questionType(question) === previousType && !sameGroupedPage)) continue;
-
-    const number = currentTotal + pending.length + 1;
-    question.id = String(number).padStart(3, "0") + "-" + crypto.randomUUID();
-
-    if (pendingIds.has(question.id)) continue;
-    pending.push(question);
-    pendingIds.add(question.id);
-    used.add(fp);
-  }
-
-  // If a section could not be filled from the bank or fresh generation,
-  // make one final bank attempt before failing.
+  // Runtime assessments are database-only. The hourly question-pool job is
+  // responsible for keeping the persistent bank populated. Never generate a
+  // question synchronously for a student session.
   if (pending.length < neededTotal) {
     for (const [section, quota] of quotas) {
       if (pending.length >= neededTotal) break;
@@ -830,37 +798,59 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       );
       if (!needed) continue;
 
-      const { data: bankRows, error } = await supabase
+      const { data: rawBankRows, error } = await supabase
         .from("generated_questions")
-        .select("id,session_id,section,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
+        .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
         .eq("year_level", config.yearLevel)
-        .eq("section", section)
         .eq("is_bank", true)
         .is("session_id", null)
         .limit(5000);
+
+      const bankRows = (rawBankRows || []).filter(row =>
+        section === "mathematics_science"
+          ? row.section === "mathematics_science" || ["mathematics", "science"].includes(row.subject)
+          : row.section === section || row.subject === section
+      );
 
       if (error) {
         console.error("Question bank lookup failed", error);
         continue;
       }
 
-      const selected = pickStimulusGroups(
-        bankRows || [],
-        Math.min(needed, neededTotal - pending.length),
-        used,
-        5
-      );
+      const remaining = Math.min(needed, neededTotal - pending.length);
+      const selected = pickDiverseQuestions(bankRows || [], remaining, used);
 
+      if (!selected.length) continue;
+
+      const selectedIds = selected.map(source => source.id);
+      const { data: claimedRows, error: claimError } = await supabase
+        .from("generated_questions")
+        .update({
+          session_id: sessionId,
+          ip_hash: ipHash(req),
+          section: section === "mathematics_science" ? "mathematics_science" : section
+        })
+        .in("id", selectedIds)
+        .eq("is_bank", true)
+        .is("session_id", null)
+        .select("id");
+
+      if (claimError) {
+        console.error("Question bank fallback claim failed", claimError);
+        continue;
+      }
+
+      const claimedIdSet = new Set((claimedRows || []).map(row => row.id));
       for (const source of selected) {
-        if (pending.length >= neededTotal) break;
+        if (pending.length >= neededTotal || !claimedIdSet.has(source.id)) break;
 
-        const number = currentTotal + pending.length + 1;
         const question = {
-          id: String(number).padStart(3, "0") + "-" + crypto.randomUUID(),
+          id: source.id,
           year_level: config.yearLevel,
           session_id: sessionId,
           ip_hash: ipHash(req),
-          section: source.section,
+          section: section === "mathematics_science" ? "mathematics_science" : source.section,
+          subject: source.subject || (source.section === "mathematics_science" ? "mathematics_science" : source.section),
           difficulty: source.difficulty || "hard",
           time: Number(source.time) || 60,
           question_text: source.question_text,
@@ -870,7 +860,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
           answer_options: source.answer_options,
           correct_answer: source.correct_answer,
           explanation: source.explanation || "",
-          reasoning_type: source.reasoning_type
+          reasoning_type: source.reasoning_type || null
         };
 
         const fp = questionFingerprint(question);
@@ -878,6 +868,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
         pending.push(question);
         pendingIds.add(question.id);
+        claimedBankIds.add(question.id);
         used.add(fp);
       }
     }
@@ -1605,6 +1596,7 @@ const ADMIN_BANK_SECTIONS = new Set(["humanities","mathematics_science"]);
 
 function normalizeQuestionBankPayload(body, fallback = {}) {
   const section = String(body?.section ?? fallback.section ?? "").trim();
+  const subject = String(body?.subject ?? fallback.subject ?? (section === "humanities" ? "humanities" : section)).trim();
   const questionText = String(body?.question_text ?? fallback.question_text ?? "").trim();
   const passage = String(body?.passage ?? fallback.passage ?? "").trim();
   const stimulusGroup = String(body?.stimulus_group ?? fallback.stimulus_group ?? "").trim();
@@ -1620,6 +1612,9 @@ function normalizeQuestionBankPayload(body, fallback = {}) {
   const correctAnswer = Number(body?.correct_answer ?? fallback.correct_answer);
 
   if (!ADMIN_BANK_SECTIONS.has(section)) throw new Error("Invalid question-bank section");
+  if (!["humanities","mathematics_science","mathematics","science"].includes(subject)) {
+    throw new Error("Invalid question subject");
+  }
   if (!questionText || questionText.length > 12000) throw new Error("Question text is required and must be 12000 characters or fewer");
   if (!stimulusGroup || stimulusGroup.length > 200) throw new Error("Stimulus group is required");
   if (options.length !== 4 || options.some(value => !value) || new Set(options.map(value => value.toLowerCase())).size !== 4) {
@@ -1640,6 +1635,7 @@ function normalizeQuestionBankPayload(body, fallback = {}) {
 
   return {
     section,
+    subject,
     question_text: questionText,
     passage,
     stimulus_group: stimulusGroup,
@@ -1659,7 +1655,7 @@ app.get("/api/admin/question-bank", requireAdmin, async (req,res) => {
 
   const { data, error } = await supabase
     .from("generated_questions")
-    .select("id,year_level,section,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image,is_bank,session_id,created_at")
+    .select("id,year_level,section,subject,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image,is_bank,session_id,created_at")
     .eq("year_level","10")
     .eq("section",section)
     .eq("is_bank",true)
@@ -1781,6 +1777,7 @@ app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
     ip_hash:crypto.createHash("sha256").update("admin-question-bank|" + id).digest("hex"),
     year_level:"10",
     section:payload.section,
+    subject:payload.subject,
     difficulty:payload.difficulty,
     time:payload.time,
     question_text:payload.question_text,

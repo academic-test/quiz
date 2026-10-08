@@ -8,7 +8,8 @@
     "postinstall": "npm run build",
     "start": "node server.js",
     "test": "vitest run",
-    "generate:stimuli": "node scripts/generate-math-population.js"
+    "generate:stimuli": "node scripts/generate-math-population.js",
+    "generate:question-pool": "node scripts/generate-question-pool.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.4",
