@@ -45,10 +45,10 @@ $("loginForm").onsubmit=async function(e){
   }catch(err){$("loginError").textContent=err.message;}
 };
 
-$("logout").onclick=async function(){
+async function logoutAdmin(){
   await api("/api/admin/logout",{method:"POST"});
   location.reload();
-};
+}
 
 function showAdminSection(section){
   const map={overview:"overviewSection","question-bank":"questionBankSection",writing:"writingSection",assessments:"assessmentsSection"};
@@ -62,23 +62,23 @@ function showAdminSection(section){
 document.querySelectorAll("[data-admin-nav]").forEach(button=>{
   button.onclick=()=>showAdminSection(button.dataset.adminNav);
 });
-$("navRefresh")?.addEventListener("click",()=>$("refresh")?.click());
-$("navLogout")?.addEventListener("click",()=>$("logout")?.click());
+$("navRefresh")?.addEventListener("click",refreshAdmin);
+$("navLogout")?.addEventListener("click",logoutAdmin);
 
 
 
-$("refresh").onclick=async function(){
+async function refreshAdmin(){
   await Promise.all([
     loadAttempts(true),
     loadBankCards(),
     loadWritingTopics()
   ]);
-};
+}
 
-$("refreshBank").onclick=loadBankCards;
-$("refreshWriting").onclick=loadWritingTopics;
-$("closeDetail").onclick=function(){$("detail").classList.add("hidden");};
-$("attemptsLoadMore").onclick=()=>loadAttempts(false);
+$("refreshBank")?.addEventListener("click",loadBankCards);
+$("refreshWriting")?.addEventListener("click",loadWritingTopics);
+$("closeDetail")?.addEventListener("click",()=>$("detail")?.classList.add("hidden"));
+$("attemptsLoadMore")?.addEventListener("click",()=>loadAttempts(false));
 
 async function loadAttempts(reset=false){
   if(attemptsState.loading) return;
