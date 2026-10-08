@@ -9,6 +9,7 @@ import {
 } from "../services/quizApi";
 import { buildHumanitiesStimulusGroups } from "../utils/humanitiesStimuli";
 import { buildMathScienceStimulusGroups } from "../utils/mathScienceStimuli";
+import { difficultyWeight } from "../utils/scoring";
 
 export const totalQuestions = 72;
 
@@ -259,7 +260,14 @@ export function useAssessment() {
     const correct = resultList.value.filter(item => item.correct).length;
     const timeouts = resultList.value.filter(item => item.timeout).length;
     const incorrect = Math.max(0, total - correct - timeouts);
-    const score = total ? Math.round((correct / total) * 100) : 0;
+    let weightedEarned = 0;
+    let weightedPossible = 0;
+    resultList.value.forEach(item => {
+      const weight = difficultyWeight(item.question?.difficulty);
+      weightedPossible += weight;
+      if (item.correct && !item.timeout) weightedEarned += weight;
+    });
+    const score = weightedPossible ? Math.round((weightedEarned / weightedPossible) * 100) : 0;
     const average = total
       ? resultList.value.reduce((sum, item) => sum + item.time, 0) / total
       : 0;
@@ -560,7 +568,8 @@ export function useAssessment() {
         correct: Boolean(response.correct),
         timeout: Boolean(timedOut),
         time: elapsed,
-        feedback: resultFeedback
+        feedback: resultFeedback,
+        difficultyWeight: Number(response.difficulty_weight || difficultyWeight(question.difficulty))
       };
       questionStates.value[question.id] = "answered";
       persistState();

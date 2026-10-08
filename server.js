@@ -15,6 +15,7 @@ app.use("/assets", express.static(path.join(studentDir, "assets"), { index: fals
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+const { difficultyWeight, calculateWeightedScore } = require("./server/scoring");
 
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -1021,7 +1022,7 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
     for (let responseFrom = 0; ; responseFrom += responsePageSize) {
       const { data: responsePage, error: responseError } = await supabase
         .from("quiz_responses")
-        .select("attempt_id,is_correct,timed_out,response_seconds")
+        .select("attempt_id,is_correct,timed_out,response_seconds,difficulty")
         .in("attempt_id", attemptIds)
         .range(responseFrom, responseFrom + responsePageSize - 1);
 
@@ -1033,7 +1034,9 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
           correct_count:0,
           wrong_count:0,
           timeout_count:0,
-          total_response_seconds:0
+          total_response_seconds:0,
+          weighted_earned:0,
+          weighted_possible:0
         };
 
         current.answered_count += 1;
@@ -1041,6 +1044,9 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
         else if (response.is_correct) current.correct_count += 1;
         else current.wrong_count += 1;
         current.total_response_seconds += Number(response.response_seconds || 0);
+        const weight = difficultyWeight(response.difficulty);
+        current.weighted_possible += weight;
+        if (response.is_correct && !response.timed_out) current.weighted_earned += weight;
         aggregates.set(response.attempt_id, current);
       }
 
@@ -1060,7 +1066,9 @@ app.get("/api/admin/attempts", requireAdmin, async (req,res) => {
       };
     }
 
-    const score = Math.round((aggregate.correct_count / aggregate.answered_count) * 100);
+    const score = aggregate.weighted_possible
+      ? Math.round((aggregate.weighted_earned / aggregate.weighted_possible) * 100)
+      : 0;
     const average = aggregate.total_response_seconds / aggregate.answered_count;
 
     return {
@@ -1391,7 +1399,13 @@ app.post("/api/responses", async (req,res) => {
     return res.status(409).json({ error:"This response is already locked" });
   }
   if (error) return res.status(400).json({ error:error.message });
-  res.status(200).json({ ok:true, correct, correct_answer:question.correct_answer, explanation:question.explanation });
+  res.status(200).json({
+    ok:true,
+    correct,
+    correct_answer:question.correct_answer,
+    explanation:question.explanation,
+    difficulty_weight:difficultyWeight(question.difficulty)
+  });
 });
 
 app.post("/api/writing-responses", async (req,res) => {
@@ -1454,7 +1468,7 @@ app.patch("/api/attempts/:id", async (req,res) => {
 
   const { data: responseRows, error: responseError } = await supabase
     .from("quiz_responses")
-    .select("is_correct,timed_out,response_seconds")
+    .select("is_correct,timed_out,response_seconds,difficulty")
     .eq("attempt_id", req.params.id);
 
   if (responseError) return res.status(400).json({ error:responseError.message });
@@ -1472,7 +1486,8 @@ app.patch("/api/attempts/:id", async (req,res) => {
   }
 
   const answeredCount = correctCount + wrongCount + timeoutCount;
-  const score = answeredCount ? Math.round((correctCount / answeredCount) * 100) : 0;
+  const weightedScore = calculateWeightedScore(responseRows || []);
+  const score = weightedScore.score;
   const averageResponseSeconds = answeredCount
     ? Number((totalResponseSeconds / answeredCount).toFixed(3))
     : 0;

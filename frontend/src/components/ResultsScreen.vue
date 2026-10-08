@@ -12,7 +12,7 @@
       <div><strong>{{ writingCompleted }}/2</strong><span>Writing submitted</span></div>
     </div>
 
-    <p class="result-note">The percentage shown is practice accuracy for the multiple-choice questions. It is not an ACER score or percentile.</p>
+    <p class="result-note">The percentage shown is a difficulty-weighted practice score: harder questions contribute more than easier questions. It is not an ACER score or percentile.</p>
 
     <div class="breakdown">
       <h3>Multiple-Choice Breakdown</h3>
