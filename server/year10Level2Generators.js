@@ -1,3 +1,5 @@
+const { populationAgeGroups, populationPassage } = require("./mathScienceData");
+
 const pick = (array) => array[Math.floor(Math.random() * array.length)];
 
 function shuffle(array) {
@@ -1008,11 +1010,11 @@ function mathematicsScienceStimulusSet(sessionId = "") {
     },
     {
       key: "MATH-PAGE-02",
-      passage: "A town has recorded its population by age group in two survey years. In 1980 the numbers of residents aged 0–14, 15–34, 35–54 and 55+ were 1800, 2600, 1900 and 900. In 2020 the corresponding numbers were 1400, 3100, 2400 and 1500.",
+      passage: populationPassage,
       questions: [
-        ["How many residents were recorded in the 15–34 group in 2020?", 3100, [2600, 2900, 3500], "Read the 15–34 value for 2020."],
-        ["By how many residents did the 55+ group increase from 1980 to 2020?", 600, [400, 700, 900], "Subtract 900 from 1500."],
-        ["Which age group had the largest increase between the two years?", "55+", ["15–34", "35–54", "0–14"], "The changes are +500, +500, −400 and +600 respectively."]
+        ["How many residents were recorded in the 15–34 group in 2020?", populationAgeGroups[1].year2020, [2600, 2900, 3500], "Read the 15–34 value for 2020."],
+        ["By how many residents did the 55+ group increase from 1980 to 2020?", populationAgeGroups[3].year2020 - populationAgeGroups[3].year1980, [400, 700, 900], "Subtract the 1980 value from the 2020 value for the 55+ group."],
+        ["Which age group had the largest increase between the two years?", populationAgeGroups.reduce((best, group) => ((group.year2020 - group.year1980) > (best.year2020 - best.year1980) ? group : best), populationAgeGroups[0]).label, ["15–34", "35–54", "0–14"], "Compare the change for each age group; the largest positive change is in the 55+ group."]
       ]
     },
     {
