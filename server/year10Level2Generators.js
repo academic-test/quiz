@@ -1,3 +1,4 @@
+const { newMathSciencePages, newMathScienceNotes } = require("./mathScienceNewPages");
 const { populationAgeGroups, populationPassage } = require("./mathScienceData");
 
 const pick = (array) => array[Math.floor(Math.random() * array.length)];
@@ -918,7 +919,15 @@ function humanitiesStimulusSet(sessionId = "") {
   ];
 
   const rows = [];
-  groups.forEach(group => {
+  // Each of the 10 page slots uses either the built-in page or a new page of the same size,
+  // chosen per session, so the 32-question total never changes.
+  const slots = groups.map((group, index) =>
+    variantIndex(sessionId, "math-slot-" + index, 2) === 1 && newMathSciencePages[index]?.questions.length === group.questions.length
+      ? newMathSciencePages[index]
+      : group
+  );
+
+  slots.forEach(group => {
     group.questions.forEach((item, index) => {
       const r = four(item[1], item[2]);
       rows.push({
@@ -1113,6 +1122,7 @@ function mathematicsScienceStimulusSet(sessionId = "") {
     });
   });
   const notes = {
+    ...newMathScienceNotes,
     "MATH-PAGE-01": ["The timeline represents several distinct geological events.", "The model is read from left to right as time progresses.", "Each marked date represents a separate event in the record.", "The model is simplified so that the intervals can be compared directly."],
     "MATH-PAGE-02": ["The two surveys use the same four age categories.", "The values are recorded as resident counts, not percentages.", "The comparison focuses on changes between the two survey years.", "The age groups are kept consistent so the two years can be compared."],
     "MATH-PAGE-03": ["The investigation is designed to compare conditions while changing traffic patterns.", "Researchers use contrasts between working and non-working days to interpret the data.", "The study treats the observed peaks as evidence rather than proof of a single cause.", "Several environmental factors are considered when interpreting the measurements."],
