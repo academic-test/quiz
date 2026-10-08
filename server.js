@@ -849,7 +849,8 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
           year_level: config.yearLevel,
           session_id: sessionId,
           ip_hash: ipHash(req),
-          section: source.section,
+          section: section === "mathematics_science" ? "mathematics_science" : source.section,
+          subject: source.subject || (source.section === "mathematics_science" ? "mathematics_science" : source.section),
           difficulty: source.difficulty || "hard",
           time: Number(source.time) || 60,
           question_text: source.question_text,
@@ -858,7 +859,8 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
           stimulus_image: source.stimulus_image || null,
           answer_options: source.answer_options,
           correct_answer: source.correct_answer,
-          explanation: source.explanation || ""
+          explanation: source.explanation || "",
+          reasoning_type: source.reasoning_type || null
         };
 
         const fp = questionFingerprint(question);
