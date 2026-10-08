@@ -94,12 +94,7 @@ async function getAssessmentWritingTasks() {
 }
 
 const {
-  humanitiesQuestion,
-  mathematicsScienceQuestion,
-  mathematicsScienceStimulusSet,
-  humanitiesStimulusSet,
   questionFingerprint,
-  questionType,
   pickDiverseQuestions,
   pickStimulusGroups,
   getWritingTasks
@@ -703,7 +698,22 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     }
 
     const bankCount = Math.min(needed, neededTotal - pending.length);
-    const selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
+    let selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
+
+    // Dynamically generated questions are individual bank rows rather than
+    // multi-question stimulus pages. Select those directly when grouped
+    // pages cannot fill the remaining quota.
+    if (selected.length < bankCount) {
+      const selectedIds = new Set(selected.map(row => row.id));
+      const individualRows = (bankRows || []).filter(row => !selectedIds.has(row.id));
+      selected = selected.concat(
+        pickDiverseQuestions(
+          individualRows,
+          bankCount - selected.length,
+          used
+        )
+      );
+    }
 
     if (!selected.length) continue;
 
@@ -765,61 +775,9 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     }
   }
 
-  // Fill any remaining quota with generated questions.
-  let attempts = 0;
-  const maxAttempts = Math.max(6000, neededTotal * 500);
-  let mathScienceStimulusRows = null;
-  let humanitiesStimulusRows = null;
-
-  while (pending.length < neededTotal && attempts < maxAttempts) {
-    attempts += 1;
-
-    let section = null;
-    for (const [candidate, quota] of quotas) {
-      const planned = counts[candidate] + pending.filter(item => item.section === candidate).length;
-      if (planned < quota) {
-        section = candidate;
-        break;
-      }
-    }
-    if (!section) break;
-
-    let question = null;
-    if (section === "humanities") {
-      if (!humanitiesStimulusRows) humanitiesStimulusRows = humanitiesStimulusSet(sessionId);
-      question = humanitiesStimulusRows.shift();
-      if (!question) break;
-    } else if (section === "mathematics_science") {
-      if (!mathScienceStimulusRows) mathScienceStimulusRows = mathematicsScienceStimulusSet(sessionId);
-      question = mathScienceStimulusRows.shift();
-      if (!question) break;
-    } else {
-      question = mathematicsScienceQuestion();
-    }
-
-    question.year_level = config.yearLevel;
-    question.session_id = sessionId;
-    question.ip_hash = ipHash(req);
-    question.time = Number(question.time) || 60;
-
-    const fp = questionFingerprint(question);
-    const previousType = pending.length ? questionType(pending[pending.length - 1]) : "";
-    const sameGroupedPage =
-      (section === "humanities" || section === "mathematics_science") &&
-      String(question.reasoning_type || "").includes("stimulus-page");
-    if (used.has(fp) || (previousType && questionType(question) === previousType && !sameGroupedPage)) continue;
-
-    const number = currentTotal + pending.length + 1;
-    question.id = String(number).padStart(3, "0") + "-" + crypto.randomUUID();
-
-    if (pendingIds.has(question.id)) continue;
-    pending.push(question);
-    pendingIds.add(question.id);
-    used.add(fp);
-  }
-
-  // If a section could not be filled from the bank or fresh generation,
-  // make one final bank attempt before failing.
+  // Runtime assessments are database-only. The hourly question-pool job is
+  // responsible for keeping the persistent bank populated. Never generate a
+  // question synchronously for a student session.
   if (pending.length < neededTotal) {
     for (const [section, quota] of quotas) {
       if (pending.length >= neededTotal) break;
@@ -844,19 +802,31 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         continue;
       }
 
-      const selected = pickStimulusGroups(
-        bankRows || [],
-        Math.min(needed, neededTotal - pending.length),
-        used,
-        5
-      );
+      const remaining = Math.min(needed, neededTotal - pending.length);
+      const selected = pickDiverseQuestions(bankRows || [], remaining, used);
 
+      if (!selected.length) continue;
+
+      const selectedIds = selected.map(source => source.id);
+      const { data: claimedRows, error: claimError } = await supabase
+        .from("generated_questions")
+        .update({ session_id: sessionId, ip_hash: ipHash(req) })
+        .in("id", selectedIds)
+        .eq("is_bank", true)
+        .is("session_id", null)
+        .select("id");
+
+      if (claimError) {
+        console.error("Question bank fallback claim failed", claimError);
+        continue;
+      }
+
+      const claimedIdSet = new Set((claimedRows || []).map(row => row.id));
       for (const source of selected) {
-        if (pending.length >= neededTotal) break;
+        if (pending.length >= neededTotal || !claimedIdSet.has(source.id)) break;
 
-        const number = currentTotal + pending.length + 1;
         const question = {
-          id: String(number).padStart(3, "0") + "-" + crypto.randomUUID(),
+          id: source.id,
           year_level: config.yearLevel,
           session_id: sessionId,
           ip_hash: ipHash(req),
@@ -869,8 +839,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
           stimulus_image: source.stimulus_image || null,
           answer_options: source.answer_options,
           correct_answer: source.correct_answer,
-          explanation: source.explanation || "",
-          reasoning_type: source.reasoning_type
+          explanation: source.explanation || ""
         };
 
         const fp = questionFingerprint(question);
@@ -878,6 +847,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
         pending.push(question);
         pendingIds.add(question.id);
+        claimedBankIds.add(question.id);
         used.add(fp);
       }
     }
