@@ -10,13 +10,22 @@ async function api(url,options={}){
 
 const bankLabels={humanities:"Humanities",mathematics_science:"Mathematics & Science"};
 let currentBankSection="";
+const attemptsState={
+  page:0,
+  pageSize:25,
+  total:0,
+  hasMore:true,
+  loading:false,
+  observer:null
+};
 
 function openDashboard(){
   $("login").classList.add("hidden");
   $("dashboard").classList.remove("hidden");
-  loadAttempts();
+  loadAttempts(true);
   loadBankCards();
   loadWritingTopics();
+  setupAttemptsInfiniteScroll();
 }
 
 async function checkLogin(){try{await api("/api/admin/me");openDashboard();}catch{}}
@@ -38,34 +47,78 @@ $("logout").onclick=async function(){
 };
 
 $("refresh").onclick=async function(){
-  await loadAttempts();
-  await loadBankCards();
+  await Promise.all([
+    loadAttempts(true),
+    loadBankCards(),
+    loadWritingTopics()
+  ]);
 };
 
 $("refreshBank").onclick=loadBankCards;
 $("refreshWriting").onclick=loadWritingTopics;
 $("closeDetail").onclick=function(){$("detail").classList.add("hidden");};
+$("attemptsLoadMore").onclick=()=>loadAttempts(false);
 
-async function loadAttempts(){
+async function loadAttempts(reset=false){
+  if(attemptsState.loading) return;
+  if(!reset && !attemptsState.hasMore) return;
+
+  attemptsState.loading=true;
+  if(reset){
+    attemptsState.page=0;
+    attemptsState.total=0;
+    attemptsState.hasMore=true;
+    $("attempts").innerHTML="";
+  }
+
+  $("attemptsStatus").textContent=reset?"Loading assessments…":"Loading more assessments…";
+  $("attemptsLoadMore").classList.add("hidden");
+
   try{
-    const data=await api("/api/admin/attempts");
-    renderAttempts(data.attempts||[]);
+    const nextPage=attemptsState.page+1;
+    const data=await api("/api/admin/attempts?page="+nextPage+"&page_size="+attemptsState.pageSize);
+
+    attemptsState.page=data.page||nextPage;
+    attemptsState.total=Number(data.total||0);
+    attemptsState.hasMore=Boolean(data.has_more);
+
+    appendAttempts(data.attempts||[]);
+    await loadAttemptSummary();
+    updateAttemptsStatus();
   }catch(err){
     if(err.message==="Admin login required")location.reload();
-    else alert(err.message);
+    else{
+      $("attemptsStatus").textContent="Could not load assessments. Use Load more to retry.";
+      $("attemptsLoadMore").textContent="Retry";
+      $("attemptsLoadMore").classList.remove("hidden");
+    }
+  }finally{
+    attemptsState.loading=false;
   }
 }
 
-function renderAttempts(attempts){
-  const total=$("total"),avg=$("avgScore"),best=$("best"),responses=$("responses"),body=$("attempts");
-  total.textContent=attempts.length;
-  const scores=attempts.map(a=>a.score).filter(s=>typeof s==="number");
-  avg.textContent=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)+"%":"0%";
-  best.textContent=scores.length?Math.max(...scores)+"%":"0%";
-  responses.textContent=attempts.reduce((s,a)=>s+(a.answered_count||0),0);
-  body.innerHTML="";
+async function loadAttemptSummary(){
+  const data=await api("/api/admin/attempts/summary");
+  $("total").textContent=Number(data.total_attempts||0);
+  $("avgScore").textContent=Number(data.average_score||0)+"%";
+  $("best").textContent=Number(data.best_score||0)+"%";
+  $("responses").textContent=Number(data.total_responses||0);
+}
+
+function appendAttempts(attempts){
+  const body=$("attempts");
+  if(!attempts.length && attemptsState.page===1){
+    body.innerHTML='<tr><td colspan="12" class="loading-row">No assessments have been taken yet.</td></tr>';
+    return;
+  }
+
+  // Remove an empty-state row before appending real records.
+  const emptyRow=body.querySelector(".loading-row");
+  if(emptyRow)emptyRow.remove();
+
   attempts.forEach(a=>{
     const row=document.createElement("tr");
+
     [
       new Date(a.started_at).toLocaleString(),
       (a.session_name||"Student")+" — "+(a.session_id||"-"),
@@ -75,18 +128,83 @@ function renderAttempts(attempts){
       a.wrong_count==null?"-":a.wrong_count,
       a.timeout_count==null?"-":a.timeout_count
     ].forEach(v=>{
-      const c=document.createElement("td");
-      c.textContent=v;
-      row.appendChild(c);
+      const cell=document.createElement("td");
+      cell.textContent=v;
+      row.appendChild(cell);
     });
-    const c=document.createElement("td"),b=document.createElement("button");
-    b.textContent="View";
-    b.className="ghost";
-    b.onclick=()=>window.open("/admin/responses?id="+encodeURIComponent(a.id),"_blank","noopener,noreferrer");
-    c.appendChild(b);
-    row.appendChild(c);
+
+    const actionCell=document.createElement("td");
+    const viewButton=document.createElement("button");
+    viewButton.textContent="View";
+    viewButton.className="ghost";
+    viewButton.onclick=()=>window.open("/admin/responses?id="+encodeURIComponent(a.id),"_blank","noopener,noreferrer");
+
+    const deleteButton=document.createElement("button");
+    deleteButton.textContent="Delete";
+    deleteButton.className="delete-btn";
+    deleteButton.style.marginLeft="7px";
+    deleteButton.onclick=()=>deleteAssessment(a,deleteButton);
+
+    actionCell.appendChild(viewButton);
+    actionCell.appendChild(deleteButton);
+    row.appendChild(actionCell);
     body.appendChild(row);
   });
+}
+
+function updateAttemptsStatus(){
+  const loaded=$("attempts").querySelectorAll("tr:not(.loading-row)").length;
+  if(!attemptsState.total){
+    $("attemptsStatus").textContent="No assessments taken.";
+    $("attemptsLoadMore").classList.add("hidden");
+    return;
+  }
+
+  $("attemptsStatus").textContent="Showing "+Math.min(loaded,attemptsState.total)+" of "+attemptsState.total+" assessments";
+  $("attemptsLoadMore").classList.toggle("hidden",!attemptsState.hasMore);
+  if(!attemptsState.hasMore){
+    $("attemptsStatus").textContent+=" · All assessments loaded";
+  }
+}
+
+function setupAttemptsInfiniteScroll(){
+  if(attemptsState.observer)attemptsState.observer.disconnect();
+
+  const root=$("attemptsScroll");
+  const sentinel=$("attemptsSentinel");
+  if(!root||!sentinel)return;
+
+  attemptsState.observer=new IntersectionObserver(entries=>{
+    if(entries.some(entry=>entry.isIntersecting)) loadAttempts(false);
+  },{
+    root,
+    rootMargin:"500px 0px",
+    threshold:0
+  });
+  attemptsState.observer.observe(sentinel);
+}
+
+async function deleteAssessment(attempt,button){
+  const student=attempt.session_name||"this student";
+  const started=attempt.started_at?new Date(attempt.started_at).toLocaleString():"";
+  const confirmed=window.confirm(
+    "Delete this assessment permanently?\\n\\n"+
+    student+
+    (started?" — "+started:"")+
+    "\\n\\nThis removes the assessment, saved responses, writing responses and its generated questions. This cannot be undone."
+  );
+  if(!confirmed)return;
+
+  button.disabled=true;
+  button.textContent="Deleting…";
+  try{
+    await api("/api/admin/attempts/"+encodeURIComponent(attempt.id),{method:"DELETE"});
+    await loadAttempts(true);
+  }catch(err){
+    button.disabled=false;
+    button.textContent="Delete";
+    alert(err.message);
+  }
 }
 
 async function loadWritingTopics(){
@@ -447,7 +565,7 @@ async function saveStimulusGroup(button){
   status.textContent="Saving…";
   try{
     await api("/api/admin/question-bank/group",{method:"PUT",body:JSON.stringify({
-      section,stimulus_group:actualGroup||stimulusGroup,passage,stimulus_image:stimulusImage
+      section,stimulus_group:actualGroup,passage,stimulus_image:stimulusImage
     })});
     status.className="bank-save-state good";
     status.textContent="Stimulus saved.";
