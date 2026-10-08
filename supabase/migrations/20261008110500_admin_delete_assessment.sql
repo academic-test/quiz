@@ -23,8 +23,16 @@ begin
 
   get diagnostics v_deleted = row_count;
 
+  -- Return persistent bank questions to the available pool; remove only
+  -- session-specific generated questions.
+  update public.generated_questions
+  set session_id = null
+  where session_id = v_session_id
+    and is_bank = true;
+
   delete from public.generated_questions
-  where session_id = v_session_id;
+  where session_id = v_session_id
+    and is_bank = false;
 
   return jsonb_build_object('deleted', v_deleted = 1);
 end;
