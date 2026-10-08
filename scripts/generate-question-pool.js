@@ -3,8 +3,7 @@ const { createClient } = require("@supabase/supabase-js");
 const {
   humanitiesQuestion,
   mathematicsScienceQuestion,
-  questionFingerprint,
-  questionType
+  questionFingerprint
 } = require("../server/year10Level2Generators");
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -44,6 +43,7 @@ function normaliseQuestion(question, section, id, batchKey) {
     ip_hash: crypto.createHash("sha256").update("question-pool|" + id).digest("hex"),
     year_level: "10",
     section,
+    subject: section,
     difficulty: question.difficulty || "medium",
     time: Number(question.time) || 60,
     question_text: String(question.question_text),
