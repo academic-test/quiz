@@ -23,7 +23,10 @@ function openDashboard(){
   $("login").classList.add("hidden");
   $("dashboard").classList.remove("hidden");
   loadAttempts(true);
-  loadBankCards();
+  loadBankCards().then(()=>{
+    const bankSection=new URLSearchParams(window.location.search).get("bank");
+    if(bankSection && bankLabels[bankSection]) openBank(bankSection);
+  });
   loadWritingTopics();
   setupAttemptsInfiniteScroll();
 }
@@ -345,8 +348,14 @@ function renderBankCards(data){
     </button>`;
   }).join("");
   $("bankCards").querySelectorAll("[data-bank-section]").forEach(button=>{
-    button.onclick=()=>openBank(button.dataset.bankSection);
+    button.onclick=()=>openBankInNewWindow(button.dataset.bankSection);
   });
+}
+
+function openBankInNewWindow(section){
+  if(!bankLabels[section]) return;
+  const url=window.location.origin+"/admin?bank="+encodeURIComponent(section);
+  window.open(url,"_blank","noopener,noreferrer");
 }
 
 async function openBank(section){
