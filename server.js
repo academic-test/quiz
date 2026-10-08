@@ -22,6 +22,7 @@ const adminPassword = process.env.ADMIN_PASSWORD;
 const cookieName = "quiz_admin";
 const assessmentCookieName = "quiz_assessment";
 const assessmentTtlMs = 4 * 60 * 60 * 1000;
+const questionReuseCooldownMs = 24 * 60 * 60 * 1000;
 const rateLimitBuckets = new Map();
 const generationLocks = new Map();
 const DEFAULT_ASSESSMENT = Object.freeze({
@@ -685,7 +686,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
     const { data: rawBankRows, error: bankError } = await supabase
       .from("generated_questions")
-      .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
+      .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank,last_used_at")
       .eq("year_level", config.yearLevel)
       .eq("is_bank", true)
       .is("session_id", null)
@@ -696,6 +697,11 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
         ? row.section === "mathematics_science" || ["mathematics", "science"].includes(row.subject)
         : row.section === section || row.subject === section
     );
+    const cooldownCutoff = Date.now() - questionReuseCooldownMs;
+    const eligibleBankRows = bankRows.filter(row =>
+      !row.last_used_at || new Date(row.last_used_at).getTime() <= cooldownCutoff
+    );
+    const selectionBankRows = eligibleBankRows.length >= needed ? eligibleBankRows : bankRows;
 
     if (bankError) {
       console.error("Question bank lookup failed", bankError);
@@ -703,14 +709,14 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
     }
 
     const bankCount = Math.min(needed, neededTotal - pending.length);
-    let selected = pickStimulusGroups(bankRows || [], bankCount, used, 5);
+    let selected = pickStimulusGroups(selectionBankRows || [], bankCount, used, 5);
 
     // Dynamically generated questions are individual bank rows rather than
     // multi-question stimulus pages. Select those directly when grouped
     // pages cannot fill the remaining quota.
     if (selected.length < bankCount) {
       const selectedIds = new Set(selected.map(row => row.id));
-      const individualRows = (bankRows || []).filter(row => !selectedIds.has(row.id));
+      const individualRows = (selectionBankRows || []).filter(row => !selectedIds.has(row.id));
       selected = selected.concat(
         pickDiverseQuestions(
           individualRows,
@@ -728,6 +734,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       .update({
         session_id: sessionId,
         ip_hash: ipHash(req),
+        last_used_at: new Date().toISOString(),
         section: section === "mathematics_science" ? "mathematics_science" : section
       })
       .in("id", selectedIds)
@@ -800,7 +807,7 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
 
       const { data: rawBankRows, error } = await supabase
         .from("generated_questions")
-        .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank")
+        .select("id,session_id,section,subject,difficulty,time,question_text,passage,stimulus_group,stimulus_image,answer_options,correct_answer,explanation,is_bank,last_used_at")
         .eq("year_level", config.yearLevel)
         .eq("is_bank", true)
         .is("session_id", null)
@@ -818,7 +825,12 @@ async function generateQuestions(req, sessionId, config, targetSection = null) {
       }
 
       const remaining = Math.min(needed, neededTotal - pending.length);
-      const selected = pickDiverseQuestions(bankRows || [], remaining, used);
+      const cooldownCutoff = Date.now() - questionReuseCooldownMs;
+      const eligibleBankRows = (bankRows || []).filter(row =>
+        !row.last_used_at || new Date(row.last_used_at).getTime() <= cooldownCutoff
+      );
+      const selectionBankRows = eligibleBankRows.length >= remaining ? eligibleBankRows : bankRows || [];
+      const selected = pickDiverseQuestions(selectionBankRows, remaining, used);
 
       if (!selected.length) continue;
 
