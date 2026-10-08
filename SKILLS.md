@@ -112,6 +112,16 @@ Do not use individual-question countdowns as a substitute for the source test co
 - Generated questions must use the same four-choice shape.
 - Example invalid item: A=13, B=4, C=4, D=5. It must be rejected because B and C duplicate, even though B can be the mathematically correct answer.
 
+
+## Relative difficulty scoring
+- Multiple-choice scoring is difficulty-weighted rather than treating every question as equal value.
+- Current weights are: Easy = 1.0 point, Medium = 1.5 points, Hard = 2.0 points.
+- A correct response earns the question's weight; an incorrect or timed-out response earns 0.
+- The displayed practice score is normalised to 100: earned weighted points / available weighted points × 100.
+- The same scoring model must be used by the student results view, stored attempt scores, and Admin assessment reporting.
+- Difficulty labels must reflect the actual cognitive demand of each question. Do not label a question hard merely because it is later in a stimulus page.
+- Relative scoring is a project practice scoring model. It must not be described as an official ACER score, scaled score or percentile.
+
 ## Timing analytics
 For each saved response, capture actual response time in seconds.
 
@@ -139,6 +149,10 @@ These thresholds are practice analytics only and are not ACER scoring rules.
 - Skipped/unanswered questions are not sent to the response endpoint.
 - Response time is captured when the response is committed.
 - Do not treat an option click as a completed response.
+
+## Admin interaction requirements
+- Clicking a Humanities or Mathematics & Science question-bank subject card opens that subject's bank in a new browser tab/window. The existing dashboard remains open in the original tab.
+- The opened bank view must preserve the normal admin authentication and existing question-bank editor behaviour; this is an admin usability change only and must not alter the student assessment flow.
 
 ## Admin
 - `/admin` contains the login/dashboard.
@@ -294,3 +308,16 @@ For every Humanities stimulus page:
 - Never overwrite the working Vue app with partial snippets.
 - Before changing Humanities navigation or rendering, read and obey the Permanent Humanities stimulus-page contract above.
 - Never solve a Humanities grouping bug by reverting to individual-question paging.
+
+
+## Latest Mathematics & Science feedback review (2026-10-08)
+The uploaded new-maths-science-questions.docx contains 10 problem pages and 32 questions, with multiple questions sharing each problem-page stimulus. fileciteturn861file0L1-L8
+
+Use these observations when evaluating or upgrading future Mathematics & Science banks:
+- The shared-page structure is aligned with the project's permanent Mathematics & Science page-level flow: 3–4 related questions per problem page is a useful pattern.
+- Several pages are dominated by routine, single-step calculations or repeated variants of the same operation (for example repeated doubling, solar-panel calculations, token probability, and heater-cost calculations). These are acceptable foundation items but should not dominate the bank.
+- Increase the proportion of unfamiliar, multi-step and interpretation-heavy questions, especially items requiring students to compare evidence, infer a relationship, select the best conclusion, or combine information from a table/graph/diagram.
+- Use the stimulus itself more fully: a given data set, chart, diagram, table or experimental setup should support multiple distinct reasoning tasks rather than being repeated only as a calculation wrapper.
+- The document provides useful science contexts (pendulum investigation, fertiliser experiment, dilution, inheritance), but future banks should maintain broader Science coverage and include more evidence-analysis and experimental-reasoning items.
+- Difficulty should be calibrated question-by-question. A basic first item on a page should not automatically be marked medium, and every later item should not automatically be marked hard. The weighting model above makes accurate difficulty classification especially important.
+- Treat the uploaded document as feedback/reference material, not as approved production content to copy verbatim. Questions, wording, data displays and examples must remain original.
