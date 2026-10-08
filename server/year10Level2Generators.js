@@ -1233,10 +1233,15 @@ function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastTy
     buckets.get(type).push(candidate);
   }
   for (const bucket of buckets.values()) shuffle(bucket);
+
   const result = [];
   let lastType = initialLastType;
+
+  // First pass: maximise reasoning-type diversity.
   while (result.length < count) {
-    const types = [...buckets.keys()].filter(type => buckets.get(type).length > 0 && type !== lastType);
+    const types = [...buckets.keys()].filter(
+      type => buckets.get(type).length > 0 && type !== lastType
+    );
     if (!types.length) break;
     const type = pick(types);
     const item = buckets.get(type).pop();
@@ -1244,6 +1249,19 @@ function pickDiverseQuestions(candidates, count, usedFingerprints, initialLastTy
     result.push(item);
     lastType = type;
   }
+
+  // Second pass: if the section needs more questions than there are distinct
+  // reasoning types, reuse types but never reuse a question.
+  while (result.length < count) {
+    const types = [...buckets.keys()].filter(type => buckets.get(type).length > 0);
+    if (!types.length) break;
+    const type = pick(types);
+    const item = buckets.get(type).pop();
+    item.reasoning_type = type;
+    result.push(item);
+    lastType = type;
+  }
+
   return result;
 }
 
