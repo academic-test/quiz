@@ -83,7 +83,7 @@ async function loadAttempts(reset=false){
     attemptsState.hasMore=Boolean(data.has_more);
 
     appendAttempts(data.attempts||[]);
-    await loadAttemptSummary();
+    if(reset || attemptsState.page===1) await loadAttemptSummary();
     updateAttemptsStatus();
   }catch(err){
     if(err.message==="Admin login required")location.reload();
