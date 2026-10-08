@@ -9,3 +9,14 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+  - type: cron
+    name: hendersons-question-pool-hourly
+    runtime: node
+    schedule: "0 * * * *"
+    buildCommand: npm install
+    startCommand: npm run generate:question-pool
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
