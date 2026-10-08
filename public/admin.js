@@ -22,10 +22,11 @@ const attemptsState={
 function openDashboard(){
   $("login").classList.add("hidden");
   $("dashboard").classList.remove("hidden");
+  showAdminSection("overview");
   loadAttempts(true);
   loadBankCards().then(()=>{
     const bankSection=new URLSearchParams(window.location.search).get("bank");
-    if(bankSection && bankLabels[bankSection]) openBank(bankSection);
+    if(bankSection && bankLabels[bankSection]) { showAdminSection("question-bank"); openBank(bankSection); }
   });
   loadWritingTopics();
   setupAttemptsInfiniteScroll();
@@ -48,6 +49,21 @@ $("logout").onclick=async function(){
   await api("/api/admin/logout",{method:"POST"});
   location.reload();
 };
+
+function showAdminSection(section){
+  const map={overview:"overviewSection","question-bank":"questionBankSection",writing:"writingSection",assessments:"assessmentsSection"};
+  Object.values(map).forEach(id=>$(id)?.classList.add("hidden"));
+  const target=map[section]||map.overview;
+  $(target)?.classList.remove("hidden");
+  document.querySelectorAll("[data-admin-nav]").forEach(button=>button.classList.toggle("active",button.dataset.adminNav===section));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+document.querySelectorAll("[data-admin-nav]").forEach(button=>{
+  button.onclick=()=>showAdminSection(button.dataset.adminNav);
+});
+$("navRefresh").onclick=()=>$("refresh").click();
+$("navLogout").onclick=()=>$("logout").click();
 
 $("refresh").onclick=async function(){
   await Promise.all([
@@ -417,7 +433,7 @@ function renderQuestionBank(data){
     <div class="bank-toolbar">
       <div>
         <h2>${esc(bankLabels[data.section])} Question Bank</h2>
-        <p>${data.count||0} questions across ${grouped.size} stimulus pages. Correct answers and answer responses are editable.</p>
+        <p>${data.count||0} questions across ${grouped.size} stimulus pages.</p>
       </div>
       <div>
         <button type="button" class="ghost close-bank" data-action="close-bank">Close</button>
@@ -453,20 +469,25 @@ function questionEditorHtml(row,index,groupActive){
         <input type="number" min="10" max="600" data-field="time" value="${Number(row.time||60)}" ${active?"disabled":""}>
       </div>
     </div>
-    <label>Answer responses</label>
-    <div>
-      ${[0,1,2,3].map(i=>{
-        const value=options[i]||"";
-        const checked=Number(row.correct_answer)===i;
-        return `<div class="bank-option">
-          <input type="radio" name="correct-${safeId}" value="${i}" ${checked?"checked":""} ${active?"disabled":""}>
-          <span class="bank-option-label">${String.fromCharCode(65+i)}</span>
-          <input type="text" data-option-index="${i}" value="${esc(value)}" ${active?"disabled":""}>
-        </div>`;
-      }).join("")}
-    </div>
-    <label>Explanation</label>
-    <textarea data-field="explanation" ${active?"disabled":""}>${esc(row.explanation||"")}</textarea>
+    <details class="answer-details">
+      <summary>Show answers & explanation</summary>
+      <div class="answer-details-body">
+        <label>Answer responses</label>
+        <div>
+          ${[0,1,2,3].map(i=>{
+            const value=options[i]||"";
+            const checked=Number(row.correct_answer)===i;
+            return `<div class="bank-option">
+              <input type="radio" name="correct-${safeId}" value="${i}" ${checked?"checked":""} ${active?"disabled":""}>
+              <span class="bank-option-label">${String.fromCharCode(65+i)}</span>
+              <input type="text" data-option-index="${i}" value="${esc(value)}" ${active?"disabled":""}>
+            </div>`;
+          }).join("")}
+        </div>
+        <label>Explanation</label>
+        <textarea data-field="explanation" ${active?"disabled":""}>${esc(row.explanation||"")}</textarea>
+      </div>
+    </details>
     <div class="bank-actions">
       <span class="bank-save-state"></span>
       <button type="button" class="primary" data-action="save-question" ${active?"disabled":""}>Save Question</button>
