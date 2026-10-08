@@ -62,8 +62,10 @@ function showAdminSection(section){
 document.querySelectorAll("[data-admin-nav]").forEach(button=>{
   button.onclick=()=>showAdminSection(button.dataset.adminNav);
 });
-$("navRefresh").onclick=()=>$("refresh").click();
-$("navLogout").onclick=()=>$("logout").click();
+$("navRefresh")?.addEventListener("click",()=>$("refresh")?.click());
+$("navLogout")?.addEventListener("click",()=>$("logout")?.click());
+
+
 
 $("refresh").onclick=async function(){
   await Promise.all([
