@@ -23,9 +23,28 @@ const esc = value => String(value)
   .replace(/"/g, "&quot;")
   .replace(/'/g, "&apos;");
 
+// All bars use one shared linear scale derived from the data. Keep this as the
+// only source of bar widths so SVG dimensions cannot drift from the values.
 const barWidth = value => Math.round((value / axisMax) * chartWidth);
 
+function validatePopulationScale() {
+  for (const group of populationAgeGroups) {
+    for (const [year, value] of [["1980", group.year1980], ["2020", group.year2020]]) {
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error("Invalid population value for " + group.label + " (" + year + ")");
+      }
+    }
+  }
+
+  const child1980 = populationAgeGroups.find(group => group.label === "0–14");
+  const older1980 = populationAgeGroups.find(group => group.label === "55+");
+  if (!child1980 || !older1980 || !(barWidth(child1980.year1980) > barWidth(older1980.year1980))) {
+    throw new Error("Population chart scale regression: 1980 age-group bars are not proportional to the data.");
+  }
+}
+
 function renderPopulationSvg() {
+  validatePopulationScale();
   const groups = populationAgeGroups.map((group, index) => {
     const y = chartTop + index * groupGap;
     const width1980 = barWidth(group.year1980);
