@@ -9,7 +9,9 @@ const { renderPopulationSvg } = require("../../scripts/generate-math-population"
 
 const generatedFiles = [
   resolve(process.cwd(), "frontend/public/stimuli/math-population.svg"),
-  resolve(process.cwd(), "frontend/public/stimuli/math-population-v2.svg")
+  resolve(process.cwd(), "frontend/public/stimuli/math-population-v2.svg"),
+  resolve(process.cwd(), "frontend/public/stimuli/math-population-v3.svg"),
+  resolve(process.cwd(), "frontend/public/stimuli/math-population-v4.svg")
 ];
 
 function readBarWidth(svg, group, year, value) {
@@ -46,7 +48,7 @@ describe("data-generated population chart", () => {
       .toBeGreaterThan(readBarWidth(svg, "55+", 1980, 900));
   });
 
-  it("keeps both committed SVG files in sync with the data-driven generator", () => {
+  it("keeps all committed SVG aliases, including the cache-busted live asset, in sync with the data-driven generator", () => {
     const expected = renderPopulationSvg();
     for (const file of generatedFiles) {
       expect(readFileSync(file, "utf8")).toBe(expected);

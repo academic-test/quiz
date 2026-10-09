@@ -87,7 +87,9 @@ function renderPopulationSvg() {
 function generatePopulationSvgs() {
   const targets = [
     path.join(__dirname, "..", "frontend", "public", "stimuli", "math-population.svg"),
-    path.join(__dirname, "..", "frontend", "public", "stimuli", "math-population-v2.svg")
+    path.join(__dirname, "..", "frontend", "public", "stimuli", "math-population-v2.svg"),
+    path.join(__dirname, "..", "frontend", "public", "stimuli", "math-population-v3.svg"),
+    path.join(__dirname, "..", "frontend", "public", "stimuli", "math-population-v4.svg")
   ];
   const svg = renderPopulationSvg();
   targets.forEach(target => {

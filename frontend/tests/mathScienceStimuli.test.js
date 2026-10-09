@@ -15,5 +15,6 @@ describe("buildMathScienceStimulusGroups", () => {
     expect(groups[0].questions.map(q => q.id)).toEqual(["1", "2"]);
     expect(groups[0].passage).toBe("Shared data");
     expect(groups[1].questions.map(q => q.id)).toEqual(["3"]);
+    expect(groups[1].image).toBe("/stimuli/math-population-v4.svg");
   });
 });
