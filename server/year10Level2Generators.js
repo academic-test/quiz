@@ -1136,7 +1136,7 @@ function mathematicsScienceStimulusSet(sessionId = "") {
   };
   const images = {
     "MATH-PAGE-01": "/stimuli/math-landmass.svg",
-    "MATH-PAGE-02": "/stimuli/math-population.svg",
+    "MATH-PAGE-02": "/stimuli/math-population-v2.svg",
     "MATH-PAGE-03": "/stimuli/math-air-quality.svg",
     "MATH-PAGE-04": "/stimuli/math-tiles.svg",
     "MATH-PAGE-05": "/stimuli/math-food-web.svg",
