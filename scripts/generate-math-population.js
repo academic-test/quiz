@@ -61,7 +61,7 @@ function renderPopulationSvg() {
     '<line x1="' + chartX + '" y1="' + axisY + '" x2="' + (chartX + chartWidth) + '" y2="' + axisY + '" stroke="#999"/>',
     '<g font-family="Arial,sans-serif">' + groups + '</g>',
     '</svg>',
-    ""
+    "\n"
   ].join("");
 }
 
