@@ -16,6 +16,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 const { difficultyWeight, calculateWeightedScore } = require("./server/scoring");
+const { generateQuestionPages: generateHuggingFaceQuestionPages, DEFAULT_MODEL: DEFAULT_HF_MODEL } = require("./server/huggingfaceQuestionGenerator");
 
 const adminEmail = process.env.ADMIN_EMAIL;
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -1805,6 +1806,102 @@ app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
   const { error } = await supabase.from("generated_questions").insert(row);
   if (error) return res.status(400).json({ error:error.message });
   res.status(201).json({ ok:true, question:row });
+});
+
+
+app.get("/api/admin/huggingface/status", requireAdmin, (req,res) => {
+  res.json({
+    configured: Boolean(process.env.HF_TOKEN || process.env.HUGGINGFACE_API_TOKEN),
+    model: process.env.HF_MODEL || DEFAULT_HF_MODEL
+  });
+});
+
+app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+
+  const section = String(req.body && req.body.section || "").trim();
+  const pageCount = Number(req.body && req.body.page_count || 1);
+  if (!["humanities","mathematics_science"].includes(section)) {
+    return res.status(400).json({ error:"Choose Humanities or Mathematics & Science." });
+  }
+  if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 5) {
+    return res.status(400).json({ error:"Choose between 1 and 5 stimulus pages per request." });
+  }
+  if (!rateLimit("admin-hf-generation:" + ipHash(req), 5, 60 * 60 * 1000)) {
+    return res.status(429).json({ error:"Question generation limit reached. Please wait before generating another batch." });
+  }
+
+  try {
+    const { data: existing, error:existingError } = await supabase
+      .from("generated_questions")
+      .select("section,question_text,passage")
+      .eq("year_level","10")
+      .eq("section",section)
+      .eq("is_bank",true)
+      .order("created_at",{ascending:false})
+      .limit(1000);
+
+    if (existingError) return res.status(400).json({ error:existingError.message });
+
+    const avoidStems = (existing || [])
+      .map(row => String(row.question_text || "").trim())
+      .filter(Boolean);
+    const generated = await generateHuggingFaceQuestionPages({ section, pageCount, avoidStems });
+    const seenFingerprints = new Set((existing || []).map(row => questionFingerprint(row)));
+    const batchFingerprints = new Set();
+    const rows = [];
+
+    generated.pages.forEach((page,pageIndex) => {
+      const groupUuid = crypto.randomUUID();
+      const idPrefix = section === "humanities" ? "GEN-HUM-" : "GEN-MS-";
+      const groupId = idPrefix + "PAGE-" + groupUuid;
+      page.questions.forEach((question,questionIndex) => {
+        const fp = questionFingerprint({
+          section,
+          question_text:question.question_text,
+          passage:page.stimulus
+        });
+        if (seenFingerprints.has(fp) || batchFingerprints.has(fp)) {
+          throw Object.assign(new Error("Hugging Face generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
+        }
+        batchFingerprints.add(fp);
+        rows.push({
+          id:idPrefix + groupUuid + "-Q" + (questionIndex + 1),
+          session_id:null,
+          ip_hash:crypto.createHash("sha256").update("huggingface-question-bank|" + groupUuid).digest("hex"),
+          year_level:"10",
+          section,
+          subject:section,
+          difficulty:question.difficulty,
+          time:question.time,
+          question_text:question.question_text,
+          answer_options:question.answer_options,
+          correct_answer:question.correct_answer,
+          explanation:question.explanation,
+          passage:page.stimulus,
+          stimulus_group:groupId,
+          stimulus_image:null,
+          is_bank:true
+        });
+      });
+    });
+
+    const { error:insertError } = await supabase.from("generated_questions").insert(rows);
+    if (insertError) return res.status(400).json({ error:insertError.message });
+
+    res.status(201).json({
+      ok:true,
+      section,
+      model:generated.model,
+      pages:generated.pages.length,
+      questions:rows.length,
+      message:"Added " + generated.pages.length + " complete stimulus pages (" + rows.length + " questions) to the persistent bank."
+    });
+  } catch (error) {
+    const status = Number(error && error.statusCode) || 502;
+    console.error("Hugging Face question generation failed:", error && error.message || error);
+    res.status(status).json({ error:error && error.message || "Question generation failed. No questions were saved." });
+  }
 });
 
 app.get("/admin", (req,res) => res.sendFile(path.join(publicDir,"admin.html")));

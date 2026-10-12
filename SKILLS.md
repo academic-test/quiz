@@ -150,6 +150,17 @@ These thresholds are practice analytics only and are not official scoring rules.
 - Response time is captured when the response is committed.
 - Do not treat an option click as a completed response.
 
+
+## Hugging Face question generation
+- Admin can request 1–5 additional stimulus pages for Humanities or Mathematics & Science through the server-side Hugging Face Inference Providers API.
+- Configure the secret as Render environment variable `HF_TOKEN`; never put it in frontend code or return it from a status endpoint. `HUGGINGFACE_API_TOKEN` is accepted as an alternative name.
+- `HF_MODEL` optionally overrides the default model `openai/gpt-oss-120b:cheapest`.
+- Generation is an admin-triggered operation that inserts validated questions into `generated_questions` as persistent bank rows. Student assessment startup does not call Hugging Face.
+- Each generated Humanities page contains 5 related MCQs; each Mathematics & Science page contains 4 related MCQs. This preserves the existing page grouping and exact section question totals.
+- The API rejects malformed outputs, duplicate page/question fingerprints, missing explanations, invalid difficulties, and answer sets that do not contain exactly four unique options. A failed batch must not be partially saved.
+- Generated content must be original, multi-step and interpretation-heavy where appropriate; answer keys and explanations should be reviewed in Admin before student use.
+- The endpoint is rate limited and only available to authenticated admins. Hugging Face credentials remain server-side.
+
 ## Admin interaction requirements
 - Clicking a Humanities or Mathematics & Science question-bank subject card opens that subject's bank in a new browser tab/window. The existing dashboard remains open in the original tab.
 - The opened bank view must preserve the normal admin authentication and existing question-bank editor behaviour; this is an admin usability change only and must not alter the student assessment flow.
