@@ -1895,6 +1895,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
       model:generated.model,
       pages:generated.pages.length,
       questions:rows.length,
+      stimulus_groups:[...new Set(rows.map(row => row.stimulus_group))],
       message:"Added " + generated.pages.length + " complete stimulus pages (" + rows.length + " questions) to the persistent bank."
     });
   } catch (error) {
