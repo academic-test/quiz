@@ -155,6 +155,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
         ],
         temperature: 0.45,
         max_tokens: Math.min(12000, count * 2400),
+        response_format: { type: "json_object" },
         stream: false
       }),
       signal: AbortSignal.timeout(120000)
@@ -174,8 +175,20 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
     throw fail("OpenRouter request failed (" + response.status + ")" + (detail ? ": " + detail : ". Check OPENROUTER_API_KEY and model availability."), status);
   }
   const content = payload && payload.choices && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
-  if (!content) throw fail("OpenRouter returned an empty response. No questions were saved.", 502);
-  return { model, pages: validatePages(extractJson(content), section, count) };
+  if (!content) {
+    const finishReason = normalise(payload && payload.choices && payload.choices[0] && payload.choices[0].finish_reason || "unknown", 40);
+    throw fail("OpenRouter returned an empty response (finish reason: " + finishReason + "). No questions were saved. Try again or use a different model.", 502);
+  }
+  let document;
+  try {
+    document = extractJson(content);
+  } catch (error) {
+    const preview = normalise(content, 500);
+    const finishReason = normalise(payload && payload.choices && payload.choices[0] && payload.choices[0].finish_reason || "unknown", 40);
+    const actualModel = normalise(payload && payload.model || model, 120);
+    throw fail("OpenRouter model " + actualModel + " did not return JSON (finish reason: " + finishReason + "). Preview: " + preview, 502);
+  }
+  return { model, pages: validatePages(document, section, count) };
 }
 
 module.exports = { generateQuestionPages, validatePages, extractJson, DEFAULT_MODEL };
