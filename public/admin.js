@@ -445,7 +445,7 @@ function renderQuestionBank(data){
     <div class="hf-generator" data-hf-generator>
       <div>
         <div class="eyebrow">QUESTION GENERATION</div>
-        <h3>Generate with Hugging Face</h3>
+        <h3>Generate with AI</h3>
         <p>Add original shared-stimulus pages to this persistent question bank. The generator does not change active student assessments.</p>
       </div>
       <div class="hf-generator-controls">
@@ -455,7 +455,7 @@ function renderQuestionBank(data){
         </select>
         <button type="button" class="primary" data-hf-generate>Generate pages</button>
       </div>
-      <div class="hf-generator-status" data-hf-status data-state="checking">Checking Hugging Face configuration…</div>
+      <div class="hf-generator-status" data-hf-status data-state="checking">Checking AI provider configuration…</div>
     </div>
     <div class="small-note" style="margin-bottom:14px">Questions currently assigned to an active student test are read-only here so an edit cannot change a live assessment.</div>
     <div class="bank-groups">${groupHtml||'<div class="bank-empty">No questions are in this bank yet.</div>'}</div>`;
@@ -671,12 +671,12 @@ async function setupHuggingFaceGenerator(section){
     }
     if(!config.configured){
       status.dataset.state="not-configured";
-      status.textContent="Add HF_TOKEN to the Render service environment to enable generation.";
+      status.textContent="Add OPENROUTER_API_KEY to the Render service environment to enable generation.";
       button.disabled=true;
       return;
     }
     status.dataset.state="ready";
-    status.textContent="Ready · "+config.model;
+    status.textContent="Ready · OpenRouter / "+config.model;
     button.disabled=false;
   }catch(err){
     if(err.message==="Admin login required")location.reload();
