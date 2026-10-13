@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = "openrouter/free";
+const DEFAULT_MODEL = "qwen/qwen3.8-27b:free";
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 function fail(message, statusCode = 400) {
@@ -156,8 +156,9 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
           { role: "system", content: prompt.system },
           { role: "user", content: JSON.stringify(prompt.user) }
         ],
-        temperature: 0.45,
+        temperature: 0.35,
         max_tokens: Math.min(20000, count * 5000),
+        reasoning: { effort: "low", exclude: true },
         response_format: { type: "json_object" },
         stream: false
       }),
