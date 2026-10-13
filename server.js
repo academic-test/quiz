@@ -1811,7 +1811,7 @@ app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
 
 app.get("/api/admin/huggingface/status", requireAdmin, (req,res) => {
   res.json({
-    configured: Boolean(process.env.HF_TOKEN || process.env.HUGGINGFACE_API_TOKEN),
+    configured: Boolean(process.env.OPENROUTER_API_KEY),
     model: process.env.HF_MODEL || DEFAULT_HF_MODEL
   });
 });
@@ -1862,13 +1862,13 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
           passage:page.stimulus
         });
         if (seenFingerprints.has(fp) || batchFingerprints.has(fp)) {
-          throw Object.assign(new Error("Hugging Face generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
+          throw Object.assign(new Error("OpenRouter generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
         }
         batchFingerprints.add(fp);
         rows.push({
           id:idPrefix + groupUuid + "-Q" + (questionIndex + 1),
           session_id:null,
-          ip_hash:crypto.createHash("sha256").update("huggingface-question-bank|" + groupUuid).digest("hex"),
+          ip_hash:crypto.createHash("sha256").update("openrouter-question-bank|" + groupUuid).digest("hex"),
           year_level:"10",
           section,
           subject:section,
