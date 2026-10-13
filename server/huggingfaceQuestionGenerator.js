@@ -1,5 +1,9 @@
 const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const FALLBACK_MODELS = [
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3-super-120b-a12b:free"
+];
 
 function fail(message, statusCode = 400) {
   const error = new Error(message);
@@ -151,7 +155,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", "HTTP-Referer": "https://quiz-tv23.onrender.com", "X-Title": "Academic Test Question Bank" },
       body: JSON.stringify({
-        model,
+        models: [...new Set([model, ...FALLBACK_MODELS])],
         messages: [
           { role: "system", content: prompt.system },
           { role: "user", content: JSON.stringify(prompt.user) }
@@ -192,7 +196,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
     const actualModel = normalise(payload && payload.model || model, 120);
     throw fail("OpenRouter model " + actualModel + " did not return JSON (finish reason: " + finishReason + "). Preview: " + preview, 502);
   }
-  return { model, pages: validatePages(document, section, count) };
+  return { model: normalise(payload && payload.model || model, 120), pages: validatePages(document, section, count) };
 }
 
 module.exports = { generateQuestionPages, validatePages, extractJson, DEFAULT_MODEL };
