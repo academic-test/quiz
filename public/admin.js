@@ -384,7 +384,29 @@ async function openBank(section){
   $("bankEditor").innerHTML='<div class="bank-empty">Loading '+esc(bankLabels[section])+' question bank…</div>';
   try{
     const data=await api("/api/admin/question-bank?section="+encodeURIComponent(section));
+    const params=new URLSearchParams(window.location.search);
+    const generatedParam=params.get("generated");
+    if(generatedParam && params.get("bank")===section){
+      const groupIds=new Set(generatedParam.split(",").filter(Boolean));
+      data.questions=(data.questions||[]).filter(question=>groupIds.has(question.stimulus_group));
+      data.count=data.questions.length;
+      data.generatedOnly=true;
+    }
     renderQuestionBank(data);
+    if(data.generatedOnly){
+      const title=$("bankEditor").querySelector(".bank-toolbar h2");
+      if(title)title.textContent="Newly Generated Questions";
+      const generator=$("bankEditor").querySelector("[data-hf-generator]");
+      if(generator)generator.remove();
+      const addButton=$("bankEditor").querySelector('[data-action="add-question"]');
+      if(addButton)addButton.remove();
+      const closeButton=$("bankEditor").querySelector('[data-action="close-bank"]');
+      if(closeButton){closeButton.textContent="Back to Question Bank";closeButton.dataset.action="close-generated";}
+      const note=document.createElement("p");
+      note.className="small-note";
+      note.textContent="These complete stimulus pages have just been added to the persistent question bank. Active student assessments are unchanged.";
+      $("bankEditor").querySelector(".bank-toolbar").after(note);
+    }
   }catch(err){
     $("bankEditor").innerHTML='<div class="bank-empty">'+esc(err.message)+'</div>';
   }
@@ -517,7 +539,9 @@ function bindBankEditor(section){
   $("bankEditor").querySelectorAll("[data-action]").forEach(button=>{
     button.onclick=()=>{
       const action=button.dataset.action;
-      if(action==="close-bank"){
+      if(action==="close-generated"){
+        window.location.href="/admin?bank="+encodeURIComponent(currentBankSection);
+      }else if(action==="close-bank"){
         currentBankSection="";
         $("bankEditor").classList.add("hidden");
         $("newQuestionPanel").classList.add("hidden");
@@ -690,6 +714,14 @@ async function generateWithHuggingFace(section,button){
   const panel=button.closest("[data-hf-generator]");
   const status=panel.querySelector("[data-hf-status]");
   const pageCount=Number(panel.querySelector("[data-hf-page-count]").value||1);
+  let reviewWindow=null;
+  try{
+    reviewWindow=window.open("about:blank","_blank");
+    if(reviewWindow){
+      reviewWindow.document.write("<!doctype html><title>Generating questions…</title><body style=\"font-family:system-ui;padding:32px;color:#182033\"><h1>Generating questions…</h1><p>This page will show the newly generated stimulus pages when generation finishes.</p></body>");
+      reviewWindow.document.close();
+    }
+  }catch{}
   button.disabled=true;
   button.textContent="Generating…";
   status.dataset.state="generating";
@@ -707,7 +739,13 @@ async function generateWithHuggingFace(section,button){
       newStatus.dataset.state="success";
       newStatus.textContent=result.message+" Model: "+result.model+".";
     }
+    if(result.stimulus_groups&&result.stimulus_groups.length){
+      const reviewUrl="/admin?bank="+encodeURIComponent(section)+"&generated="+encodeURIComponent(result.stimulus_groups.join(","));
+      if(reviewWindow&&!reviewWindow.closed)reviewWindow.location.href=reviewUrl;
+      else window.location.href=reviewUrl;
+    }else if(reviewWindow&&!reviewWindow.closed){reviewWindow.close();}
   }catch(err){
+    if(reviewWindow&&!reviewWindow.closed)reviewWindow.close();
     status.dataset.state="error";
     status.textContent=err.message;
     button.disabled=false;
