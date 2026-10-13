@@ -105,7 +105,7 @@ function makePrompt(section, pageCount, avoidStems) {
         "The stimulus contains all information required; no external knowledge is required.",
         "Use varied, unfamiliar contexts and reasoning rather than repeated arithmetic templates.",
         "Stimuli may be original short reports, source excerpts, compact plain-text tables, data displays, or descriptions of investigations.",
-        "Include all values, units and conditions in the stimulus. No image is required. Keep tables compact."",
+        "Include all values, units and conditions in the stimulus. No image is required. Keep tables compact.",
         "Do not reuse a context across pages in this batch."
       ],
       question_rules: [
@@ -114,7 +114,7 @@ function makePrompt(section, pageCount, avoidStems) {
         "Every question has exactly four distinct non-empty answer choices.",
         "Keep each explanation to 1–2 concise sentences.",
         "Use medium and hard items, with difficulty labelled independently based on reasoning demand, not position on the page.",
-        "At least two questions per page require interpretation, inference, or multiple reasoning steps. Be concise; do not add commentary outside the JSON."",
+        "At least two questions per page require interpretation, inference, or multiple reasoning steps. Be concise; do not add commentary outside the JSON.",
         "correct_answer is an integer from 0 to 3, indexing answer_options.",
         "Include difficulty (easy, medium, hard), estimated time in seconds, and a concise explanation.",
         "Avoid these recently-used stems: " + JSON.stringify((avoidStems || []).slice(0, 40))
