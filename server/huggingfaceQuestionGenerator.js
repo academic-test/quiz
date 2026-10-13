@@ -1,5 +1,5 @@
-const DEFAULT_MODEL = "openai/gpt-oss-120b:cheapest";
-const API_URL = "https://router.huggingface.co/v1/chat/completions";
+const DEFAULT_MODEL = "openrouter/free";
+const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 function fail(message, statusCode = 400) {
   const error = new Error(message);
@@ -30,11 +30,11 @@ function extractJson(content) {
   const cleaned = raw.trim().replace(/^\x60{3}(?:json)?\s*/i, "").replace(/\s*\x60{3}$/, "");
   const first = cleaned.indexOf("{");
   const last = cleaned.lastIndexOf("}");
-  if (first < 0 || last <= first) throw fail("Hugging Face returned no JSON question data.", 502);
+  if (first < 0 || last <= first) throw fail("OpenRouter returned no JSON question data.", 502);
   try {
     return JSON.parse(cleaned.slice(first, last + 1));
   } catch {
-    throw fail("Hugging Face returned malformed JSON. No questions were saved.", 502);
+    throw fail("OpenRouter returned malformed JSON. No questions were saved.", 502);
   }
 }
 
@@ -138,15 +138,15 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
   const count = Number(pageCount);
   if (!Number.isInteger(count) || count < 1 || count > 5) throw fail("Choose between 1 and 5 pages.");
 
-  const token = process.env.HF_TOKEN || process.env.HUGGINGFACE_API_TOKEN;
-  if (!token) throw fail("Hugging Face is not configured. Add HF_TOKEN to the Render service environment.", 503);
-  const model = process.env.HF_MODEL || DEFAULT_MODEL;
+  const token = process.env.OPENROUTER_API_KEY;
+  if (!token) throw fail("OpenRouter is not configured. Add OPENROUTER_API_KEY to the Render service environment.", 503);
+  const model = process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
   const prompt = makePrompt(section, count, avoidStems);
   let response;
   try {
     response = await fetch(API_URL, {
       method: "POST",
-      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", "HTTP-Referer": "https://quiz-tv23.onrender.com", "X-Title": "Academic Test Question Bank" },
       body: JSON.stringify({
         model,
         messages: [
@@ -161,8 +161,8 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
     });
   } catch (error) {
     throw fail(error && (error.name === "TimeoutError" || error.name === "AbortError")
-      ? "Hugging Face took too long. Try generating fewer pages."
-      : "Could not reach Hugging Face. Please try again.", 502);
+      ? "OpenRouter took too long. Try generating fewer pages."
+      : "Could not reach OpenRouter. Please try again.", 502);
   }
 
   const raw = await response.text();
@@ -171,10 +171,10 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
   if (!response.ok) {
     const detail = normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 300);
     const status = response.status === 401 || response.status === 403 ? 503 : 502;
-    throw fail("Hugging Face request failed (" + response.status + ")" + (detail ? ": " + detail : ". Check HF_TOKEN and model access."), status);
+    throw fail("OpenRouter request failed (" + response.status + ")" + (detail ? ": " + detail : ". Check OPENROUTER_API_KEY and model availability."), status);
   }
   const content = payload && payload.choices && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
-  if (!content) throw fail("Hugging Face returned an empty response. No questions were saved.", 502);
+  if (!content) throw fail("OpenRouter returned an empty response. No questions were saved.", 502);
   return { model, pages: validatePages(extractJson(content), section, count) };
 }
 
