@@ -1812,7 +1812,7 @@ app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
 app.get("/api/admin/huggingface/status", requireAdmin, (req,res) => {
   res.json({
     configured: Boolean(process.env.OPENROUTER_API_KEY),
-    model: process.env.HF_MODEL || DEFAULT_HF_MODEL
+    model: process.env.OPENROUTER_MODEL || DEFAULT_HF_MODEL
   });
 });
 
@@ -1899,7 +1899,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     });
   } catch (error) {
     const status = Number(error && error.statusCode) || 502;
-    console.error("Hugging Face question generation failed:", error && error.message || error);
+    console.error("OpenRouter question generation failed:", error && error.message || error);
     res.status(status).json({ error:error && error.message || "Question generation failed. No questions were saved." });
   }
 });
