@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = "qwen/qwen3.8-27b:free";
+const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 function fail(message, statusCode = 400) {
