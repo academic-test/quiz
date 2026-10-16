@@ -34,7 +34,7 @@ function extractJson(content) {
   const cleaned = raw.trim().replace(/^\x60{3}(?:json)?\s*/i, "").replace(/\s*\x60{3}$/, "");
   const first = cleaned.indexOf("{");
   const last = cleaned.lastIndexOf("}");
-  if (first < 0 || last <= first) throw fail("OpenRouter returned no JSON question data.", 502);
+  if (first < 0 || last <= first) throw fail("AI provider returned no JSON question data.", 502);
   try {
     return JSON.parse(cleaned.slice(first, last + 1));
   } catch {
@@ -162,7 +162,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
         ],
         temperature: 0.35,
         max_tokens: Math.min(20000, count * 5000),
-        reasoning: { effort: "low", exclude: true },
+        ...(!isGrok ? { reasoning: { effort: "low", exclude: true } } : {}),
         response_format: { type: "json_object" },
         stream: false
       }),
@@ -180,7 +180,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [] }
   if (!response.ok) {
     const detail = normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 300);
     const status = response.status === 401 || response.status === 403 ? 503 : 502;
-    throw fail("OpenRouter request failed (" + response.status + ")" + (detail ? ": " + detail : ". Check OPENROUTER_API_KEY and model availability."), status);
+    throw fail("OpenRouter request failed (" + response.status + ")" + (detail ? ": " + detail : ". Check the provider API key and model availability."), status);
   }
   const content = payload && payload.choices && payload.choices[0] && payload.choices[0].message && payload.choices[0].message.content;
   if (!content) {
