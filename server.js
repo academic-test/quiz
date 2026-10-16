@@ -1810,9 +1810,15 @@ app.post("/api/admin/question-bank", requireAdmin, async (req,res) => {
 
 
 app.get("/api/admin/huggingface/status", requireAdmin, (req,res) => {
+  const openrouterConfigured = Boolean(process.env.OPENROUTER_API_KEY);
+  const grokConfigured = Boolean(process.env.XAI_API_KEY);
   res.json({
-    configured: Boolean(process.env.OPENROUTER_API_KEY),
-    model: process.env.OPENROUTER_MODEL || DEFAULT_HF_MODEL
+    configured: openrouterConfigured || grokConfigured,
+    model: process.env.OPENROUTER_MODEL || DEFAULT_HF_MODEL,
+    providers: {
+      openrouter: { configured: openrouterConfigured, model: process.env.OPENROUTER_MODEL || DEFAULT_HF_MODEL },
+      grok: { configured: grokConfigured, model: process.env.XAI_MODEL || "grok-3-mini" }
+    }
   });
 });
 
@@ -1821,6 +1827,8 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
 
   const section = String(req.body && req.body.section || "").trim();
   const pageCount = Number(req.body && req.body.page_count || 1);
+  const requestedProvider = String(req.body && req.body.provider || "openrouter").trim().toLowerCase();
+  if (!["openrouter","grok"].includes(requestedProvider)) return res.status(400).json({ error:"Choose OpenRouter or Grok." });
   if (!["humanities","mathematics_science"].includes(section)) {
     return res.status(400).json({ error:"Choose Humanities or Mathematics & Science." });
   }
@@ -1846,7 +1854,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     const avoidStems = (existing || [])
       .map(row => String(row.question_text || "").trim())
       .filter(Boolean);
-    const generated = await generateHuggingFaceQuestionPages({ section, pageCount, avoidStems });
+    const generated = await generateHuggingFaceQuestionPages({ section, pageCount, avoidStems, provider:requestedProvider });
     const seenFingerprints = new Set((existing || []).map(row => questionFingerprint(row)));
     const batchFingerprints = new Set();
     const rows = [];
@@ -1862,13 +1870,13 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
           passage:page.stimulus
         });
         if (seenFingerprints.has(fp) || batchFingerprints.has(fp)) {
-          throw Object.assign(new Error("OpenRouter generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
+          throw Object.assign(new Error("The AI provider generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
         }
         batchFingerprints.add(fp);
         rows.push({
           id:idPrefix + groupUuid + "-Q" + (questionIndex + 1),
           session_id:null,
-          ip_hash:crypto.createHash("sha256").update("openrouter-question-bank|" + groupUuid).digest("hex"),
+          ip_hash:crypto.createHash("sha256").update("ai-question-bank|" + groupUuid).digest("hex"),
           year_level:"10",
           section,
           subject:section,
@@ -1893,6 +1901,8 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
       ok:true,
       section,
       model:generated.model,
+      provider:generated.provider,
+      fallback_used:generated.fallbackUsed,
       pages:generated.pages.length,
       questions:rows.length,
       stimulus_groups:[...new Set(rows.map(row => row.stimulus_group))],
@@ -1900,7 +1910,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     });
   } catch (error) {
     const status = Number(error && error.statusCode) || 502;
-    console.error("OpenRouter question generation failed:", error && error.message || error);
+    console.error("AI question generation failed:", error && error.message || error);
     res.status(status).json({ error:error && error.message || "Question generation failed. No questions were saved." });
   }
 });
