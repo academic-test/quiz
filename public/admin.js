@@ -471,13 +471,18 @@ function renderQuestionBank(data){
         <p>Add original shared-stimulus pages to this persistent question bank. The generator does not change active student assessments.</p>
       </div>
       <div class="hf-generator-controls">
+        <label for="hfProvider">AI provider</label>
+        <select id="hfProvider" data-hf-provider>
+          <option value="openrouter">OpenRouter</option><option value="grok">Grok (xAI)</option>
+        </select>
         <label for="hfPageCount">Pages</label>
         <select id="hfPageCount" data-hf-page-count>
           <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
         </select>
         <button type="button" class="primary" data-hf-generate>Generate pages</button>
       </div>
-      <div class="hf-generator-status" data-hf-status data-state="checking">Checking AI provider configuration…</div>
+      <div class="hf-generator-status" data-hf-status data-state="checking">Checking OpenRouter and Grok configuration…</div>
+    <div class="small-note">If your selected provider fails, the generator automatically tries the other configured provider. Add XAI_API_KEY in Render to enable Grok.</div>
     </div>
     <div class="small-note" style="margin-bottom:14px">Questions currently assigned to an active student test are read-only here so an edit cannot change a live assessment.</div>
     <div class="bank-groups">${groupHtml||'<div class="bank-empty">No questions are in this bank yet.</div>'}</div>`;
@@ -685,23 +690,36 @@ async function setupHuggingFaceGenerator(section){
   if(!panel)return;
   const button=panel.querySelector("[data-hf-generate]");
   const status=panel.querySelector("[data-hf-status]");
+  const providerSelect=panel.querySelector("[data-hf-provider]");
   button.onclick=()=>generateWithHuggingFace(section,button);
   button.disabled=true;
   try{
     const config=await api("/api/admin/huggingface/status");
+    const providers=config.providers||{};
+    const openrouter=Boolean(providers.openrouter&&providers.openrouter.configured);
+    const grok=Boolean(providers.grok&&providers.grok.configured);
+    const refreshProviderStatus=()=>{
+      const preferred=providerSelect.value==="grok"?"Grok":"OpenRouter";
+      const preferredConfigured=providerSelect.value==="grok"?grok:openrouter;
+      const fallbackConfigured=providerSelect.value==="grok"?openrouter:grok;
+      if(!openrouter&&!grok){
+        status.dataset.state="not-configured";
+        status.textContent="Add OPENROUTER_API_KEY and/or XAI_API_KEY in Render to enable question generation.";
+        button.disabled=true;
+      }else{
+        status.dataset.state="ready";
+        status.textContent=preferred+" selected · "+(preferredConfigured?"configured":"not configured; will try the other provider")+
+          (fallbackConfigured?" · automatic fallback available":" · no fallback provider configured");
+        button.disabled=false;
+      }
+    };
+    providerSelect.onchange=refreshProviderStatus;
+    refreshProviderStatus();
     if(status.dataset.state==="success"||status.dataset.state==="error"){
-      button.disabled=!config.configured;
+      // Preserve the result/error message until the provider selection changes.
+      button.disabled=!openrouter&&!grok;
       return;
     }
-    if(!config.configured){
-      status.dataset.state="not-configured";
-      status.textContent="Add OPENROUTER_API_KEY to the Render service environment to enable generation.";
-      button.disabled=true;
-      return;
-    }
-    status.dataset.state="ready";
-    status.textContent="Ready · OpenRouter / "+config.model;
-    button.disabled=false;
   }catch(err){
     if(err.message==="Admin login required")location.reload();
     status.dataset.state="error";
@@ -713,6 +731,7 @@ async function setupHuggingFaceGenerator(section){
 async function generateWithHuggingFace(section,button){
   const panel=button.closest("[data-hf-generator]");
   const status=panel.querySelector("[data-hf-status]");
+  const provider=panel.querySelector("[data-hf-provider]").value||"openrouter";
   const pageCount=Number(panel.querySelector("[data-hf-page-count]").value||1);
   let reviewWindow=null;
   try{
@@ -725,11 +744,11 @@ async function generateWithHuggingFace(section,button){
   button.disabled=true;
   button.textContent="Generating…";
   status.dataset.state="generating";
-  status.textContent="Generating "+pageCount+" complete stimulus page"+(pageCount===1?"":"s")+"… This can take up to two minutes.";
+  status.textContent="Generating with "+(provider==="grok"?"Grok":"OpenRouter")+"; automatic fallback is enabled if it fails. This can take up to two minutes.";
   try{
     const result=await api("/api/admin/question-bank/generate-with-hugging-face",{
       method:"POST",
-      body:JSON.stringify({section,page_count:pageCount})
+      body:JSON.stringify({section,page_count:pageCount,provider})
     });
     await loadBankCards();
     const refreshed=await api("/api/admin/question-bank?section="+encodeURIComponent(section));
@@ -737,7 +756,7 @@ async function generateWithHuggingFace(section,button){
     const newStatus=$("bankEditor").querySelector("[data-hf-status]");
     if(newStatus){
       newStatus.dataset.state="success";
-      newStatus.textContent=result.message+" Model: "+result.model+".";
+      newStatus.textContent=result.message+" Provider: "+(result.provider==="grok"?"Grok (xAI)":"OpenRouter")+" / "+result.model+(result.fallback_used?" (automatic fallback used).":".");
     }
     if(result.stimulus_groups&&result.stimulus_groups.length){
       const reviewUrl="/admin?bank="+encodeURIComponent(section)+"&generated="+encodeURIComponent(result.stimulus_groups.join(","));
