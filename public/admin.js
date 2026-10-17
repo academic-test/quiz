@@ -73,10 +73,11 @@ async function logoutAdmin(){
 }
 
 function showAdminSection(section){
-  const map={overview:"overviewSection","question-bank":"questionBankSection",writing:"writingSection",assessments:"assessmentsSection"};
+  const map={overview:"overviewSection","question-bank":"questionBankSection",writing:"writingSection",assessments:"assessmentsSection","ai-telemetry":"aiTelemetrySection"};
   Object.values(map).forEach(id=>$(id)?.classList.add("hidden"));
   const target=map[section]||map.overview;
   $(target)?.classList.remove("hidden");
+  if(section==="ai-telemetry") loadTelemetry();
   document.querySelectorAll("[data-admin-nav]").forEach(button=>button.classList.toggle("active",button.dataset.adminNav===section));
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -93,7 +94,8 @@ async function refreshAdmin(){
   await Promise.all([
     loadAttempts(true),
     loadBankCards(),
-    loadWritingTopics()
+    loadWritingTopics(),
+    document.getElementById("aiTelemetrySection")?.classList.contains("hidden") ? Promise.resolve() : loadTelemetry()
   ]);
 }
 
@@ -812,6 +814,78 @@ async function generateWithHuggingFace(section,button){
     button.textContent="Generate pages";
   }
 }
+
+let telemetryRecords=[];
+async function loadTelemetry(){
+  const status=$("telemetryStatus");
+  if(!status)return;
+  status.textContent="Loading recent AI generation requests…";
+  $("refreshTelemetry").disabled=true;
+  try{
+    const outcome=$("telemetryOutcome").value;
+    const limit=$("telemetryLimit").value;
+    const query=new URLSearchParams({limit});
+    if(outcome)query.set("outcome",outcome);
+    const data=await api("/api/admin/ai-telemetry?"+query.toString());
+    telemetryRecords=data.records||[];
+    renderTelemetry(telemetryRecords);
+    status.textContent="Loaded "+telemetryRecords.length+" telemetry records. Select Details to inspect the full request and provider diagnostics.";
+  }catch(err){
+    status.textContent="Could not load telemetry: "+err.message;
+  }finally{
+    $("refreshTelemetry").disabled=false;
+  }
+}
+
+function renderTelemetry(records){
+  const body=$("telemetryRows");
+  body.innerHTML="";
+  const failed=records.filter(r=>r.outcome==="failed").length;
+  const success=records.filter(r=>r.outcome==="success").length;
+  const durations=records.map(r=>Number(r.duration_ms)).filter(n=>Number.isFinite(n)&&n>=0);
+  $("telemetryTotal").textContent=records.length;
+  $("telemetryFailed").textContent=failed;
+  $("telemetrySuccess").textContent=success;
+  $("telemetryAvg").textContent=durations.length?Math.round(durations.reduce((a,b)=>a+b,0)/durations.length/100)/10+" s":"—";
+  if(!records.length){
+    body.innerHTML='<tr><td colspan="9" class="loading-row">No telemetry records match this filter.</td></tr>';
+    return;
+  }
+  records.forEach((r,index)=>{
+    const row=document.createElement("tr");
+    const requested=(r.requested_provider||"—")+" / "+(r.requested_model||"—");
+    const actual=(r.actual_provider||"—")+" / "+(r.actual_model||"—");
+    const values=[
+      r.created_at?new Date(r.created_at).toLocaleString():"—",
+      r.outcome||"—",requested,actual,
+      (r.section||"—")+" / "+(r.page_count??"—")+" requested",
+      r.duration_ms==null?"—":(Number(r.duration_ms)/1000).toFixed(1)+" s",
+      r.http_status??"—",r.request_id||r.id||"—"
+    ];
+    values.forEach((value,i)=>{
+      const cell=document.createElement("td");
+      cell.textContent=String(value);
+      if(i===1){cell.style.fontWeight="800";cell.style.color=r.outcome==="failed"?"var(--bad)":r.outcome==="success"?"var(--good)":"var(--warn)";}
+      row.appendChild(cell);
+    });
+    const actionCell=document.createElement("td");
+    const button=document.createElement("button");
+    button.className="ghost";
+    button.textContent="Details";
+    button.onclick=()=>{
+      $("telemetryDetailJson").textContent=JSON.stringify(r,null,2);
+      $("telemetryDetail").classList.remove("hidden");
+      $("telemetryDetail").scrollIntoView({behavior:"smooth",block:"start"});
+    };
+    actionCell.appendChild(button);
+    row.appendChild(actionCell);
+    body.appendChild(row);
+  });
+}
+$("refreshTelemetry")?.addEventListener("click",loadTelemetry);
+$("telemetryOutcome")?.addEventListener("change",loadTelemetry);
+$("telemetryLimit")?.addEventListener("change",loadTelemetry);
+$("closeTelemetryDetail")?.addEventListener("click",()=>$("telemetryDetail").classList.add("hidden"));
 
 function timeFlag(response){
   if(response.timed_out)return {label:"Timed out",className:"time-timeout"};
