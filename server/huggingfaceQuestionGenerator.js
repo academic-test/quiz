@@ -142,45 +142,38 @@ function makePrompt(section, pageCount, avoidStems) {
   };
 }
 
-async function generateWithProvider({ section, pageCount = 1, avoidStems = [], provider = "openrouter" } = {}) {
+async function generateWithProvider({ section, pageCount = 1, avoidStems = [], provider = "openrouter", onTelemetry = () => {} } = {}) {
   if (!["humanities", "mathematics_science"].includes(section)) throw fail("Choose Humanities or Mathematics & Science.");
   const count = Number(pageCount);
   if (!Number.isInteger(count) || count < 1 || count > 5) throw fail("Choose between 1 and 5 pages.");
 
   const isGrok = provider === "grok";
   const token = isGrok ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY;
-  if (!token) throw fail(isGrok ? "Grok is not configured. Add XAI_API_KEY to the Render service environment." : "OpenRouter is not configured. Add OPENROUTER_API_KEY to the Render service environment.", 503);
+  if (!token) { onTelemetry({ provider, model: isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL), event: "not_configured", configured: false, http_status: null, error: isGrok ? "XAI_API_KEY is not configured" : "OPENROUTER_API_KEY is not configured" }); throw fail(isGrok ? "Grok is not configured. Add XAI_API_KEY to the Render service environment." : "OpenRouter is not configured. Add OPENROUTER_API_KEY to the Render service environment.", 503); }
   const model = isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL);
   const apiUrl = isGrok ? XAI_API_URL : OPENROUTER_API_URL;
-  const prompt = makePrompt(section, count, avoidStems);
+  const prompt = makePrompt(section, count, avoidStems);\n  const requestStartedAt = Date.now();\n  const requestBody = {\n    ...(isGrok ? { model } : { models: [...new Set([model, ...FALLBACK_MODELS])] }),\n    messages: [\n      { role: "system", content: prompt.system },\n      { role: "user", content: JSON.stringify(prompt.user) }\n    ],\n    temperature: 0.35,\n    max_tokens: Math.min(12000, count * 8000),\n    ...(!isGrok ? { reasoning: { effort: "low", exclude: true } } : {}),\n    response_format: { type: "json_object" },\n    stream: false\n  };
   let response;
   try {
     response = await fetch(apiUrl, {
       method: "POST",
       headers: isGrok ? { Authorization: "Bearer " + token, "Content-Type": "application/json" } : { Authorization: "Bearer " + token, "Content-Type": "application/json", "HTTP-Referer": "https://quiz-tv23.onrender.com", "X-Title": "Academic Test Question Bank" },
-      body: JSON.stringify({
-        ...(isGrok ? { model } : { models: [...new Set([model, ...FALLBACK_MODELS])] }),
-        messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: JSON.stringify(prompt.user) }
-        ],
-        temperature: 0.35,
-        max_tokens: Math.min(12000, count * 8000),
-        ...(!isGrok ? { reasoning: { effort: "low", exclude: true } } : {}),
-        response_format: { type: "json_object" },
-        stream: false
-      }),
+      body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(120000)
     });
   } catch (error) {
-    throw fail(error && (error.name === "TimeoutError" || error.name === "AbortError")
+    const message = error && (error.name === "TimeoutError" || error.name === "AbortError")
       ? (isGrok ? "Grok took too long. Try generating fewer pages." : "OpenRouter took too long. Try generating fewer pages.")
-      : (isGrok ? "Could not reach Grok. Please try again." : "Could not reach OpenRouter. Please try again."), 502);
+      : (isGrok ? "Could not reach Grok. Please try again." : "Could not reach OpenRouter. Please try again.");
+    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
+    throw fail(message, 502);
   }
 
   const raw = await response.text();
   let payload = {};
   try { payload = raw ? JSON.parse(raw) : {}; } catch {}
+  const choice = payload && payload.choices && payload.choices[0] || {};
+  onTelemetry({ provider, model: normalise(payload && payload.model || model, 120), event: response.ok ? "http_response" : "http_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, http_status: response.status, finish_reason: choice.finish_reason || null, token_usage: payload.usage || null, response_preview: raw.slice(0, 2200), error: !response.ok ? normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 800) : null });
   if (!response.ok) {
     const detail = normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 300);
     const status = response.status === 401 || response.status === 403 ? 503 : 502;
@@ -203,7 +196,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   return { provider, model: normalise(payload && payload.model || model, 120), pages: validatePages(document, section, count) };
 }
 
-async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], provider = "openrouter" } = {}) {
+async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], provider = "openrouter", onTelemetry = () => {} } = {}) {
   const preferred = provider === "grok" ? "grok" : "openrouter";
   const alternate = preferred === "grok" ? "openrouter" : "grok";
   const configured = name => Boolean(name === "grok" ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY);
