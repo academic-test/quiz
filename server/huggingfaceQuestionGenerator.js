@@ -142,7 +142,7 @@ function makePrompt(section, pageCount, avoidStems) {
   };
 }
 
-async function generateWithProvider({ section, pageCount = 1, avoidStems = [], provider = "openrouter", onTelemetry = () => {} } = {}) {
+async function generateWithProvider({ section, pageCount = 1, avoidStems = [], provider = "openrouter", modelOverride = null, onTelemetry = () => {} } = {}) {
   if (!["humanities", "mathematics_science"].includes(section)) throw fail("Choose Humanities or Mathematics & Science.");
   const count = Number(pageCount);
   if (!Number.isInteger(count) || count < 1 || count > 5) throw fail("Choose between 1 and 5 pages.");
@@ -150,12 +150,12 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   const isGrok = provider === "grok";
   const token = isGrok ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY;
   if (!token) { onTelemetry({ provider, model: isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL), event: "not_configured", configured: false, http_status: null, error: isGrok ? "XAI_API_KEY is not configured" : "OPENROUTER_API_KEY is not configured" }); throw fail(isGrok ? "Grok is not configured. Add XAI_API_KEY to the Render service environment." : "OpenRouter is not configured. Add OPENROUTER_API_KEY to the Render service environment.", 503); }
-  const model = isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL);
+  const model = modelOverride || (isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL));
   const apiUrl = isGrok ? XAI_API_URL : OPENROUTER_API_URL;
   const prompt = makePrompt(section, count, avoidStems);
   const requestStartedAt = Date.now();
   const requestBody = {
-    ...(isGrok ? { model } : { models: [...new Set([model, ...FALLBACK_MODELS])] }),
+    ...(isGrok ? { model } : { models: [model] }),
     messages: [
       { role: "system", content: prompt.system },
       { role: "user", content: JSON.stringify(prompt.user) }
@@ -177,7 +177,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
     const message = error && (error.name === "TimeoutError" || error.name === "AbortError")
       ? (isGrok ? "Grok took too long. Try generating fewer pages." : "OpenRouter took too long. Try generating fewer pages.")
       : (isGrok ? "Could not reach Grok. Please try again." : "Could not reach OpenRouter. Please try again.");
-    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
+    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model, temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
     throw fail(message, 502);
   }
 
@@ -228,20 +228,27 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
         }
         continue;
       }
-      try {
-        const result = await generateWithProvider({
-          section,
-          pageCount: 1,
-          avoidStems: seenStems.slice(-40),
-          provider: name,
-          onTelemetry
-        });
-        pageResult = result;
-        if (name !== preferred) usedProvider = name;
-        break;
-      } catch (error) {
-        errors.push((name === "grok" ? "Grok" : "OpenRouter") + " (page " + (pageIndex + 1) + "): " + error.message);
+      const modelCandidates = name === "grok"
+        ? [process.env.XAI_MODEL || DEFAULT_XAI_MODEL]
+        : [...new Set([process.env.OPENROUTER_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])];
+      for (const candidateModel of modelCandidates) {
+        try {
+          const result = await generateWithProvider({
+            section,
+            pageCount: 1,
+            avoidStems: seenStems.slice(-40),
+            provider: name,
+            modelOverride: candidateModel,
+            onTelemetry
+          });
+          pageResult = result;
+          if (name !== preferred) usedProvider = name;
+          break;
+        } catch (error) {
+          errors.push((name === "grok" ? "Grok" : "OpenRouter") + " / " + candidateModel + " (page " + (pageIndex + 1) + "): " + error.message);
+        }
       }
+      if (pageResult) break;
     }
     if (!pageResult) {
       throw fail("Could not generate all requested pages. No questions were saved. " + errors.join(" | "), 502);
