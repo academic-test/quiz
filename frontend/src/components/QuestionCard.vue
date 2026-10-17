@@ -19,7 +19,7 @@
 
     <div class="options">
       <button
-        v-for="(option, index) in (question.o || question.answer_options || [])"
+        v-for="(option, index) in displayOptions(question)"
         :key="index"
         class="option"
         :class="{
@@ -92,6 +92,22 @@
 </template>
 
 <script setup>
+function optionText(option) {
+  if (typeof option === "string") return option;
+  return String(option?.text ?? option?.content ?? option?.label ?? option?.value ?? "");
+}
+
+function displayOptions(question) {
+  const primary = Array.isArray(question.o) ? question.o : [];
+  const fallback = Array.isArray(question.answer_options) ? question.answer_options : [];
+  const primaryText = primary.map(optionText);
+  const labelsOnly = primaryText.length === 4 && primaryText.every((value, index) =>
+    value.trim().toUpperCase() === String.fromCharCode(65 + index)
+  );
+  const source = labelsOnly && fallback.length === 4 ? fallback : (primary.length ? primary : fallback);
+  return source.map(optionText);
+}
+
 defineProps({
   question: { type: Object, required: true },
   sectionLabel: { type: String, required: true },
