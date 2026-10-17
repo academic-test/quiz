@@ -1822,6 +1822,17 @@ app.get("/api/admin/huggingface/status", requireAdmin, (req,res) => {
   });
 });
 
+app.get("/api/admin/ai-telemetry", requireAdmin, async (req,res) => {
+  if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
+  const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 100));
+  const outcome = String(req.query.outcome || "").trim();
+  let query = supabase.from("ai_generation_telemetry").select("*").order("created_at",{ascending:false}).limit(limit);
+  if (["success","failed","started"].includes(outcome)) query = query.eq("outcome",outcome);
+  const { data, error } = await query;
+  if (error) return res.status(503).json({ error:"Could not load AI telemetry: " + error.message });
+  res.json({ ok:true, records:data || [] });
+});
+
 app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
 
@@ -1839,6 +1850,54 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     return res.status(429).json({ error:"Question generation limit reached. Please wait before generating another batch." });
   }
 
+  const requestId = crypto.randomUUID();
+  const startedAt = Date.now();
+  const providerAttempts = [];
+  const safeUserAgent = String(req.headers["user-agent"] || "").slice(0, 500);
+  const configuredModels = {
+    openrouter: process.env.OPENROUTER_MODEL || DEFAULT_HF_MODEL,
+    grok: process.env.XAI_MODEL || "grok-3-mini"
+  };
+  const telemetryRow = {
+    id: requestId,
+    admin_email: adminEmail || null,
+    request_id: requestId,
+    section,
+    requested_provider: requestedProvider,
+    requested_model: configuredModels[requestedProvider],
+    page_count: pageCount,
+    user_agent: safeUserAgent,
+    ip_hash: ipHash(req),
+    request_details: {
+      method: req.method,
+      route: "/api/admin/question-bank/generate-with-hugging-face",
+      request_body: { section, page_count: pageCount, provider: requestedProvider },
+      content_type: String(req.headers["content-type"] || "").slice(0, 100),
+      accept: String(req.headers.accept || "").slice(0, 200),
+      configured_providers: {
+        openrouter: { configured: Boolean(process.env.OPENROUTER_API_KEY), model: configuredModels.openrouter },
+        grok: { configured: Boolean(process.env.XAI_API_KEY), model: configuredModels.grok }
+      },
+      runtime: { node: process.version, platform: process.platform },
+      telemetry_version: 1
+    },
+    provider_attempts: [],
+    outcome: "started"
+  };
+  const { error: telemetryInsertError } = await supabase.from("ai_generation_telemetry").insert(telemetryRow);
+  if (telemetryInsertError) console.error("AI telemetry initial insert failed:", telemetryInsertError.message);
+
+  const persistTelemetry = async (fields) => {
+    const update = {
+      ...fields,
+      finished_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt,
+      provider_attempts: providerAttempts
+    };
+    const { error } = await supabase.from("ai_generation_telemetry").update(update).eq("id", requestId);
+    if (error) console.error("AI telemetry update failed:", error.message);
+  };
+
   try {
     const { data: existing, error:existingError } = await supabase
       .from("generated_questions")
@@ -1849,12 +1908,22 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
       .order("created_at",{ascending:false})
       .limit(1000);
 
-    if (existingError) return res.status(400).json({ error:existingError.message });
+    if (existingError) {
+      await persistTelemetry({ outcome:"failed", http_status:503, error_message:"Could not read existing question bank: " + existingError.message });
+      return res.status(503).json({ error:existingError.message, request_id:requestId });
+    }
 
     const avoidStems = (existing || [])
       .map(row => String(row.question_text || "").trim())
       .filter(Boolean);
-    const generated = await generateHuggingFaceQuestionPages({ section, pageCount, avoidStems, provider:requestedProvider });
+    const generated = await generateHuggingFaceQuestionPages({
+      section, pageCount, avoidStems, provider:requestedProvider,
+      onTelemetry: event => providerAttempts.push({
+        timestamp: new Date().toISOString(),
+        page_attempt: providerAttempts.filter(item => item.event === "http_response" || item.event === "http_error" || item.event === "network_error" || item.event === "not_configured").length + 1,
+        ...event
+      })
+    });
     const seenFingerprints = new Set((existing || []).map(row => questionFingerprint(row)));
     const batchFingerprints = new Set();
     const rows = [];
@@ -1864,11 +1933,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
       const idPrefix = section === "humanities" ? "GEN-HUM-" : "GEN-MS-";
       const groupId = idPrefix + "PAGE-" + groupUuid;
       page.questions.forEach((question,questionIndex) => {
-        const fp = questionFingerprint({
-          section,
-          question_text:question.question_text,
-          passage:page.stimulus
-        });
+        const fp = questionFingerprint({ section, question_text:question.question_text, passage:page.stimulus });
         if (seenFingerprints.has(fp) || batchFingerprints.has(fp)) {
           throw Object.assign(new Error("The AI provider generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
         }
@@ -1895,23 +1960,36 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     });
 
     const { error:insertError } = await supabase.from("generated_questions").insert(rows);
-    if (insertError) return res.status(400).json({ error:insertError.message });
+    if (insertError) {
+      await persistTelemetry({ outcome:"failed", http_status:503, actual_provider:generated.provider, actual_model:generated.model, pages_generated:generated.pages.length, questions_generated:0, error_message:"Question bank insert failed: " + insertError.message, response_summary:{ fallback_used:generated.fallbackUsed } });
+      return res.status(503).json({ error:insertError.message, request_id:requestId });
+    }
 
+    const summary = {
+      ok:true, section, model:generated.model, provider:generated.provider,
+      fallback_used:generated.fallbackUsed, pages:generated.pages.length,
+      questions:rows.length, stimulus_groups:[...new Set(rows.map(row => row.stimulus_group))]
+    };
+    await persistTelemetry({
+      outcome:"success", http_status:201, actual_provider:generated.provider,
+      actual_model:generated.model, pages_generated:generated.pages.length,
+      questions_generated:rows.length, response_summary:summary
+    });
     res.status(201).json({
-      ok:true,
-      section,
-      model:generated.model,
-      provider:generated.provider,
-      fallback_used:generated.fallbackUsed,
-      pages:generated.pages.length,
-      questions:rows.length,
-      stimulus_groups:[...new Set(rows.map(row => row.stimulus_group))],
-      message:"Added " + generated.pages.length + " complete stimulus pages (" + rows.length + " questions) to the persistent bank."
+      ...summary,
+      message:"Added " + generated.pages.length + " complete stimulus pages (" + rows.length + " questions) to the persistent bank.",
+      request_id:requestId
     });
   } catch (error) {
     const status = Number(error && error.statusCode) || 502;
-    console.error("AI question generation failed:", error && error.message || error);
-    res.status(status).json({ error:error && error.message || "Question generation failed. No questions were saved." });
+    const message = String(error && error.message || "Question generation failed. No questions were saved.").slice(0, 3000);
+    await persistTelemetry({
+      outcome:"failed", http_status:status, error_message:message,
+      finish_reason:(providerAttempts.slice().reverse().find(item => item.finish_reason) || {}).finish_reason || null,
+      token_usage:(providerAttempts.slice().reverse().find(item => item.token_usage) || {}).token_usage || null
+    });
+    console.error("AI question generation failed:", { request_id:requestId, error:message });
+    res.status(status).json({ error:message, request_id:requestId });
   }
 });
 
