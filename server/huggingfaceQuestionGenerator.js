@@ -63,7 +63,7 @@ function validatePages(document, section, pageCount) {
 
     const questions = sourceQuestions.map((item, questionIndex) => {
       const questionText = normalise(item && item.question_text, 1500);
-      const options = Array.isArray(item && item.answer_options) ? item.answer_options.map(option => normalise(option, 700)) : [];
+      const options = Array.isArray(item && item.answer_options) ? item.answer_options.map(option => normalise(typeof option === "string" ? option : option && (option.text ?? option.label ?? option.value), 700)) : [];
       const answer = answerIndex(item && item.correct_answer);
       const explanation = normalise(item && item.explanation, 3000);
       const difficulty = normalise(item && item.difficulty, 20).toLowerCase();
@@ -152,7 +152,19 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   if (!token) { onTelemetry({ provider, model: isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL), event: "not_configured", configured: false, http_status: null, error: isGrok ? "XAI_API_KEY is not configured" : "OPENROUTER_API_KEY is not configured" }); throw fail(isGrok ? "Grok is not configured. Add XAI_API_KEY to the Render service environment." : "OpenRouter is not configured. Add OPENROUTER_API_KEY to the Render service environment.", 503); }
   const model = isGrok ? (process.env.XAI_MODEL || DEFAULT_XAI_MODEL) : (process.env.OPENROUTER_MODEL || DEFAULT_MODEL);
   const apiUrl = isGrok ? XAI_API_URL : OPENROUTER_API_URL;
-  const prompt = makePrompt(section, count, avoidStems);\n  const requestStartedAt = Date.now();\n  const requestBody = {\n    ...(isGrok ? { model } : { models: [...new Set([model, ...FALLBACK_MODELS])] }),\n    messages: [\n      { role: "system", content: prompt.system },\n      { role: "user", content: JSON.stringify(prompt.user) }\n    ],\n    temperature: 0.35,\n    max_tokens: Math.min(12000, count * 8000),\n    ...(!isGrok ? { reasoning: { effort: "low", exclude: true } } : {}),\n    response_format: { type: "json_object" },\n    stream: false\n  };
+  const prompt = makePrompt(section, count, avoidStems);
+  const requestStartedAt = Date.now();
+  const requestBody = {
+    ...(isGrok ? { model } : { models: [...new Set([model, ...FALLBACK_MODELS])] }),
+    messages: [
+      { role: "system", content: prompt.system },
+      { role: "user", content: JSON.stringify(prompt.user) }
+    ],
+    temperature: 0.35,
+    max_tokens: Math.min(12000, count * 12000),
+    response_format: { type: "json_object" },
+    stream: false
+  };
   let response;
   try {
     response = await fetch(apiUrl, {
@@ -165,7 +177,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
     const message = error && (error.name === "TimeoutError" || error.name === "AbortError")
       ? (isGrok ? "Grok took too long. Try generating fewer pages." : "OpenRouter took too long. Try generating fewer pages.")
       : (isGrok ? "Could not reach Grok. Please try again." : "Could not reach OpenRouter. Please try again.");
-    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
+    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
     throw fail(message, 502);
   }
 
