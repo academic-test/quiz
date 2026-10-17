@@ -35,7 +35,7 @@
 
         <div class="options">
           <button
-            v-for="(option, index) in optionTexts(question)
+            v-for="(option, index) in (question.o || question.answer_options || [])"
             :key="index"
             class="option"
             :class="{ selected: selectedAnswer(question) === index }"
