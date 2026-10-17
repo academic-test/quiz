@@ -75,6 +75,7 @@ body[data-theme="dark"] .bank-question{border-color:var(--line)}
 <button type="button" data-admin-nav="question-bank">Question Bank</button>
 <button type="button" data-admin-nav="writing">Written Expression</button>
 <button type="button" data-admin-nav="assessments">Assessments</button>
+<button type="button" data-admin-nav="ai-telemetry">AI Telemetry</button>
 <span class="nav-spacer"></span><button type="button" id="themeToggle" class="ghost" aria-pressed="false">☾ Dark mode</button><button type="button" id="navRefresh" class="ghost">Refresh</button><button type="button" id="navLogout" class="ghost">Log out</button>
 </div></nav>
 <div id="overviewSection" class="admin-section"><div class="top" style="margin:18px 0 12px"><div><div class="eyebrow">APTITUDE PRACTICE ADMIN</div><h1>Quiz Dashboard</h1><p>Quick overview of the assessment system.</p></div></div>
@@ -105,6 +106,20 @@ body[data-theme="dark"] .bank-question{border-color:var(--line)}
   <span id="attemptsStatus" class="assessment-status">Loading assessments…</span>
   <button id="attemptsLoadMore" type="button" class="ghost hidden">Load more</button>
 </div>
+</section>
+
+<section id="aiTelemetrySection" class="card admin-section hidden">
+<div class="top" style="margin-bottom:14px"><div><div class="eyebrow">AI DIAGNOSTICS</div><h2>Question Generator Telemetry</h2><p>Inspect each generation request, provider/model attempts, prompt settings, response metadata, token usage, errors and timings. API keys and raw client IP addresses are never stored.</p></div><button id="refreshTelemetry" class="ghost">Refresh Telemetry</button></div>
+<div class="radio-row" style="margin:10px 0 16px">
+<label>Outcome <select id="telemetryOutcome" style="width:auto;min-width:150px"><option value="">All outcomes</option><option value="failed">Failed</option><option value="success">Successful</option><option value="started">Started / incomplete</option></select></label>
+<label>Rows <select id="telemetryLimit" style="width:auto;min-width:100px"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option></select></label>
+</div>
+<div id="telemetrySummary" class="stats">
+<div class="stat"><strong id="telemetryTotal">—</strong><span>Requests shown</span></div><div class="stat"><strong id="telemetryFailed">—</strong><span>Failed</span></div><div class="stat"><strong id="telemetrySuccess">—</strong><span>Successful</span></div><div class="stat"><strong id="telemetryAvg">—</strong><span>Avg duration</span></div>
+</div>
+<div id="telemetryStatus" class="small-note" role="status">Open this page to load recent AI requests.</div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Time</th><th>Outcome</th><th>Requested provider/model</th><th>Actual provider/model</th><th>Section / pages</th><th>Duration</th><th>HTTP</th><th>Request ID</th><th>Details</th></tr></thead><tbody id="telemetryRows"></tbody></table></div>
+<div id="telemetryDetail" class="card hidden" style="margin-top:18px"><div class="top"><h3>Request details</h3><button id="closeTelemetryDetail" class="ghost">Close details</button></div><pre id="telemetryDetailJson" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:65vh;overflow:auto;font-size:12px;line-height:1.5"></pre></div>
 </section>
 
 <div id="detail" class="card detail hidden"><div class="top"><h2 id="detailTitle">Responses</h2><button id="closeDetail" class="ghost">Close</button></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Question text</th><th>Section</th><th>Selected</th><th>Correct</th><th>Result</th><th>Time</th><th>Flag</th><th>Answered</th></tr></thead><tbody id="responseRows"></tbody></table></div></div>
