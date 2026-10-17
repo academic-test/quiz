@@ -366,14 +366,11 @@ function renderBankCards(data){
     </button>`;
   }).join("");
   $("bankCards").querySelectorAll("[data-bank-section]").forEach(button=>{
-    button.onclick=()=>openBankInNewWindow(button.dataset.bankSection);
+    button.onclick=()=>{
+      showAdminSection("question-bank");
+      openBank(button.dataset.bankSection);
+    };
   });
-}
-
-function openBankInNewWindow(section){
-  if(!bankLabels[section]) return;
-  const url=window.location.origin+"/admin?bank="+encodeURIComponent(section);
-  window.open(url,"_blank","noopener,noreferrer");
 }
 
 async function openBank(section){
@@ -387,26 +384,10 @@ async function openBank(section){
     const params=new URLSearchParams(window.location.search);
     const generatedParam=params.get("generated");
     if(generatedParam && params.get("bank")===section){
-      const groupIds=new Set(generatedParam.split(",").filter(Boolean));
-      data.questions=(data.questions||[]).filter(question=>groupIds.has(question.stimulus_group));
-      data.count=data.questions.length;
-      data.generatedOnly=true;
+      data=filterGeneratedQuestions(data,generatedParam.split(",").filter(Boolean));
     }
     renderQuestionBank(data);
-    if(data.generatedOnly){
-      const title=$("bankEditor").querySelector(".bank-toolbar h2");
-      if(title)title.textContent="Newly Generated Questions";
-      const generator=$("bankEditor").querySelector("[data-hf-generator]");
-      if(generator)generator.remove();
-      const addButton=$("bankEditor").querySelector('[data-action="add-question"]');
-      if(addButton)addButton.remove();
-      const closeButton=$("bankEditor").querySelector('[data-action="close-bank"]');
-      if(closeButton){closeButton.textContent="Back to Question Bank";closeButton.dataset.action="close-generated";}
-      const note=document.createElement("p");
-      note.className="small-note";
-      note.textContent="These complete stimulus pages have just been added to the persistent question bank. Active student assessments are unchanged.";
-      $("bankEditor").querySelector(".bank-toolbar").after(note);
-    }
+    if(data.generatedOnly)decorateGeneratedOnlyView();
   }catch(err){
     $("bankEditor").innerHTML='<div class="bank-empty">'+esc(err.message)+'</div>';
   }
@@ -417,6 +398,29 @@ function renderBankCardsAfterSelection(){
   $("bankCards").querySelectorAll("[data-bank-section]").forEach(button=>{
     button.classList.toggle("selected",button.dataset.bankSection===currentBankSection);
   });
+}
+
+function filterGeneratedQuestions(data, stimulusGroups){
+  const groupIds=new Set(stimulusGroups);
+  data.questions=(data.questions||[]).filter(question=>groupIds.has(question.stimulus_group));
+  data.count=data.questions.length;
+  data.generatedOnly=true;
+  return data;
+}
+
+function decorateGeneratedOnlyView(){
+  const title=$("bankEditor").querySelector(".bank-toolbar h2");
+  if(title)title.textContent="Newly Generated Questions";
+  const generator=$("bankEditor").querySelector("[data-hf-generator]");
+  if(generator)generator.remove();
+  const addButton=$("bankEditor").querySelector('[data-action="add-question"]');
+  if(addButton)addButton.remove();
+  const closeButton=$("bankEditor").querySelector('[data-action="close-bank"]');
+  if(closeButton){closeButton.textContent="Back to Question Bank";closeButton.dataset.action="close-generated";}
+  const note=document.createElement("p");
+  note.className="small-note";
+  note.textContent="These complete stimulus pages have just been added to the persistent question bank. Active student assessments are unchanged.";
+  $("bankEditor").querySelector(".bank-toolbar").after(note);
 }
 
 function renderQuestionBank(data){
@@ -733,14 +737,6 @@ async function generateWithHuggingFace(section,button){
   const status=panel.querySelector("[data-hf-status]");
   const provider=panel.querySelector("[data-hf-provider]").value||"openrouter";
   const pageCount=Number(panel.querySelector("[data-hf-page-count]").value||1);
-  let reviewWindow=null;
-  try{
-    reviewWindow=window.open("about:blank","_blank");
-    if(reviewWindow){
-      reviewWindow.document.write("<!doctype html><title>Generating questions…</title><body style=\"font-family:system-ui;padding:32px;color:#182033\"><h1>Generating questions…</h1><p>This page will show the newly generated stimulus pages when generation finishes.</p></body>");
-      reviewWindow.document.close();
-    }
-  }catch{}
   button.disabled=true;
   button.textContent="Generating…";
   status.dataset.state="generating";
@@ -752,19 +748,20 @@ async function generateWithHuggingFace(section,button){
     });
     await loadBankCards();
     const refreshed=await api("/api/admin/question-bank?section="+encodeURIComponent(section));
-    renderQuestionBank(refreshed);
+    if(result.stimulus_groups&&result.stimulus_groups.length){
+      filterGeneratedQuestions(refreshed,result.stimulus_groups);
+      renderQuestionBank(refreshed);
+      decorateGeneratedOnlyView();
+      $("bankEditor").scrollIntoView({behavior:"smooth",block:"start"});
+    }else{
+      renderQuestionBank(refreshed);
+    }
     const newStatus=$("bankEditor").querySelector("[data-hf-status]");
     if(newStatus){
       newStatus.dataset.state="success";
       newStatus.textContent=result.message+" Provider: "+(result.provider==="grok"?"Grok (xAI)":"OpenRouter")+" / "+result.model+(result.fallback_used?" (automatic fallback used).":".");
     }
-    if(result.stimulus_groups&&result.stimulus_groups.length){
-      const reviewUrl="/admin?bank="+encodeURIComponent(section)+"&generated="+encodeURIComponent(result.stimulus_groups.join(","));
-      if(reviewWindow&&!reviewWindow.closed)reviewWindow.location.href=reviewUrl;
-      else window.location.href=reviewUrl;
-    }else if(reviewWindow&&!reviewWindow.closed){reviewWindow.close();}
   }catch(err){
-    if(reviewWindow&&!reviewWindow.closed)reviewWindow.close();
     status.dataset.state="error";
     status.textContent=err.message;
     button.disabled=false;
