@@ -165,7 +165,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
     const message = error && (error.name === "TimeoutError" || error.name === "AbortError")
       ? (isGrok ? "Grok took too long. Try generating fewer pages." : "OpenRouter took too long. Try generating fewer pages.")
       : (isGrok ? "Could not reach Grok. Please try again." : "Could not reach OpenRouter. Please try again.");
-    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
+    onTelemetry({ provider, model, event: "network_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, error: String(error && (error.message || error) || "unknown").slice(0, 800) });
     throw fail(message, 502);
   }
 
@@ -173,7 +173,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   let payload = {};
   try { payload = raw ? JSON.parse(raw) : {}; } catch {}
   const choice = payload && payload.choices && payload.choices[0] || {};
-  onTelemetry({ provider, model: normalise(payload && payload.model || model, 120), event: response.ok ? "http_response" : "http_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, http_status: response.status, finish_reason: choice.finish_reason || null, token_usage: payload.usage || null, response_preview: raw.slice(0, 2200), error: !response.ok ? normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 800) : null });
+  onTelemetry({ provider, model: normalise(payload && payload.model || model, 120), event: response.ok ? "http_response" : "http_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, http_status: response.status, finish_reason: choice.finish_reason || null, token_usage: payload.usage || null, response_preview: raw.slice(0, 2200), error: !response.ok ? normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 800) : null });
   if (!response.ok) {
     const detail = normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 300);
     const status = response.status === 401 || response.status === 403 ? 503 : 502;
@@ -221,7 +221,8 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
           section,
           pageCount: 1,
           avoidStems: seenStems.slice(-40),
-          provider: name
+          provider: name,
+          onTelemetry
         });
         pageResult = result;
         if (name !== preferred) usedProvider = name;
