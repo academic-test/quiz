@@ -520,7 +520,8 @@ function renderQuestionBank(data){
         <button type="button" class="primary" data-hf-generate>Generate pages</button>
       </div>
       <div class="hf-generator-status" data-hf-status data-state="checking">Checking OpenRouter and Grok configuration…</div>
-    <div class="small-note">If your selected provider fails, the generator automatically tries the other configured provider. Add XAI_API_KEY in Render to enable Grok.</div>
+    <div class="small-note">If your selected provider fails, the generator automatically tries the other configured provider.</div>
+    <div class="small-note hidden" data-hf-grok-missing>Add XAI_API_KEY in Render to enable Grok.</div>
     </div>
     <div class="small-note" style="margin-bottom:14px">Questions currently assigned to an active student test are read-only here so an edit cannot change a live assessment.</div>
     <div class="bank-groups">${groupHtml||'<div class="bank-empty">No questions are in this bank yet.</div>'}</div>`;
@@ -748,6 +749,8 @@ async function setupHuggingFaceGenerator(section){
     const providers=config.providers||{};
     const openrouter=Boolean(providers.openrouter&&providers.openrouter.configured);
     const grok=Boolean(providers.grok&&providers.grok.configured);
+    const grokNotice=panel.querySelector("[data-hf-grok-missing]");
+    if(grokNotice)grokNotice.classList.toggle("hidden",grok);
     const refreshProviderStatus=()=>{
       const preferred=providerSelect.value==="grok"?"Grok":"OpenRouter";
       const preferredConfigured=providerSelect.value==="grok"?grok:openrouter;
