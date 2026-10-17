@@ -9,6 +9,28 @@ async function api(url,options={}){
 }
 
 const bankLabels={humanities:"Humanities",mathematics_science:"Mathematics & Science"};
+
+function applyAdminTheme(theme){
+  const resolved=theme==="dark"?"dark":"light";
+  document.body.dataset.theme=resolved;
+  const toggle=$("themeToggle");
+  if(toggle){
+    toggle.textContent=resolved==="dark"?"☀ Light mode":"☾ Dark mode";
+    toggle.setAttribute("aria-pressed",String(resolved==="dark"));
+  }
+  try{localStorage.setItem("quiz-admin-theme",resolved);}catch{}
+}
+
+function initAdminTheme(){
+  let theme="light";
+  try{theme=localStorage.getItem("quiz-admin-theme")||"light";}catch{}
+  applyAdminTheme(theme);
+  $("themeToggle")?.addEventListener("click",()=>{
+    applyAdminTheme(document.body.dataset.theme==="dark"?"light":"dark");
+  });
+}
+
+initAdminTheme();
 let currentBankSection="";
 const attemptsState={
   page:0,
@@ -443,17 +465,27 @@ function renderQuestionBank(data){
         </div>
       </div>
       <div class="bank-stimulus">
-        <label>Shared stimulus / passage</label>
-        <textarea data-group-field="passage" ${active?"disabled":""}>${esc(first.passage||"")}</textarea>
-        <label>Stimulus image path or URL</label>
-        <input type="text" data-group-field="stimulus_image" value="${esc(first.stimulus_image||"")}" ${active?"disabled":""}>
+        <div class="stimulus-reading-label">Stimulus paragraph</div>
+        <div class="stimulus-reading-text">${esc(first.passage||"No stimulus paragraph has been added yet.")}</div>
         ${first.stimulus_image?`<img class="bank-image-preview" src="${esc(first.stimulus_image)}" alt="Stimulus preview" onerror="this.style.display='none'">`:""}
-        <div class="bank-actions">
-          <span class="bank-save-state"></span>
-          <button type="button" class="primary" data-action="save-group" ${active?"disabled":""}>Save Stimulus</button>
-        </div>
+        <details class="stimulus-edit-details">
+          <summary>Edit stimulus paragraph and image</summary>
+          <label>Shared stimulus / passage</label>
+          <textarea data-group-field="passage" ${active?"disabled":""}>${esc(first.passage||"")}</textarea>
+          <label>Stimulus image path or URL</label>
+          <input type="text" data-group-field="stimulus_image" value="${esc(first.stimulus_image||"")}" ${active?"disabled":""}>
+          <div class="bank-actions">
+            <span class="bank-save-state"></span>
+            <button type="button" class="primary" data-action="save-group" ${active?"disabled":""}>Save Stimulus</button>
+          </div>
+        </details>
       </div>
-      ${rows.map((row,index)=>questionEditorHtml(row,index,active)).join("")}
+      <div class="bank-questions-wrap">
+        <button type="button" class="ghost question-toggle" data-action="toggle-questions" aria-expanded="false">
+          <span class="question-toggle-arrow">▸</span> Show ${rows.length} question${rows.length===1?"":"s"}
+        </button>
+        <div class="bank-questions hidden">${rows.map((row,index)=>questionEditorHtml(row,index,active)).join("")}</div>
+      </div>
     </article>`;
   }).join("");
 
@@ -548,7 +580,19 @@ function bindBankEditor(section){
   $("bankEditor").querySelectorAll("[data-action]").forEach(button=>{
     button.onclick=()=>{
       const action=button.dataset.action;
-      if(action==="close-generated"){
+      if(action==="toggle-questions"){
+        const wrap=button.closest(".bank-questions-wrap");
+        const questions=wrap?.querySelector(".bank-questions");
+        if(questions){
+          const expanded=button.getAttribute("aria-expanded")==="true";
+          questions.classList.toggle("hidden",expanded);
+          button.setAttribute("aria-expanded",String(!expanded));
+          button.querySelector(".question-toggle-arrow").textContent=expanded?"▸":"▾";
+          button.lastChild.textContent=expanded
+            ?" Show "+questions.querySelectorAll(".bank-question").length+" questions"
+            :" Hide questions";
+        }
+      }else if(action==="close-generated"){
         openBank(currentBankSection);
       }else if(action==="close-bank"){
         currentBankSection="";
