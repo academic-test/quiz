@@ -165,7 +165,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
           { role: "user", content: JSON.stringify(prompt.user) }
         ],
         temperature: 0.35,
-        max_tokens: Math.min(20000, count * 5000),
+        max_tokens: Math.min(12000, count * 8000),
         ...(!isGrok ? { reasoning: { effort: "low", exclude: true } } : {}),
         response_format: { type: "json_object" },
         stream: false
@@ -208,19 +208,49 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
   const alternate = preferred === "grok" ? "openrouter" : "grok";
   const configured = name => Boolean(name === "grok" ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY);
   const errors = [];
-  for (const name of [preferred, alternate]) {
-    if (!configured(name)) {
-      if (name === preferred) errors.push(name === "grok" ? "Grok is not configured (XAI_API_KEY)." : "OpenRouter is not configured (OPENROUTER_API_KEY).");
-      continue;
+  const generatedPages = [];
+  const seenStems = [...(avoidStems || [])];
+  let usedProvider = preferred;
+
+  // Generate one page per request. Large multi-page JSON responses can exhaust a
+  // model's output budget and return finish_reason=length with no usable content.
+  for (let pageIndex = 0; pageIndex < Number(pageCount); pageIndex++) {
+    let pageResult = null;
+    for (const name of [preferred, alternate]) {
+      if (!configured(name)) {
+        if (pageIndex === 0 && name === preferred) {
+          errors.push(name === "grok" ? "Grok is not configured (XAI_API_KEY)." : "OpenRouter is not configured (OPENROUTER_API_KEY).");
+        }
+        continue;
+      }
+      try {
+        const result = await generateWithProvider({
+          section,
+          pageCount: 1,
+          avoidStems: seenStems.slice(-40),
+          provider: name
+        });
+        pageResult = result;
+        if (name !== preferred) usedProvider = name;
+        break;
+      } catch (error) {
+        errors.push((name === "grok" ? "Grok" : "OpenRouter") + " (page " + (pageIndex + 1) + "): " + error.message);
+      }
     }
-    try {
-      const result = await generateWithProvider({ section, pageCount, avoidStems, provider: name });
-      return { ...result, fallbackUsed: name !== preferred };
-    } catch (error) {
-      errors.push((name === "grok" ? "Grok" : "OpenRouter") + ": " + error.message);
+    if (!pageResult) {
+      throw fail("Could not generate all requested pages. No questions were saved. " + errors.join(" | "), 502);
     }
+    generatedPages.push(pageResult.pages[0]);
+    pageResult.pages[0].questions.forEach(question => seenStems.push(question.question_text));
+    if (pageResult.provider !== preferred) usedProvider = pageResult.provider;
   }
-  throw fail("Both AI providers failed or are not configured. " + errors.join(" | "), 502);
+
+  return {
+    provider: usedProvider,
+    model: "multiple page requests",
+    pages: generatedPages,
+    fallbackUsed: usedProvider !== preferred
+  };
 }
 
 module.exports = { generateQuestionPages, validatePages, extractJson, DEFAULT_MODEL, DEFAULT_XAI_MODEL };
