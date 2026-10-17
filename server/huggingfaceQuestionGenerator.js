@@ -214,6 +214,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
   const configured = name => Boolean(name === "grok" ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY);
   const errors = [];
   const generatedPages = [];
+  const usedModels = [];
   const seenStems = [...(avoidStems || [])];
   let usedProvider = preferred;
 
@@ -254,13 +255,14 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
       throw fail("Could not generate all requested pages. No questions were saved. " + errors.join(" | "), 502);
     }
     generatedPages.push(pageResult.pages[0]);
+    usedModels.push(pageResult.model);
     pageResult.pages[0].questions.forEach(question => seenStems.push(question.question_text));
     if (pageResult.provider !== preferred) usedProvider = pageResult.provider;
   }
 
   return {
     provider: usedProvider,
-    model: "multiple page requests",
+    model: [...new Set(usedModels)].join(", ") || "unknown",
     pages: generatedPages,
     fallbackUsed: usedProvider !== preferred
   };
