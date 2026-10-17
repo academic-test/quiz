@@ -38,7 +38,7 @@
             @click="selectOption(question, index)"
           >
             <span class="letter">{{ String.fromCharCode(65 + index) }}</span>
-            <span>{{ option }}</span>
+            <span>{{ typeof option === "string" ? option : (option?.text ?? option?.label ?? option?.value ?? "") }}</span>
           </button>
         </div>
 
@@ -117,11 +117,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["select", "previous", "next", "submit"]);
-
-function optionTexts(question) {
-  const source = Array.isArray(question.o) ? question.o : Array.isArray(question.answer_options) ? question.answer_options : [];
-  return source.map(option => typeof option === "string" ? option : String(option?.text ?? option?.label ?? option?.value ?? ""));
-}
 
 function selectedAnswer(question) {
   const answers = props.answers || {};
