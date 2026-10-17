@@ -11,6 +11,51 @@
 @media(max-width:700px){main{padding:22px 14px}.stats{grid-template-columns:repeat(2,1fr)}.top{align-items:flex-start}.top h1{font-size:24px}.bank-cards,.new-grid,.writing-topic-cards{grid-template-columns:1fr}.new-options{grid-template-columns:1fr}.bank-grid{grid-template-columns:1fr}.bank-group-title{flex-direction:column}.bank-toolbar{align-items:flex-start;flex-direction:column}.close-bank{margin-right:0}.hf-generator{grid-template-columns:1fr}.hf-generator-controls{justify-content:flex-start}}
 
 .admin-nav{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);box-shadow:0 2px 10px #1820330a}.admin-nav-inner{max-width:1180px;margin:auto;padding:0 20px;display:flex;align-items:center;gap:6px;min-height:54px}.admin-nav button{background:transparent;color:var(--muted);padding:9px 12px;border-radius:8px}.admin-nav button.active{background:#f0f1ff;color:var(--accent);font-weight:900}.admin-nav .nav-spacer{flex:1}.admin-section{scroll-margin-top:70px}.compact-card{padding:18px}.bank-section{margin-top:14px}.bank-cards{gap:10px}.bank-card{padding:16px}.bank-card-title{font-size:17px}.bank-group{border-radius:12px}.bank-group-head{padding:12px 14px}.bank-stimulus{padding:12px 14px}.bank-question{padding:14px}.bank-question label{margin-top:10px}.bank-question textarea{min-height:72px}.answer-details{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#fafbfe}.answer-details summary{cursor:pointer;padding:10px 12px;font-size:12px;font-weight:900;color:var(--muted)}.answer-details[open]{background:#fff}.answer-details-body{padding:0 12px 12px}.question-summary{display:flex;align-items:center;gap:10px}.question-summary-text{font-weight:900;line-height:1.35;flex:1}.admin-nav .mobile-only{display:none}@media(max-width:700px){.admin-nav-inner{overflow-x:auto}.admin-nav button{white-space:nowrap}.admin-nav .mobile-only{display:none}}
+
+/* Stimulus-first question bank layout */
+.stimulus-reading-label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:var(--muted);margin-bottom:8px}
+.stimulus-reading-text{white-space:pre-wrap;line-height:1.65;font-size:15px;overflow-wrap:anywhere}
+.stimulus-edit-details{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.stimulus-edit-details summary{cursor:pointer;font-size:12px;font-weight:800;color:var(--muted)}
+.bank-questions-wrap{padding:12px 16px 16px;border-top:1px solid var(--line);background:var(--soft-surface,#fafbfe)}
+.question-toggle{display:inline-flex;align-items:center;gap:8px}
+.question-toggle-arrow{font-size:16px;line-height:1}
+.bank-questions.hidden{display:none!important}
+body[data-theme="dark"]{--bg:#11151d;--card:#1b2230;--ink:#e8edf6;--muted:#a4afc1;--line:#333d4e;--accent:#9b9cff;--good:#62d6a0;--bad:#ff8795;--warn:#f6bd67;--soft-surface:#171d28;background:var(--bg);color:var(--ink)}
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .stat,
+body[data-theme="dark"] .bank-card,
+body[data-theme="dark"] .bank-group,
+body[data-theme="dark"] .writing-topic-card,
+body[data-theme="dark"] .writing-topic-item,
+body[data-theme="dark"] .admin-nav{background:var(--card);color:var(--ink);border-color:var(--line)}
+body[data-theme="dark"] .admin-nav{box-shadow:0 2px 10px #0005}
+body[data-theme="dark"] .admin-nav button{color:var(--muted)}
+body[data-theme="dark"] .admin-nav button.active,
+body[data-theme="dark"] .bank-card.selected{background:#2a2b48;color:var(--ink);border-color:var(--accent)}
+body[data-theme="dark"] input,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] select{background:#121823;color:var(--ink);border-color:var(--line)}
+body[data-theme="dark"] .ghost{background:#202938;color:var(--ink);border-color:var(--line)}
+body[data-theme="dark"] .bank-group-head,
+body[data-theme="dark"] .bank-questions-wrap,
+body[data-theme="dark"] .writing-topic-item,
+body[data-theme="dark"] .answer-details,
+body[data-theme="dark"] .answer-details[open]{background:var(--soft-surface);color:var(--ink);border-color:var(--line)}
+body[data-theme="dark"] .hf-generator{background:var(--soft-surface);border-color:var(--line)}
+body[data-theme="dark"] th{color:var(--muted)}
+body[data-theme="dark"] td{border-color:var(--line)}
+body[data-theme="dark"] .bank-status{background:#153b30;color:#8be0ba}
+body[data-theme="dark"] .bank-status.active{background:#47351d;color:#ffd18a}
+body[data-theme="dark"] .bank-badge{background:#2a3342;color:var(--muted)}
+body[data-theme="dark"] .bank-badge.active{background:#47351d;color:#ffd18a}
+body[data-theme="dark"] .pill{background:#2a2b48;color:#d7d8ff}
+body[data-theme="dark"] .correct{color:var(--good)}
+body[data-theme="dark"] .wrong{color:var(--bad)}
+body[data-theme="dark"] .delete-btn{background:#3b2028!important;border-color:#75404b!important;color:#ffb0ba!important}
+body[data-theme="dark"] .bank-image-preview{background:#fff}
+body[data-theme="dark"] .bank-question{border-color:var(--line)}
+
 </style>
 </head>
 <body>
@@ -30,7 +75,7 @@
 <button type="button" data-admin-nav="question-bank">Question Bank</button>
 <button type="button" data-admin-nav="writing">Written Expression</button>
 <button type="button" data-admin-nav="assessments">Assessments</button>
-<span class="nav-spacer"></span><button type="button" id="navRefresh" class="ghost">Refresh</button><button type="button" id="navLogout" class="ghost">Log out</button>
+<span class="nav-spacer"></span><button type="button" id="themeToggle" class="ghost" aria-pressed="false">☾ Dark mode</button><button type="button" id="navRefresh" class="ghost">Refresh</button><button type="button" id="navLogout" class="ghost">Log out</button>
 </div></nav>
 <div id="overviewSection" class="admin-section"><div class="top" style="margin:18px 0 12px"><div><div class="eyebrow">APTITUDE PRACTICE ADMIN</div><h1>Quiz Dashboard</h1><p>Quick overview of the assessment system.</p></div></div>
 
