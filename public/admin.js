@@ -549,7 +549,7 @@ function bindBankEditor(section){
     button.onclick=()=>{
       const action=button.dataset.action;
       if(action==="close-generated"){
-        window.location.href="/admin?bank="+encodeURIComponent(currentBankSection);
+        openBank(currentBankSection);
       }else if(action==="close-bank"){
         currentBankSection="";
         $("bankEditor").classList.add("hidden");
