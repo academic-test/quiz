@@ -206,8 +206,9 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
 }
 
 async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], provider = "openrouter", onTelemetry = () => {} } = {}) {
-  const preferred = provider === "grok" ? "grok" : "openrouter";
-  const alternate = preferred === "grok" ? "openrouter" : "grok";
+  // Keep generation strictly on OpenRouter free routing until paid inference is enabled deliberately.
+  const preferred = "openrouter";
+  const alternate = null;
   const configured = name => Boolean(name === "grok" ? process.env.XAI_API_KEY : process.env.OPENROUTER_API_KEY);
   const errors = [];
   const generatedPages = [];
@@ -219,7 +220,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
   // model's output budget and return finish_reason=length with no usable content.
   for (let pageIndex = 0; pageIndex < Number(pageCount); pageIndex++) {
     let pageResult = null;
-    for (const name of [preferred, alternate]) {
+    for (const name of [preferred]) {
       if (!configured(name)) {
         if (pageIndex === 0 && name === preferred) {
           errors.push(name === "grok" ? "Grok is not configured (XAI_API_KEY)." : "OpenRouter is not configured (OPENROUTER_API_KEY).");
