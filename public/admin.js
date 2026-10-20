@@ -996,7 +996,7 @@ async function viewResponses(id){
       const flag=timeFlag(r);
       const values=[
         index+1,
-        r.question_text||("Question "+r.question_id),
+        r.question_text||("Question "+(index+1)),
         r.section,selected,correct,
         r.timed_out?"Timed out":r.is_correct?"Correct":"Wrong",
         elapsed.toFixed(1)+"s",flag.label,new Date(r.answered_at).toLocaleString()
