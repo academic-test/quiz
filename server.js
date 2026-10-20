@@ -1664,23 +1664,29 @@ function normalizeQuestionBankPayload(body, fallback = {}) {
 app.get("/api/admin/question-analytics", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
 
-  const { data: questions, error: questionError } = await supabase
-    .from("generated_questions")
-    .select("id,section,subject,question_text,stimulus_group,created_at,updated_at")
-    .eq("year_level","10")
-    .eq("is_bank",true)
-    .order("created_at",{ascending:false})
-    .limit(5000);
-
-  if (questionError) return res.status(400).json({ error:questionError.message });
-
-  const questionIds = new Set((questions || []).map(row => row.id));
-  const stats = new Map();
+  const questions = [];
   const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data: questionPage, error: questionError } = await supabase
+      .from("generated_questions")
+      .select("id,section,subject,question_text,stimulus_group,created_at,updated_at")
+      .eq("year_level","10")
+      .eq("is_bank",true)
+      .order("created_at",{ascending:false})
+      .order("id",{ascending:true})
+      .range(from, from + pageSize - 1);
+    if (questionError) return res.status(400).json({ error:questionError.message });
+    questions.push(...(questionPage || []));
+    if (!questionPage || questionPage.length < pageSize) break;
+  }
+
+  const questionIds = new Set(questions.map(row => row.id));
+  const stats = new Map();
   for (let from = 0; ; from += pageSize) {
     const { data: page, error } = await supabase
       .from("quiz_responses")
       .select("question_id,attempt_id,is_correct,timed_out")
+      .order("id",{ascending:true})
       .range(from, from + pageSize - 1);
     if (error) return res.status(400).json({ error:error.message });
     for (const response of page || []) {
@@ -1696,7 +1702,7 @@ app.get("/api/admin/question-analytics", requireAdmin, async (req,res) => {
 
   res.json({
     ok:true,
-    questions:(questions || []).map(question => {
+    questions:questions.map(question => {
       const stat = stats.get(question.id) || { attempts:new Set(), appearances:0, correct:0 };
       return {
         ...question,
