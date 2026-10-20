@@ -1,11 +1,8 @@
-const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
+const DEFAULT_MODEL = "openrouter/free";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
 const DEFAULT_XAI_MODEL = "grok-3-mini";
-const FALLBACK_MODELS = [
-  "google/gemma-4-26b-a4b-it:free",
-  "nvidia/nemotron-3-super-120b-a12b:free"
-];
+const FALLBACK_MODELS = [];
 
 function fail(message, statusCode = 400) {
   const error = new Error(message);
@@ -155,7 +152,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   const prompt = makePrompt(section, count, avoidStems);
   const requestStartedAt = Date.now();
   const requestBody = {
-    ...(isGrok ? { model } : { models: [model] }),
+    { model },
     messages: [
       { role: "system", content: prompt.system },
       { role: "user", content: JSON.stringify(prompt.user) }
@@ -185,7 +182,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   let payload = {};
   try { payload = raw ? JSON.parse(raw) : {}; } catch {}
   const choice = payload && payload.choices && payload.choices[0] || {};
-  onTelemetry({ provider, model: normalise(payload && payload.model || model, 120), event: response.ok ? "http_response" : "http_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model: isGrok ? model : [...new Set([model, ...FALLBACK_MODELS])], temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, http_status: response.status, finish_reason: choice.finish_reason || null, token_usage: payload.usage || null, response_preview: raw.slice(0, 2200), error: !response.ok ? normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 800) : null });
+  onTelemetry({ provider, model: normalise(payload && payload.model || model, 120), event: response.ok ? "http_response" : "http_error", configured: true, duration_ms: Date.now() - requestStartedAt, request_url: apiUrl, request_body: { model, temperature: requestBody.temperature, max_tokens: requestBody.max_tokens, response_format: requestBody.response_format, stream: requestBody.stream, reasoning: requestBody.reasoning || null, prompt_system_chars: prompt.system.length, prompt_user_chars: JSON.stringify(prompt.user).length, avoid_stems_count: (avoidStems || []).length }, prompt_sent: { system: prompt.system, user: prompt.user }, http_status: response.status, finish_reason: choice.finish_reason || null, token_usage: payload.usage || null, response_preview: raw.slice(0, 2200), error: !response.ok ? normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 800) : null });
   if (!response.ok) {
     const detail = normalise(payload && (payload.error && payload.error.message || payload.error || payload.message) || "", 300);
     const status = response.status === 401 || response.status === 403 ? 503 : 502;
@@ -231,7 +228,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
       }
       const modelCandidates = name === "grok"
         ? [process.env.XAI_MODEL || DEFAULT_XAI_MODEL]
-        : [...new Set([process.env.OPENROUTER_MODEL || DEFAULT_MODEL, ...FALLBACK_MODELS])];
+        : [DEFAULT_MODEL];
       for (const candidateModel of modelCandidates) {
         try {
           const result = await generateWithProvider({
