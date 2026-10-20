@@ -73,11 +73,12 @@ async function logoutAdmin(){
 }
 
 function showAdminSection(section){
-  const map={overview:"overviewSection","question-bank":"questionBankSection",writing:"writingSection",assessments:"assessmentsSection","ai-telemetry":"aiTelemetrySection"};
+  const map={overview:"overviewSection","question-bank":"questionBankSection",writing:"writingSection",assessments:"assessmentsSection",analytics:"analyticsSection","ai-telemetry":"aiTelemetrySection"};
   Object.values(map).forEach(id=>$(id)?.classList.add("hidden"));
   const target=map[section]||map.overview;
   $(target)?.classList.remove("hidden");
   if(section==="ai-telemetry") loadTelemetry();
+  if(section==="analytics") loadQuestionAnalytics();
   document.querySelectorAll("[data-admin-nav]").forEach(button=>button.classList.toggle("active",button.dataset.adminNav===section));
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -95,7 +96,8 @@ async function refreshAdmin(){
     loadAttempts(true),
     loadBankCards(),
     loadWritingTopics(),
-    document.getElementById("aiTelemetrySection")?.classList.contains("hidden") ? Promise.resolve() : loadTelemetry()
+    document.getElementById("aiTelemetrySection")?.classList.contains("hidden") ? Promise.resolve() : loadTelemetry(),
+    document.getElementById("analyticsSection")?.classList.contains("hidden") ? Promise.resolve() : loadQuestionAnalytics()
   ]);
 }
 
@@ -447,6 +449,14 @@ function decorateGeneratedOnlyView(){
   $("bankEditor").querySelector(".bank-toolbar").after(note);
 }
 
+function displayStimulusName(group,index){
+  const raw=String(group||"").trim();
+  const uuid=/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+  if(!raw || uuid.test(raw) || /^(GEN|GENERATED)[-_ ]?(HUM|MS|MATH|HUMANITIES)?[-_ ]?(PAGE|STIMULUS)/i.test(raw)) return "Stimulus page "+(index+1);
+  const clean=raw.replace(uuid,"").replace(/[-_ ]+$/,"").trim();
+  return clean && !/^(GEN|GENERATED)$/i.test(clean) ? clean : "Stimulus page "+(index+1);
+}
+
 function renderQuestionBank(data){
   const questions=data.questions||[];
   const grouped=new Map();
@@ -456,13 +466,13 @@ function renderQuestionBank(data){
     grouped.get(group).push(question);
   });
 
-  const groupHtml=[...grouped.entries()].map(([group,rows])=>{
+  const groupHtml=[...grouped.entries()].map(([group,rows],groupIndex)=>{
     const active=rows.some(row=>row.session_id);
     const first=rows[0]||{};
     return `<article class="bank-group" data-group-root="${esc(group)}">
       <div class="bank-group-head">
         <div class="bank-group-title">
-          <div><strong>${esc(group)}</strong><div class="small-note">${rows.length} question${rows.length===1?"":"s"} in this stimulus page</div></div>
+          <div><strong>${esc(displayStimulusName(group,groupIndex))}</strong><div class="small-note">${rows.length} question${rows.length===1?"":"s"} in this stimulus page</div></div>
           <span class="bank-status ${active?"active":""}">${active?"Currently in an active assessment":"Available for use"}</span>
         </div>
       </div>
@@ -537,7 +547,7 @@ function questionEditorHtml(row,index,groupActive){
   return `<div class="bank-question" data-question-id="${esc(row.id)}" data-section="${esc(row.section)}" data-group="${esc(row.stimulus_group||"")}" data-active="${active?"1":"0"}">
     <div class="bank-q-head">
       <span class="bank-q-number">Question ${index+1}</span>
-      <span class="bank-q-id">${esc(row.id)}</span>
+
     </div>
     <div class="bank-grid">
       <div>
@@ -889,6 +899,80 @@ $("refreshTelemetry")?.addEventListener("click",loadTelemetry);
 $("telemetryOutcome")?.addEventListener("change",loadTelemetry);
 $("telemetryLimit")?.addEventListener("change",loadTelemetry);
 $("closeTelemetryDetail")?.addEventListener("click",()=>$("telemetryDetail").classList.add("hidden"));
+
+
+let questionAnalyticsCache=[];
+function formatAnalyticsDate(value){
+  if(!value)return "—";
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?"—":date.toLocaleString();
+}
+function renderQuestionAnalytics(){
+  const section=$("questionAnalyticsSection").value;
+  const accuracy=$("questionAnalyticsAccuracy").value;
+  const search=$("questionAnalyticsSearch").value.trim().toLowerCase();
+  const rows=questionAnalyticsCache.filter(q=>{
+    if(section && q.section!==section)return false;
+    if(search && !String(q.question_text||"").toLowerCase().includes(search))return false;
+    if(accuracy==="unused" && Number(q.appearance_count||0)>0)return false;
+    if(accuracy==="low" && (q.correct_percentage==null || q.correct_percentage>=50))return false;
+    if(accuracy==="mid" && (q.correct_percentage==null || q.correct_percentage<50 || q.correct_percentage>=80))return false;
+    if(accuracy==="high" && (q.correct_percentage==null || q.correct_percentage<80))return false;
+    return true;
+  });
+  const body=$("questionAnalyticsRows");
+  body.innerHTML="";
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="7" class="loading-row">No questions match these filters.</td></tr>';
+    return;
+  }
+  rows.forEach(q=>{
+    const row=document.createElement("tr");
+    const values=[
+      q.question_text||"Untitled question",
+      q.section==="humanities"?"Humanities":"Mathematics & Science",
+      formatAnalyticsDate(q.created_at),
+      formatAnalyticsDate(q.updated_at||q.created_at),
+      Number(q.assessment_count||0),
+      Number(q.appearance_count||0),
+      q.correct_percentage==null?"Not answered yet":q.correct_percentage+"% ("+Number(q.correct_count||0)+"/"+Number(q.appearance_count||0)+")"
+    ];
+    values.forEach((value,i)=>{
+      const cell=document.createElement("td");
+      cell.textContent=String(value);
+      if(i===0){cell.style.whiteSpace="normal";cell.style.minWidth="280px";cell.style.maxWidth="520px";}
+      if(i===6 && q.correct_percentage!=null){
+        cell.style.fontWeight="800";
+        cell.style.color=q.correct_percentage<50?"var(--bad)":q.correct_percentage>=80?"var(--good)":"var(--warn)";
+      }
+      row.appendChild(cell);
+    });
+    body.appendChild(row);
+  });
+  $("questionAnalyticsStatus").textContent="Showing "+rows.length+" of "+questionAnalyticsCache.length+" bank questions. Accuracy is based on recorded responses; timed-out responses count as incorrect.";
+}
+async function loadQuestionAnalytics(){
+  $("questionAnalyticsStatus").textContent="Loading question analytics…";
+  try{
+    const data=await api("/api/admin/question-analytics");
+    questionAnalyticsCache=data.questions||[];
+    const used=questionAnalyticsCache.filter(q=>Number(q.appearance_count||0)>0);
+    const responseCount=questionAnalyticsCache.reduce((sum,q)=>sum+Number(q.appearance_count||0),0);
+    const correctCount=questionAnalyticsCache.reduce((sum,q)=>sum+Number(q.correct_count||0),0);
+    $("questionAnalyticsTotal").textContent=questionAnalyticsCache.length;
+    $("questionAnalyticsUsed").textContent=used.length;
+    $("questionAnalyticsResponses").textContent=responseCount;
+    $("questionAnalyticsAvg").textContent=responseCount?Math.round(correctCount/responseCount*100)+"%":"—";
+    renderQuestionAnalytics();
+  }catch(err){
+    $("questionAnalyticsStatus").textContent="Could not load question analytics: "+err.message;
+    $("questionAnalyticsRows").innerHTML='<tr><td colspan="7" class="loading-row">Analytics unavailable.</td></tr>';
+  }
+}
+$("refreshQuestionAnalytics")?.addEventListener("click",loadQuestionAnalytics);
+$("questionAnalyticsSection")?.addEventListener("change",renderQuestionAnalytics);
+$("questionAnalyticsAccuracy")?.addEventListener("change",renderQuestionAnalytics);
+$("questionAnalyticsSearch")?.addEventListener("input",renderQuestionAnalytics);
 
 function timeFlag(response){
   if(response.timed_out)return {label:"Timed out",className:"time-timeout"};
