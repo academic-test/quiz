@@ -75,6 +75,7 @@ body[data-theme="dark"] .bank-question{border-color:var(--line)}
 <button type="button" data-admin-nav="question-bank">Question Bank</button>
 <button type="button" data-admin-nav="writing">Written Expression</button>
 <button type="button" data-admin-nav="assessments">Assessments</button>
+<button type="button" data-admin-nav="analytics">Analytics</button>
 <button type="button" data-admin-nav="ai-telemetry">AI Telemetry</button>
 <span class="nav-spacer"></span><button type="button" id="themeToggle" class="ghost" aria-pressed="false">☾ Dark mode</button><button type="button" id="navRefresh" class="ghost">Refresh</button><button type="button" id="navLogout" class="ghost">Log out</button>
 </div></nav>
@@ -106,6 +107,23 @@ body[data-theme="dark"] .bank-question{border-color:var(--line)}
   <span id="attemptsStatus" class="assessment-status">Loading assessments…</span>
   <button id="attemptsLoadMore" type="button" class="ghost hidden">Load more</button>
 </div>
+</section>
+
+<section id="analyticsSection" class="card admin-section hidden">
+<div class="top" style="margin-bottom:14px"><div><div class="eyebrow">QUESTION PERFORMANCE</div><h2>Question Analytics</h2><p>See when each bank question was created or last modified, how many assessments included it, and the percentage of recorded responses that were correct.</p></div><button id="refreshQuestionAnalytics" class="ghost">Refresh Analytics</button></div>
+<div class="stats">
+  <div class="stat"><strong id="questionAnalyticsTotal">—</strong><span>Bank questions</span></div>
+  <div class="stat"><strong id="questionAnalyticsUsed">—</strong><span>Questions used in assessments</span></div>
+  <div class="stat"><strong id="questionAnalyticsResponses">—</strong><span>Recorded responses</span></div>
+  <div class="stat"><strong id="questionAnalyticsAvg">—</strong><span>Average accuracy</span></div>
+</div>
+<div class="radio-row" style="margin:10px 0 16px">
+<label>Section <select id="questionAnalyticsSection" style="width:auto;min-width:180px"><option value="">All sections</option><option value="humanities">Humanities</option><option value="mathematics_science">Mathematics &amp; Science</option></select></label>
+<label>Accuracy <select id="questionAnalyticsAccuracy" style="width:auto;min-width:180px"><option value="">All accuracy levels</option><option value="low">Below 50%</option><option value="mid">50–79%</option><option value="high">80% and above</option><option value="unused">Not used yet</option></select></label>
+<input id="questionAnalyticsSearch" type="search" placeholder="Search question text…" style="max-width:320px">
+</div>
+<div id="questionAnalyticsStatus" class="small-note" role="status">Loading question analytics…</div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Question</th><th>Section</th><th>Created</th><th>Last modified</th><th>Assessments</th><th>Responses</th><th>Got it right</th></tr></thead><tbody id="questionAnalyticsRows"></tbody></table></div>
 </section>
 
 <section id="aiTelemetrySection" class="card admin-section hidden">
