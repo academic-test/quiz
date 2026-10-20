@@ -152,7 +152,7 @@ async function generateWithProvider({ section, pageCount = 1, avoidStems = [], p
   const prompt = makePrompt(section, count, avoidStems);
   const requestStartedAt = Date.now();
   const requestBody = {
-    { model },
+    model,
     messages: [
       { role: "system", content: prompt.system },
       { role: "user", content: JSON.stringify(prompt.user) }
