@@ -153,6 +153,7 @@ async function login() {
 }
 
 async function logout() {
+  try { await api("/api/admin/logout", { method: "POST" }); } catch { /* clear local view even if the request fails */ }
   authenticated.value = false;
   questions.value = [];
   editor.value = null;
