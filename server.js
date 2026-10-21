@@ -2063,6 +2063,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
 });
 
 app.get("/admin", (req,res) => res.sendFile(path.join(publicDir,"admin.html")));
+app.get("/admin-vue", (req,res) => res.sendFile(path.join(studentDir,"admin.html")));
 app.get("/admin/responses", (req,res) => res.sendFile(path.join(publicDir,"admin-responses.html")));
 app.get("/", (req,res) => res.sendFile(path.join(studentDir,"index.html")));
 app.use((req,res) => {
