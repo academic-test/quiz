@@ -1955,7 +1955,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
   try {
     const { data: existing, error:existingError } = await supabase
       .from("generated_questions")
-      .select("section,question_text,passage")
+      .select("section,question_text,passage,stimulus_group")
       .eq("year_level","10")
       .eq("section",section)
       .eq("is_bank",true)
@@ -1980,12 +1980,24 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     });
     const seenFingerprints = new Set((existing || []).map(row => questionFingerprint(row)));
     const batchFingerprints = new Set();
+    const usedGroupNames = new Set((existing || []).map(row => String(row.stimulus_group || "").toUpperCase()).filter(Boolean));
     const rows = [];
+    const idPrefix = section === "humanities" ? "GEN-HUM-" : "GEN-MS-";
+    const makeTopicSlug = value => String(value || "GENERAL-TOPIC")
+      .normalize("NFKD").replace(/[\\u0300-\\u036f]/g, "")
+      .toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+      .split("-").filter(Boolean).slice(0, 5).join("-") || "GENERAL-TOPIC";
 
     generated.pages.forEach((page,pageIndex) => {
+      const topicSlug = makeTopicSlug(page.title);
+      const baseGroupId = idPrefix + "PAGE-" + topicSlug;
+      let groupId = baseGroupId;
+      let suffix = 2;
+      while (usedGroupNames.has(groupId.toUpperCase())) {
+        groupId = baseGroupId + "-" + suffix++;
+      }
+      usedGroupNames.add(groupId.toUpperCase());
       const groupUuid = crypto.randomUUID();
-      const idPrefix = section === "humanities" ? "GEN-HUM-" : "GEN-MS-";
-      const groupId = idPrefix + "PAGE-" + groupUuid;
       page.questions.forEach((question,questionIndex) => {
         const fp = questionFingerprint({ section, question_text:question.question_text, passage:page.stimulus });
         if (seenFingerprints.has(fp) || batchFingerprints.has(fp)) {
