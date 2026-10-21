@@ -123,7 +123,7 @@ function makePrompt(section, pageCount, avoidStems) {
         "At least two questions per page require interpretation, inference, or multiple reasoning steps. Be concise; do not add commentary outside the JSON.",
         "correct_answer is an integer from 0 to 3, indexing answer_options.",
         "Include difficulty (easy, medium, hard), estimated time in seconds, and a concise explanation.",
-        "Avoid these recently-used stems: " + JSON.stringify((avoidStems || []).slice(0, 40))
+        "Avoid these recently-used stems and do not paraphrase them or reuse the same underlying question idea: " + JSON.stringify((avoidStems || []).slice(0, 40))
       ],
       output_schema: {
         pages: [{
@@ -239,7 +239,7 @@ async function generateQuestionPages({ section, pageCount = 1, avoidStems = [], 
           const result = await generateWithProvider({
             section,
             pageCount: 1,
-            avoidStems: seenStems.slice(-40),
+            avoidStems: seenStems.slice(0, 40),
             provider: name,
             modelOverride: candidateModel,
             onTelemetry
