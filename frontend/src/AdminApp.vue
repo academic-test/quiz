@@ -27,7 +27,7 @@
       <div class="toolbar">
         <select v-model="section" aria-label="Question section" @change="loadBank">
           <option value="humanities">Humanities</option>
-          <option value="mathematics-science">Mathematics &amp; Science</option>
+          <option value="mathematics_science">Mathematics &amp; Science</option>
         </select>
         <button class="secondary" @click="loadBank" :disabled="busy">{{ busy ? 'Loading…' : 'Refresh bank' }}</button>
         <button class="primary" @click="beginCreate">＋ New question</button>
