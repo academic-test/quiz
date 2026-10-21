@@ -1999,7 +1999,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
 
     generated.pages.forEach((page,pageIndex) => {
       const topicSlug = makeTopicSlug(page.title);
-      const baseGroupId = idPrefix + "PAGE-" + topicSlug;
+      const baseGroupId = "GEN-" + (page.subject || "HUM") + "-PAGE-" + topicSlug;
       let groupId = baseGroupId;
       let suffix = 2;
       while (usedGroupNames.has(groupId.toUpperCase())) {
