@@ -1953,14 +1953,21 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
   };
 
   try {
-    const { data: existing, error:existingError } = await supabase
-      .from("generated_questions")
-      .select("section,question_text,passage,stimulus_group")
-      .eq("year_level","10")
-      .eq("section",section)
-      .eq("is_bank",true)
-      .order("created_at",{ascending:false})
-      .limit(1000);
+    const existing = [];
+    let existingError = null;
+    for (let offset = 0; ; offset += 1000) {
+      const { data: batch, error } = await supabase
+        .from("generated_questions")
+        .select("section,question_text,passage,stimulus_group")
+        .eq("year_level","10")
+        .eq("section",section)
+        .eq("is_bank",true)
+        .order("created_at",{ascending:false})
+        .range(offset, offset + 999);
+      if (error) { existingError = error; break; }
+      existing.push(...(batch || []));
+      if (!batch || batch.length < 1000) break;
+    }
 
     if (existingError) {
       await persistTelemetry({ outcome:"failed", http_status:503, error_message:"Could not read existing question bank: " + existingError.message });
@@ -1980,6 +1987,8 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     });
     const seenFingerprints = new Set((existing || []).map(row => questionFingerprint(row)));
     const batchFingerprints = new Set();
+    const questionTextKey = value => String(value || "").normalize("NFKC").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, " ").trim().replace(/\\s+/g, " ");
+    const seenQuestionTexts = new Set((existing || []).map(row => questionTextKey(row.question_text)).filter(Boolean));
     const usedGroupNames = new Set((existing || []).map(row => String(row.stimulus_group || "").toUpperCase()).filter(Boolean));
     const rows = [];
     const idPrefix = section === "humanities" ? "GEN-HUM-" : "GEN-MS-";
@@ -2000,10 +2009,12 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
       const groupUuid = crypto.randomUUID();
       page.questions.forEach((question,questionIndex) => {
         const fp = questionFingerprint({ section, question_text:question.question_text, passage:page.stimulus });
-        if (seenFingerprints.has(fp) || batchFingerprints.has(fp)) {
-          throw Object.assign(new Error("The AI provider generated a duplicate question. No questions from this batch were saved; please try again."), { statusCode:409 });
+        const questionKey = questionTextKey(question.question_text);
+        if (seenFingerprints.has(fp) || batchFingerprints.has(fp) || seenQuestionTexts.has(questionKey)) {
+          throw Object.assign(new Error("The AI provider generated a duplicate or reused question wording. No questions from this batch were saved; please try again."), { statusCode:409 });
         }
         batchFingerprints.add(fp);
+        seenQuestionTexts.add(questionKey);
         rows.push({
           id:idPrefix + groupUuid + "-Q" + (questionIndex + 1),
           session_id:null,
