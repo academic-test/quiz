@@ -577,7 +577,7 @@ function questionEditorHtml(row,index,groupActive){
             return `<div class="bank-option">
               <input type="radio" name="correct-${safeId}" value="${i}" ${checked?"checked":""} ${active?"disabled":""}>
               <span class="bank-option-label">${String.fromCharCode(65+i)}</span>
-              <input type="text" data-option-index="${i}" value="${esc(value)}" ${active?"disabled":""}>
+              <textarea rows="2" data-option-index="${i}" aria-label="Answer option ${String.fromCharCode(65+i)}" ${active?"disabled":""}>${esc(value)}</textarea>
             </div>`;
           }).join("")}
         </div>
