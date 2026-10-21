@@ -53,9 +53,12 @@ function validatePages(document, section, pageCount) {
   if (pages.length !== pageCount) throw fail("The model did not return the requested number of pages. No questions were saved.", 502);
 
   return pages.map((page, pageIndex) => {
+    const subject = normalise(page && page.subject, 10).toUpperCase();
+    const validSubjects = section === "humanities" ? ["HUM"] : ["MATH", "SCI"];
     const title = normalise(page && page.title, 100).replace(/[\r\n]+/g, " ");
     const stimulus = normaliseStimulus(page && page.stimulus);
     const sourceQuestions = Array.isArray(page && page.questions) ? page.questions : [];
+    if (!validSubjects.includes(subject)) throw fail("Generated page " + (pageIndex + 1) + " has an invalid subject label. No questions were saved.", 502);
     if (title.length < 3) throw fail("Generated page " + (pageIndex + 1) + " is missing a short topic title. No questions were saved.", 502);
     if (stimulus.length < 80) throw fail("Generated page " + (pageIndex + 1) + " has an incomplete stimulus. No questions were saved.", 502);
     if (sourceQuestions.length !== perPage) throw fail("Each " + section.replace("_", " ") + " page must contain exactly " + perPage + " questions. No questions were saved.", 502);
@@ -82,7 +85,7 @@ function validatePages(document, section, pageCount) {
         time: Number.isFinite(seconds) ? Math.max(30, Math.min(180, Math.round(seconds))) : difficulty === "hard" ? 75 : 60
       };
     });
-    return { title, stimulus, questions };
+    return { subject, title, stimulus, questions };
   });
 }
 
@@ -107,6 +110,7 @@ function makePrompt(section, pageCount, avoidStems) {
       page_rules: [
         "Every page has one shared stimulus used by all its questions.",
         "Give every page a concise, specific topic title of 2–4 words (for example, Trade Routes, Plant Growth, Fraction Pies). Do not include a page number or GEN prefix in the title.",
+        (humanities ? "Set subject to HUM." : "Set subject to MATH for mathematics-focused pages or SCI for science-focused pages."),
         "Keep each stimulus concise: 120–180 words maximum, with only the facts needed to answer the questions.",
         "The stimulus contains all information required; no external knowledge is required.",
         "Use varied, unfamiliar contexts and reasoning rather than repeated arithmetic templates.",
@@ -127,6 +131,7 @@ function makePrompt(section, pageCount, avoidStems) {
       ],
       output_schema: {
         pages: [{
+          subject: humanities ? "HUM" : "SCI",
           title: "Trade Routes",
           stimulus: "string",
           questions: [{
