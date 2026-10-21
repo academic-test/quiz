@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: quiz-test
+    runtime: node
+    plan: free
+    region: singapore
+    branch: feature/lightweight-cqrs-foundation
+    autoDeploy: true
+    buildCommand: npm install --ignore-scripts && npm run build
+    startCommand: npm start
