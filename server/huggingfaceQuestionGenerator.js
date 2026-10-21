@@ -53,7 +53,7 @@ function validatePages(document, section, pageCount) {
   if (pages.length !== pageCount) throw fail("The model did not return the requested number of pages. No questions were saved.", 502);
 
   return pages.map((page, pageIndex) => {
-    const title = normalise(page && page.title, 100).replace(/[\\r\\n]+/g, " ");
+    const title = normalise(page && page.title, 100).replace(/[\r\n]+/g, " ");
     const stimulus = normaliseStimulus(page && page.stimulus);
     const sourceQuestions = Array.isArray(page && page.questions) ? page.questions : [];
     if (title.length < 3) throw fail("Generated page " + (pageIndex + 1) + " is missing a short topic title. No questions were saved.", 502);
