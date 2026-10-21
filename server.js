@@ -1987,7 +1987,7 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
     });
     const seenFingerprints = new Set((existing || []).map(row => questionFingerprint(row)));
     const batchFingerprints = new Set();
-    const questionTextKey = value => String(value || "").normalize("NFKC").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, " ").trim().replace(/\\s+/g, " ");
+    const questionTextKey = value => String(value || "").normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
     const seenQuestionTexts = new Set((existing || []).map(row => questionTextKey(row.question_text)).filter(Boolean));
     const usedGroupNames = new Set((existing || []).map(row => String(row.stimulus_group || "").toUpperCase()).filter(Boolean));
     const rows = [];
