@@ -1715,24 +1715,16 @@ app.get("/api/admin/question-analytics", requireAdmin, async (req,res) => {
   });
 });
 
+const { getQuestionBank } = require("./server/application/queries/getQuestionBank");
+
 app.get("/api/admin/question-bank", requireAdmin, async (req,res) => {
   if (!supabase) return res.status(503).json({ error:"Supabase is not configured" });
   const section = String(req.query.section || "").trim();
   if (!ADMIN_BANK_SECTIONS.has(section)) return res.status(400).json({ error:"Invalid question-bank section" });
 
-  const { data, error } = await supabase
-    .from("generated_questions")
-    .select("id,year_level,section,subject,difficulty,time,question_text,answer_options,correct_answer,explanation,passage,stimulus_group,stimulus_image,is_bank,session_id,created_at,updated_at")
-    .eq("year_level","10")
-    .eq("section",section)
-    .eq("is_bank",true)
-    .order("stimulus_group",{ascending:true})
-    .order("id",{ascending:true});
-
-  if (error) return res.status(400).json({ error:error.message });
-
-  const activeCount = (data || []).filter(row => row.session_id).length;
-  res.json({ section, questions:data || [], count:(data || []).length, active_count:activeCount });
+  const result = await getQuestionBank({ supabase, section });
+  if (result.error) return res.status(400).json({ error:result.error.message });
+  res.json(result);
 });
 
 app.put("/api/admin/question-bank/group", requireAdmin, async (req,res) => {
@@ -2070,7 +2062,8 @@ app.post("/api/admin/question-bank/generate-with-hugging-face", requireAdmin, as
   }
 });
 
-app.get("/admin", (req,res) => res.sendFile(path.join(publicDir,"admin.html")));
+app.get("/admin", (req,res) => res.sendFile(path.join(studentDir,"admin.html")));
+app.get("/admin-legacy", (req,res) => res.sendFile(path.join(publicDir,"admin.html")));
 app.get("/admin/responses", (req,res) => res.sendFile(path.join(publicDir,"admin-responses.html")));
 app.get("/", (req,res) => res.sendFile(path.join(studentDir,"index.html")));
 app.use((req,res) => {
