@@ -452,8 +452,11 @@ function decorateGeneratedOnlyView(){
 function displayStimulusName(group,index){
   const raw=String(group||"").trim();
   const uuid=/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
-  if(!raw || uuid.test(raw) || /^(GEN|GENERATED)[-_ ]?(HUM|MS|MATH|HUMANITIES)?[-_ ]?(PAGE|STIMULUS)/i.test(raw)) return "Stimulus page "+(index+1);
-  const clean=raw.replace(uuid,"").replace(/[-_ ]+$/,"").trim();
+  if(!raw || uuid.test(raw)) return "Stimulus page "+(index+1);
+  // New generated pages use readable topic slugs; keep those visible while
+  // never exposing legacy UUID-based internal group identifiers.
+  if(/^GEN-(?:HUM|MS|MATH|SCI)-PAGE-[A-Z0-9]+(?:-[A-Z0-9]+)*$/i.test(raw)) return raw.toUpperCase();
+  const clean=raw.replace(/^(?:GENERATED?[-_ ]*)/i,"").replace(/[-_ ]+$/,"").trim();
   return clean && !/^(GEN|GENERATED)$/i.test(clean) ? clean : "Stimulus page "+(index+1);
 }
 
