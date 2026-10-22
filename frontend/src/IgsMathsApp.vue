@@ -37,6 +37,7 @@ function normalize(value) {
   return String(value ?? "").toLowerCase().trim()
     .replace(/[−–—]/g, "-").replace(/×/g, "*").replace(/÷/g, "/")
     .replace(/²/g, "^2").replace(/³/g, "^3").replace(/π/g, "pi")
+    .replace(/(cm|mm|km|m)2\b/g, "$1^2").replace(/(cm|mm|km|m)3\b/g, "$1^3")
     .replace(/,/g, "").replace(/\s+/g, "").replace(/\$/g, "")
     .replace(/squarecentimetres?|squarecentimeters?/g, "cm^2")
     .replace(/cubiccentimetres?|cubiccentimeters?/g, "cm^3")
