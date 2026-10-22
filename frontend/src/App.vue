@@ -69,6 +69,12 @@
           <small v-else>Shared-topic pages with multiple questions.</small>
         </button>
 
+        <a class="section-choice igs-practice-choice" href="/igs-maths.html">
+          <strong>IGS Maths Practice Test</strong>
+          <span>40 questions · 40 minutes</span>
+          <small>Year 8 checklist topics with worked explanations after each page.</small>
+        </a>
+
         <button
           class="section-choice"
           type="button"
