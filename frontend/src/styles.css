@@ -89,3 +89,6 @@
 .writing-expectations h3{margin:0 0 10px;font-size:18px}
 .writing-expectations p{margin:8px 0;color:var(--muted);line-height:1.6;font-size:14px}
 @media(max-width:680px){.four-test-grid{grid-template-columns:1fr}.writing-expectations{padding:18px}}
+
+/* The IGS practice card is a navigation link rather than a quiz-state button. */
+.igs-practice-choice{text-decoration:none}
