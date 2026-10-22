@@ -1,6 +1,6 @@
 <template>
 <main class="app-shell igs-maths-shell">
-  <header class="topbar"><div><div class="eyebrow">IGS PRACTICE · YEAR 8 MATHEMATICS</div><h1>IGS Maths Practice Test</h1><p class="subtitle">40 original questions based on the Year 8 Mathematics Exam Checklist.</p></div><button class="ghost-btn" @click="leaveTest">Back to test selection</button></header>
+  <header class="topbar"><div><div class="eyebrow">IGS PRACTICE · YEAR 8 MATHEMATICS</div><h1>IGS Maths Practice Test</h1><p class="subtitle">60 original questions based on the Year 8 Mathematics Exam Checklist.</p></div><button class="ghost-btn" @click="leaveTest">Back to test selection</button></header>
   <section v-if="finished" class="card start-card"><div class="eyebrow">PRACTICE COMPLETE</div><h2>Test complete</h2><p class="igs-score">{{ score }} / {{ questions.length }} correct ({{ Math.round(score / questions.length * 100) }}%)</p><div class="igs-topic-results"><div v-for="item in topicResults" :key="item.topic" class="igs-topic-result"><strong>{{ item.topic }}</strong><span>{{ item.correct }} / {{ item.total }}</span></div></div><button class="primary-btn" @click="restart">Try again</button></section>
   <section v-else class="quiz-screen">
     <div class="quiz-meta"><div><span>IGS Maths Practice Test</span><strong>Page {{ pageIndex + 1 }} of {{ pageCount }} · Questions {{ pageIndex * pageSize + 1 }}–{{ Math.min((pageIndex + 1) * pageSize, questions.length) }} of {{ questions.length }}</strong></div><div class="assessment-actions"><strong>{{ timeLabel }}</strong></div></div>
