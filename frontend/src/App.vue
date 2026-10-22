@@ -52,7 +52,7 @@
           @click="selectPracticeSection('humanities')"
         >
           <strong>Humanities</strong>
-          <span>40 questions · 40 minutes</span>
+          <span>60 questions · 40 minutes</span>
           <small v-if="completedPracticeSections.humanities">Completed in this assessment</small>
           <small v-else>Stimulus pages with multiple questions.</small>
         </button>
